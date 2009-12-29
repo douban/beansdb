@@ -1,8 +1,8 @@
 Dependencies
 ============
-Before deploying Memcachedb, make sure that following packages installed:
+Before deploying Beansdb, make sure that following packages installed:
 
-TokyoCabinet 1.3 or later
+TokyoCabinet 1.4 or later
 -------------------------
 http://1978th.net/tokyocabinet/
 
@@ -16,8 +16,8 @@ $svn co svn checkout http://beansdb.googlecode.com/svn/trunk/ beansdb-trunk
 $cd beansdb-trunk
 or
 $wget 
-$tar xvzf memcachedb-X.Y.Z.tar.gz
-$cd memcachedb-X.Y.Z
+$tar xvzf beansdb-X.Y.Z.tar.gz
+$cd beansdb-X.Y.Z
 
 $./configure
 $make
@@ -32,7 +32,7 @@ Running Examples:
 
 1. run as a single daemon
 
-  beansdb -p7900 -H /data/beansdb -T 0 -v
+  beansdb -p 7900 -H /data/beansdb -v
 
 2. test it
 
