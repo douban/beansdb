@@ -1,0 +1,274 @@
+Protocol
+--------
+
+Clients of memcached communicate with server through TCP connections.
+(A UDP interface is also available; details are below under "UDP
+protocol.") A given running memcached server listens on some
+(configurable) port; clients connect to that port, send commands to
+the server, read responses, and eventually close the connection.
+
+There is no need to send any command to end the session. A client may
+just close the connection at any moment it no longer needs it. Note,
+however, that clients are encouraged to cache their connections rather
+than reopen them every time they need to store or retrieve data.  This
+is because memcached is especially designed to work very efficiently
+with a very large number (many hundreds, more than a thousand if
+necessary) of open connections. Caching connections will eliminate the
+overhead associated with establishing a TCP connection (the overhead
+of preparing for a new connection on the server side is insignificant
+compared to this).
+
+There are two kinds of data sent in the memcache protocol: text lines
+and unstructured data.  Text lines are used for commands from clients
+and responses from servers. Unstructured data is sent when a client
+wants to store or retrieve data. The server will transmit back
+unstructured data in exactly the same way it received it, as a byte
+stream. The server doesn't care about byte order issues in
+unstructured data and isn't aware of them. There are no limitations on
+characters that may appear in unstructured data; however, the reader
+of such data (either a client or a server) will always know, from a
+preceding text line, the exact length of the data block being
+transmitted.
+
+Text lines are always terminated by \r\n. Unstructured data is _also_
+terminated by \r\n, even though \r, \n or any other 8-bit characters
+may also appear inside the data. Therefore, when a client retrieves
+data from a server, it must use the length of the data block (which it
+will be provided with) to determine where the data block ends, and not
+the fact that \r\n follows the end of the data block, even though it
+does.
+
+Keys
+----
+
+Data stored by memcached is identified with the help of a key. A key
+is a text string which should uniquely identify the data for clients
+that are interested in storing and retrieving it.  Currently the
+length limit of a key is set at 250 characters (of course, normally
+clients wouldn't need to use such long keys); the key must not include
+control characters or whitespace.
+
+Commands
+--------
+
+There are three types of commands. 
+
+Storage commands (there are six: "set", "add", "replace", "cas") 
+ask the server to store some data identified by a key. The
+client sends a command line, and then a data block; after that the
+client expects one line of response, which will indicate success or
+faulure.
+
+Retrieval commands (there are two: "get" and "gets") ask the server to
+retrieve data corresponding to a set of keys (one or more keys in one
+request). The client sends a command line, which includes all the
+requested keys; after that for each item the server finds it sends to
+the client one response line with information about the item, and one
+data block with the item's data; this continues until the server
+finished with the "END" response line.
+
+All other commands don't involve unstructured data. In all of them,
+the client sends one command line, and expects (depending on the
+command) either one line of response, or several lines of response
+ending with "END" on the last line.
+
+A command line always starts with the name of the command, followed by
+parameters (if any) delimited by whitespace. Command names are
+lower-case and are case-sensitive.
+
+
+Version Number
+--------------
+
+Each record in backends has a version number, bigger then zero. 
+When updating, the version number in command MUST bigger than it in
+storage backend. Version number zero in command, means that updating
+the content and increment the version number.
+
+
+Error strings
+-------------
+
+Each command sent by a client may be answered with an error string
+from the server. These error strings come in three types:
+
+- "ERROR\r\n" 
+
+  means the client sent a nonexistent command name.
+
+- "CLIENT_ERROR <error>\r\n"
+
+  means some sort of client error in the input line, i.e. the input
+  doesn't conform to the protocol in some way. <error> is a
+  human-readable error string.
+
+- "SERVER_ERROR <error>\r\n"
+
+  means some sort of server error prevents the server from carrying
+  out the command. <error> is a human-readable error string. In cases
+  of severe server errors, which make it impossible to continue
+  serving the client (this shouldn't normally happen), the server will
+  close the connection after sending the error line. This is the only
+  case in which the server closes a connection to a client.
+
+
+In the descriptions of individual commands below, these error lines
+are not again specifically mentioned, but clients must allow for their
+possibility.
+
+
+Storage commands
+----------------
+
+First, the client sends a command line which looks like this:
+
+<command name> <key> <flags> <exptime> <bytes> [<cas unqiue>]\r\n
+
+- <command name> is "set", "add", "replace", "append", "prepend", or "cas"
+
+  "set" means "store this data".  
+
+  "add" means "store this data, but only if the server *doesn't* already
+  hold data for this key".  
+
+  "replace" means "store this data, but only if the server *does*
+  already hold data for this key".
+
+  "append" means "add this data to an existing key after existing data".
+
+  "prepend" means "add this data to an existing key before existing data".
+
+  The append and prepend commands do not accept flags or exptime.
+  They update existing data portions, and ignore new flag and exptime
+  settings.
+
+  "cas" is a check and set operation which means "store this data but
+  only if no one else has updated since I last fetched it."
+
+- <key> is the key under which the client asks to store the data
+
+- <flags> is an arbitrary 16-bit unsigned integer (written out in
+  decimal) that the server stores along with the data and sends back
+  when the item is retrieved. Clients may use this as a bit field to
+  store data-specific information; this field is opaque to the server.
+  Note that in memcached 1.2.1 and higher, flags may be 32-bits, instead
+  of 16, but you might want to restrict yourself to 16 bits for
+  compatibility with older versions.
+
+- <exptime> is expiration time. If it's 0, the item never expires
+  (although it may be deleted from the cache to make place for other
+  items). If it's non-zero (either Unix time or offset in seconds from
+  current time), it is guaranteed that clients will not be able to
+  retrieve this item after the expiration time arrives (measured by
+  server time).  
+
+- <bytes> is the number of bytes in the data block to follow, *not*
+  including the delimiting \r\n. <bytes> may be zero (in which case
+  it's followed by an empty data block).
+
+- <cas unique> is a unique 64-bit value of an existing entry.
+  Clients should use the value returned from the "gets" command
+  when issuing "cas" updates.
+
+After this line, the client sends the data block:
+
+<data block>\r\n
+
+- <data block> is a chunk of arbitrary 8-bit data of length <bytes>
+  from the previous line.
+
+After sending the command line and the data blockm the client awaits
+the reply, which may be:
+
+- "STORED\r\n", to indicate success.
+
+- "NOT_STORED\r\n" to indicate the data was not stored, but not
+because of an error. This normally means that either that the
+condition for an "add" or a "replace" command wasn't met, or that the
+item is in a delete queue (see the "delete" command below).
+
+- "EXISTS\r\n" to indicate that the item you are trying to store with
+a "cas" command has been modified since you last fetched it.
+
+- "NOT_FOUND\r\n" to indicate that the item you are trying to store
+with a "cas" command did not exist or has been deleted.
+
+
+Retrieval command:
+------------------
+
+The retrieval commands "get" and "gets" operates like this:
+
+get <key>*\r\n
+gets <key>*\r\n
+
+- <key>* means one or more key strings separated by whitespace.
+
+After this command, the client expects zero or more items, each of
+which is received as a text line followed by a data block. After all
+the items have been transmitted, the server sends the string
+
+"END\r\n"
+
+to indicate the end of response.
+
+Each item sent by the server looks like this:
+
+VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+<data block>\r\n
+
+- <key> is the key for the item being sent
+
+- <flags> is the flags value set by the storage command
+
+- <bytes> is the length of the data block to follow, *not* including
+  its delimiting \r\n
+
+- <cas unique> is a unique 64-bit integer that uniquely identifies
+  this specific item.
+
+- <data block> is the data for this item.
+
+If some of the keys appearing in a retrieval request are not sent back
+by the server in the item list this means that the server does not
+hold items with such keys (because they were never stored, or stored
+but deleted to make space for more items, or expired, or explicitly
+deleted by a client).
+
+
+Deletion
+--------
+
+The command "delete" allows for explicit deletion of items:
+
+delete <key>\r\n
+
+- <key> is the key of the item the client wishes the server to delete
+
+The response line to this command can be one of:
+
+- "DELETED\r\n" to indicate success
+
+- "NOT_FOUND\r\n" to indicate that the item with this key was not
+  found.
+
+
+Other commands
+--------------
+
+"version" is a command with no arguments:
+
+version\r\n
+
+In response, the server sends
+
+"VERSION <version>\r\n", where <version> is the version string for the
+server.
+
+"quit" is a command with no arguments:
+
+quit\r\n
+
+Upon receiving this command, the server closes the
+connection. However, the client may also simply close the connection
+when it no longer needs it, without issuing this command.

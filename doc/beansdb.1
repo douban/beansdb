@@ -1,0 +1,74 @@
+.TH DADBY 1 "Jan 1, 2010"
+.SH NAME
+beansdb \- high-available distributed key-value storage system
+.SH SYNOPSIS
+.B beansdb
+.RI [ options ]
+.br
+.SH DESCRIPTION
+This manual page documents briefly the
+.B beansdb
+key-value storage daemon.
+.PP
+.B beansdb
+is a key-value storage system base on memcached and Tokyo Cabinet. Hash tree 
+was built inside for fast syncing after failing or any other unexpected errors.
+.br
+.SH OPTIONS
+These programs follow the usual GNU command line syntax. A summary of options
+is included below.
+.TP
+.B \-p <num>
+Listen on TCP port <num>, the default is port 7900.
+.TP
+.B \-l <ip_addr>
+Listen on <ip_addr>; default to INADDR_ANY. This is an important option to
+consider as there is no other way to secure the installation. Binding to an
+internal or firewalled network interface is suggested.
+.TP
+.B \-d
+Run beansdb as a daemon.
+.TP
+.B \-u <username>
+Assume the identity of <username> (only when run as root).
+.TP
+.B \-c <num>
+Use <num> max simultaneous connections; the default is 1024.
+.TP
+.B \-H <datadir>
+home <datadir> of database, default is 'testdb'
+.TP
+.B \-T <num>
+log of the number of db files(base 16), default is 2 (means 256 db files).
+.TP
+.B \-P <filename>
+Print pidfile to <filename>, only used under \-d option.
+.TP
+.B \-t <threads>
+Number of threads to use to process incoming requests(default is 16).
+.TP
+.B \-r
+Raise the core file size limit to the maximum allowable.
+.TP
+.B \-h
+Show the version of beansdb and a summary of options.
+.TP
+.B \-v
+Be verbose during the event loop; print out errors and warnings.
+.TP
+.B \-vv
+Be even more verbose; same as \-v but also print client commands and
+responses.
+.br
+.SH LICENSE
+The beansdb daemon is copyright Douban Inc and is distributed under
+the BSD license. Note that daemon clients are licensed separately.
+.br
+.SH SEE ALSO
+The README file that comes with beansdb
+.br
+.B http://beansdb.googlecode.com/
+.SH AUTHOR
+The beansdb daemon was written by Davies Liu
+.B <davies.liu@gmail.com>
+.br
