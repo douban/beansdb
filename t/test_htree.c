@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <mcheck.h>
 #include "../htree.h"
 
 int main(int argc, char** argv)

@@ -110,9 +110,9 @@ class Client(object):
         pass
 
 def test():
-    c = Client({"localhost:7901":range(16),
-                "localhost:7902":range(16),
-                "localhost:7903":range(16)})
+    c = Client({"localhost:11211":range(16),
+                "localhost:11212":range(16),
+                "localhost:11213":range(16)})
     print c.set('a', 'aaaa', 0)
     print c.get('a')
 
@@ -190,16 +190,16 @@ def main():
     parser = OptionParser()
     parser.add_option("-l", "--listen", dest="host", default="0.0.0.0",
             help="the ip interface to bind")
-    parser.add_option("-p", "--port", default=7902, type=int,
+    parser.add_option("-p", "--port", default=11212, type=int,
             help="which port to listen")
     parser.add_option("-d", "--daemon", action="store_true", 
             help="run in daemon", default=False)
 
     (options, args) = parser.parse_args()
 
-    cfg = {"localhost:7901":range(16),
-            "localhost:7902":range(16),
-            "localhost:7903":range(16)}
+    cfg = {"localhost:11211":range(16),
+            "localhost:11212":range(16),
+            "localhost:11213":range(16)}
     store = Client(cfg, 16)
 
     print "server listening on %s:%s" % (options.host, options.port)

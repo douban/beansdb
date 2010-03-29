@@ -22,7 +22,6 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <math.h>
-#include <mcheck.h>
 
 #include <tcutil.h>
 #include <tchdb.h>
