@@ -36,15 +36,15 @@ Any suggestion or feedback is welcome.
 
 ## Supported memcache commands
 
-get
-set(with version support)
-append
-incr
-delete
-stats
-flush_all
+* get
+* set(with version support)
+* append
+* incr
+* delete
+* stats
+* flush_all
 
 ## Private commands
 
-get @xxx, list the content of hash tree, such as @0f
-get ?xxx, get the meta data of key.
+* get @xxx, list the content of hash tree, such as @0f
+* get ?xxx, get the meta data of key.
