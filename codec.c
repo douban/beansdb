@@ -92,10 +92,7 @@ int dc_encode(char* buf, const char* src, int len)
     if (src == NULL || buf == NULL){
         return 0;
     }
-    if (len > 20 && memcmp(src, "/photo/", 7) == 0 && strstr(src, "_") != NULL) {
-        // skip /photo/thumb/SG94-EpQ_p866859435
-        goto RET;
-    } else if (len > 6 && len < 100 && src[0] > 0){
+    if (len > 6 && len < 100 && src[0] > 0){
         int m=0;
         char fmt[255];
         bool hex[20];
@@ -103,17 +100,6 @@ int dc_encode(char* buf, const char* src, int len)
         int32_t args[10];
         const char *p=src, *q=src + len;
         char *dst=fmt;
-        if ((len >= 18 && memcmp(src, "/status/", 8) == 0 ||    
-            len == 29 && memcmp(src, "/anduin/urlgrabcontent/", 23) == 0) 
-            && src[len-7] == '/') {
-            // hack for /status/raw/2IP3Kv 
-            memcpy(dst, src, len-5);
-            dst += len-5;
-            *dst ++ = '%';
-            *dst ++ = 'v';
-            args[0] = b64_encode(src+len-5, 5);
-            m = 1;
-        }else{
         while(p<q){
             if (*p == '%' || *p == '@' || *p == ':'){  // not supported format
                 goto RET;
@@ -152,7 +138,6 @@ int dc_encode(char* buf, const char* src, int len)
             }else{
                 *dst ++ = *p++;
             }
-        }
         }
         *dst = 0; // ending 0
         int flen = dst - fmt, prefix;
