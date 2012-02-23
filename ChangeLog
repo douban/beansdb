@@ -1,5 +1,27 @@
-2011-11-24 0.5.6 
-	* support multi directories as Home, manage disk spaces auto.
+2011-11-25 0.5.6 
+	* new: support multi directories as Home, manage disk spaces auto.
+    * improve: using multi threads when boot scaning.
+
+2011-09-22 0.5.5
+    * improve: improve codec, support more patterns of keys
+    * bugfix: crash because of get_proc_stats, get maxrss from /proc/self/statm
+
+2011-08-16 0.5.4
+    * improve: codec, enlarge buffer size
+
+2011-01-11 0.5.3
+    * new: scan hash tree with prefix, for example, @xxx:prefix
+    * new: optimize data file in place (gc)
+    * improve: leader/follower threads model
+    * improve: less memory in htree
+
+2010-11-10 0.5.1
+    * new: pub/sub threads model 
+    * new: compress records and hint with QuickLZ
+
+2010-10-25 0.5.0
+    * new: bitcask storage
+    * new: append and incr command
 
 2009-12-25 0.3.0
 	* First public release.
