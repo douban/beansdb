@@ -34,8 +34,8 @@ Any suggestion or feedback is welcome.
 
 * Memcache protocol compatibility
 
+## Supported memcache commands
 
-# Supported memcache commands
 get
 set(with version support)
 append
@@ -44,8 +44,7 @@ delete
 stats
 flush_all
 
-
-# Private commands
+## Private commands
 
 get @xxx, list the content of hash tree, such as @0f
 get ?xxx, get the meta data of key.
