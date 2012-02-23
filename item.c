@@ -199,39 +199,3 @@ item *item_get(char *key, size_t nkey){
     }
     return it;
 }
-
-/* 0 for Success
-   -1 for SERVER_ERROR
-*/
-int item_put(char *key, size_t nkey, item *it){
-    int ret;
-    ret = hs_set(store, key, ITEM_data(it), it->nbytes - 2, 
-        it->ver, it->flag);
-    if (ret == 1) {
-        return 0;
-    } else {
-        return -1;
-    }
-}
-
-/* 0 for Success
-   1 for NOT_FOUND
-   -1 for SERVER_ERROR
-*/
-int item_delete(char *key, size_t nkey){
-    return 1 - hs_delete(store, key);
-}
-
-/*
-1 for exists
-0 for non-exist
-*/
-int item_exists(char *key, size_t nkey){
-    int ret, flag;
-    char *v = hs_get(store, key, &ret, &flag);
-    if (v){
-        free(v);
-        return 1;
-    }
-    return 0;
-}

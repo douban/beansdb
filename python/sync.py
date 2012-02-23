@@ -42,10 +42,7 @@ def sync_files(src, dst, path, s, d):
             else:
                 print path, src, k, 'is None', src.delete(k)
         elif s[k][0] != d[k][0]:
-            #print path, k, s[k], d.get(k)
-            if s[k][1] > 20000:
-                print 'big version', path, src, k, s[k]
-            elif s[k][1] > d[k][1]:
+            if s[k][1] > d[k][1]:
                 data = src.get(k)
                 if data is not None:
                     print path, k, s[k], d.get(k,(0,0)), src, "=>", dst, dst.set(k, data, s[k][1])

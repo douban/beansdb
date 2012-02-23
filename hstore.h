@@ -17,15 +17,15 @@
 
 typedef struct t_hstore HStore;
 
-HStore* hs_open(char *path, int height, int start, int end);
+HStore* hs_open(char *path, int height, time_t before);
+void    hs_flush(HStore *store, int limit, int period);
 void    hs_close(HStore *store);
-void    hs_check(HStore *store, int scan_limit);
-void    hs_stop_check(HStore *store);
-void    hs_flush(HStore *store, int limit);
-void    hs_clear(HStore *store);
-bool    hs_set(HStore *store, char *key, char* value, 
-                int vlen, int version, uint32_t flag);
 char*   hs_get(HStore *store, char *key, int *vlen, uint32_t *flag);
+bool    hs_set(HStore *store, char *key, char* value, int vlen, uint32_t flag, int version);
+bool    hs_append(HStore *store, char *key, char* value, int vlen);
+int64_t hs_incr(HStore *store, char *key, int64_t value); 
 bool    hs_delete(HStore *store, char *key);
-
+uint64_t hs_count(HStore *store, uint64_t *curr);
+void    hs_stat(HStore *store, uint64_t *total, uint64_t *avail);
+bool    hs_optimize(HStore *store, int limit);
 #endif

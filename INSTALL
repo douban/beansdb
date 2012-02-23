@@ -1,23 +1,18 @@
 Dependencies
 ============
-Before deploying Beansdb, make sure that following packages installed:
-
-TokyoCabinet 1.4 or later
--------------------------
-http://1978th.net/tokyocabinet/
-
-libevent 1.3e or later
--------------------------
-http://monkey.org/~provos/libevent/
+beansdb require epoll on Linux, or kqueue on *BSD/Mac OS.
 
 Installation
 ============
 $svn co svn checkout http://beansdb.googlecode.com/svn/trunk/ beansdb-trunk
 $cd beansdb-trunk
+$./autogen.sh
+
 or
-$wget 
-$tar xvzf beansdb-X.Y.Z.tar.gz
-$cd beansdb-X.Y.Z
+
+$wget http:// 
+$tar xvzf memcachedb-X.Y.Z.tar.gz
+$cd memcachedb-X.Y.Z
 
 $./configure
 $make
@@ -32,7 +27,7 @@ Running Examples:
 
 1. run as a single daemon
 
-  beansdb -p 7900 -H /data/beansdb -v
+  beansdb -p 7900 -H /data/beansdb -T 0 -v
 
 2. test it
 

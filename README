@@ -25,10 +25,13 @@ Features
 
 Supported memcache commands
 ***************************
-get, gets 
+get
 set(with version support)
+append
+incr
 delete
 stats
+flush_all
 
 Private commands
 ****************

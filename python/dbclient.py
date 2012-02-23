@@ -49,7 +49,7 @@ class WriteFailedError(Exception):
 
 
 class Beansdb(object):
-    hash_space = 1 << 32
+    hash_space = 1<<32
     cached = True
     def __init__(self, servers, buckets_count=16, N=3, W=1, R=1):
         self.buckets_count = buckets_count
@@ -57,23 +57,23 @@ class Beansdb(object):
         self.servers = {}
         self.server_buckets = {}
         self.buckets = [[] for i in range(buckets_count)]
-        for s, bs in servers.items():
+        for s,bs in servers.items():
             server = MCStore(s)
             self.servers[s] = server
             self.server_buckets[s] = bs
             for b in bs:
                 self.buckets[b].append(server)
         for b in range(self.buckets_count):
-            self.buckets[b].sort(key=lambda x:fnv1a("%d:%s:%d"%(b, x, b)))
+            self.buckets[b].sort(key=lambda x:fnv1a("%d:%s:%d"%(b,x,b)))
         self.N = N
         self.W = W
         self.R = R
 
     def print_buckets(self):
-        for i, ss in enumerate(self.buckets):
-            print i, ','.join(str(s) for s in ss)
-        for s, bs in self.server_buckets.items():
-            print s, len(bs)
+        for i,ss in enumerate(self.buckets):
+            print i,','.join(str(s) for s in ss)
+        for s,bs in self.server_buckets.items():
+            print s,len(bs)
 
     def _get_servers(self, key):
         hash = fnv1a(key)
@@ -82,7 +82,7 @@ class Beansdb(object):
 
     def get(self, key):
         ss = self._get_servers(key)
-        for i, s in enumerate(ss):
+        for i,s in enumerate(ss):
             r = s.get(key)
             if r is not None:
                 # self heal
@@ -111,20 +111,15 @@ class Beansdb(object):
         return True
 
 
-db = None
+BEANSDBCFG = {
+    "localhost:7901": range(16),
+    "localhost:7902": range(16),
+    "localhost:7903": range(16),
+}
 
-def init(config):
-    global db
-    db = Beansdb(config, 16)
+db = Beansdb(BEANSDBCFG, 16)
 
 def _test():
-    BEANSDBCFG = {
-        "localhost:7900": range(16),
-    #    "localhost:7902": range(16),
-    #    "localhost:7903": range(16),
-    }
-    init(BEANSDBCFG)
-
     u = "/test"
     data = "teatdata" * 100
     assert db.set(u, data)
