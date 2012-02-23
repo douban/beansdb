@@ -4,19 +4,19 @@ beansdb require epoll on Linux, or kqueue on *BSD/Mac OS.
 
 Installation
 ============
-$svn co svn checkout http://beansdb.googlecode.com/svn/trunk/ beansdb-trunk
-$cd beansdb-trunk
-$./autogen.sh
+$ git clone https://github.com/douban/beansdb
+$ cd beansdb
+$ ./autogen.sh
 
 or
 
-$wget http:// 
-$tar xvzf memcachedb-X.Y.Z.tar.gz
-$cd memcachedb-X.Y.Z
+$ # wget from github/douban/beansdb/
+$ tar xvzf beansdb-X.Y.Z.tar.gz
+$ cd beansdb-X.Y.Z
 
-$./configure
-$make
-$sudo make install
+$ ./configure
+$ make
+$ sudo make install
 
 Getting Started
 ===============

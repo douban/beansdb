@@ -1,5 +1,4 @@
 Special thanks go to people who have volunteered their time, effort,
 and ideas to make this software available. (Words quoted from squid)
 
-* The code of beansdb is most based on memcachedb <http://memcachedb.org/> 
-and Memcached <http://www.danga.com/memcached/>. 
+* The code of beansdb is most based on Memcached <http://www.danga.com/memcached/>. 
