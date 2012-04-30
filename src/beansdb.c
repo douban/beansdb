@@ -1047,13 +1047,6 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
     }
 
     out_string(c, hs_delete(store, key)?"DELETED":"NOT_FOUND");
-//    case -1:
-//        out_string(c, "SERVER_ERROR while delete a item");
-//        break;
-//    default:
-//        out_string(c, "SERVER_ERROR nothing to do");
-    }
-    return;
 }
 
 static void process_verbosity_command(conn *c, token_t *tokens, const size_t ntokens) {
