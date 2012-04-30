@@ -106,8 +106,13 @@ void bc_scan(Bitcask* bc)
             if (0 == stat(hintpath, &st)){
                 scanHintFile(bc->tree, i, hintpath, NULL);
             }else{
-                sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
-                scanDataFile(bc->tree, i, datapath, hintpath);                
+                hintpath[strlen(hintpath)-4] = '\0'; // drop ".qlz"
+                if (0 == stat(hintpath, &st)){
+                    scanHintFile(bc->tree, i, hintpath, NULL);
+                }else{
+                    sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
+                    scanDataFile(bc->tree, i, datapath, hintpath);                
+                }
             }
         }else{
             if (0 == stat(hintpath, &st) && 
