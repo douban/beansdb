@@ -62,6 +62,8 @@ Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
     }
     const char* t[] = {path};
     Mgr *mgr = mgr_create(t, 1);
+    if (mgr == NULL) return NULL;
+    
     Bitcask* bc = bc_open2(mgr, depth, pos, before);
     bc_scan(bc);
     return bc;

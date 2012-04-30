@@ -132,6 +132,10 @@ HStore* hs_open(char *path, int height, time_t before)
     store->op_end = 0;
     store->op_limit = 0;
     store->mgr = mgr_create((const char**)paths, npath);
+    if (store->mgr == NULL) {
+        free(store);
+        return NULL;
+    }
     store->bitcasks = (Bitcask**) malloc(sizeof(Bitcask*) * count);
     memset(store->bitcasks, 0, sizeof(Bitcask*) * count);
     for (i=0; i<NUM_OF_MUTEX; i++) {
@@ -153,6 +157,7 @@ HStore* hs_open(char *path, int height, time_t before)
             }
         }
         Mgr *mgr = mgr_create((const char**)buf, npath);
+        if (mgr == NULL) return NULL;
         store->bitcasks[i] = bc_open2(mgr, height, i, before);
     }
     for (i=0;i<npath;i++) {

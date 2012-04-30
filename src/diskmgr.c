@@ -37,6 +37,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
         if (0 != access(disks[i], F_OK) && 0 != mkdir(disks[i], 0755)) {
             free(mgr->disks);
             free(mgr);
+            fprintf(stderr, "access %s failed\n", disks[i]);
             return NULL;
         }
         mgr->disks[i] = strdup(disks[i]);
