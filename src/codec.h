@@ -16,9 +16,13 @@
 #ifndef __CODEC_H__
 #define __CODEC_H__
 
-void dc_init();
-int dc_encode(char* buf, const char *src, int len);
-int dc_decode(char* buf, const char *src, int len);
+typedef struct t_codec Codec;
+
+Codec* dc_new();
+void dc_destroy(Codec *dc);
+
+int dc_encode(Codec* dc, char* buf, const char *src, int len);
+int dc_decode(Codec* dc, char* buf, const char *src, int len);
 
 #endif
 

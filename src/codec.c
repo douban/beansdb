@@ -17,9 +17,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
-#include <pthread.h>
 
 #include "codec.h"
 
@@ -31,27 +29,37 @@ typedef struct {
 const size_t DICT_SIZE = 64 * 256;
 const size_t RDICT_SIZE = 64 * 256 * 128 - 1;
 
-static Fmt** dict = NULL;
-static int*  rdict = NULL;
-static int dict_used = 1;
-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+struct t_codec {
+    Fmt **dict;
+    int *rdict;
+    int dict_used;
+};
 
-void dc_init()
+Codec* dc_new() 
 {
-    pthread_mutex_lock(&lock);
+    Codec *dc = (Codec*) malloc(sizeof(struct t_codec));
 
-    if (dict == NULL) {
-        dict = (Fmt**)malloc(sizeof(char*) * DICT_SIZE);
-        memset(dict, 0, sizeof(Fmt*) * DICT_SIZE);
-        dict_used = 1;
-        
-        rdict = (int*)malloc(sizeof(int) * RDICT_SIZE);
-        memset(rdict, 0, sizeof(int) * RDICT_SIZE);
-    }
+    dc->dict = (Fmt**)malloc(sizeof(char*) * DICT_SIZE);
+    memset(dc->dict, 0, sizeof(Fmt*) * DICT_SIZE);
     
-    pthread_mutex_unlock(&lock);
+    dc->rdict = (int*)malloc(sizeof(int) * RDICT_SIZE);
+    memset(dc->rdict, 0, sizeof(int) * RDICT_SIZE);
+
+    dc->dict_used = 1;
+
+    return dc;
 }
 
+void dc_destroy(Codec *dc)
+{
+    if (dc == NULL) return;
+
+    free(dc->rdict);
+    free(dc->dict);
+    free(dc);
+}
+
+static inline 
 int32_t b64_encode(const char* src, int len) {
     int32_t n = 0;
     int i;
@@ -69,6 +77,7 @@ int32_t b64_encode(const char* src, int len) {
     return n;
 }
 
+static inline
 int b64_decode(char* dst, int32_t n) {
     int i;
     for (i=0;i<5;i++) {
@@ -87,12 +96,12 @@ int b64_decode(char* dst, int32_t n) {
     return 5;
 }
 
-int dc_encode(char* buf, const char* src, int len)
+int dc_encode(Codec* dc, char* buf, const char* src, int len)
 {
     if (src == NULL || buf == NULL){
         return 0;
     }
-    if (len > 6 && len < 100 && src[0] > 0){
+    if (dc != NULL && len > 6 && len < 100 && src[0] > 0){
         int m=0;
         char fmt[255];
         bool hex[20];
@@ -142,24 +151,21 @@ int dc_encode(char* buf, const char* src, int len)
         *dst = 0; // ending 0
         int flen = dst - fmt, prefix;
         if (m > 0 && m <= 2){
+            Fmt **dict = dc->dict;
             uint32_t h = fnv1a(fmt, flen) % RDICT_SIZE;
-            if (rdict[h] == 0){
-                pthread_mutex_lock(&lock);
-                if (rdict[h] == 0) {
-                    if (dict_used < DICT_SIZE) {
-                        dict[dict_used] = (Fmt*) malloc(sizeof(Fmt) + flen + 1);
-                        dict[dict_used]->nargs = m;
-                        memcpy(dict[dict_used]->fmt, fmt, flen + 1);
-                        fprintf(stderr, "new fmt %d: %s <= %s\n", dict_used, fmt, src);
-                        rdict[h] = dict_used ++;
-                    } else {
-                        fprintf(stderr, "not captched fmt: %s <= %s\n", fmt, src);
-                        rdict[h] = -1; // not again
-                    }
+            if (dc->rdict[h] == 0){
+                if (dc->dict_used < DICT_SIZE) {
+                    dict[dc->dict_used] = (Fmt*) malloc(sizeof(Fmt) + flen + 1);
+                    dict[dc->dict_used]->nargs = m;
+                    memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
+                    fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);
+                    dc->rdict[h] = dc->dict_used ++;
+                } else {
+                    fprintf(stderr, "not captched fmt: %s <= %s\n", fmt, src);
+                    dc->rdict[h] = -1; // not again
                 }
-                pthread_mutex_unlock(&lock);
             }
-            register int rh = rdict[h];
+            int rh = dc->rdict[h];
             if (rh > 0 && dict[rh] != NULL && strcmp(fmt, dict[rh]->fmt) == 0) {
                 if (rh < 64) {
                     prefix = 1;
@@ -182,13 +188,13 @@ RET:
     return len;
 }
 
-int dc_decode(char* buf, const char* src, int len)
+int dc_decode(Codec* dc, char* buf, const char* src, int len)
 {
     if (buf == NULL || src == NULL || len == 0){
         return 0;
     }
 
-    if (src[0] < 0){
+    if (dc != NULL && src[0] < 0){
         int idx = -*src;
         int32_t* args = (int32_t*)(src + 1);
         if (idx >= 64) {
@@ -196,7 +202,7 @@ int dc_decode(char* buf, const char* src, int len)
             idx += (*(unsigned char*)(src+1)) << 6;
             args = (int32_t*)(src + 2);
         }
-        Fmt *f = dict[idx];
+        Fmt *f = dc->dict[idx];
         int rlen = 0;
         int flen = strlen(f->fmt);
         if (f->fmt[flen-1] == 'v' && f->fmt[flen-2] == '%') {
@@ -218,4 +224,3 @@ int dc_decode(char* buf, const char* src, int len)
     buf[len] = 0;
     return len;
 }
-

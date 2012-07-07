@@ -58,6 +58,7 @@ struct t_hash_tree {
     int pos;
     int height;
     Node *root;
+    Codec *dc;
     pthread_mutex_t lock;
     char buf[512];
 };
@@ -94,10 +95,10 @@ inline void set_data(Node *node, Data *data)
     }
 }
 
-inline uint32_t key_hash(Item* it)
+inline uint32_t key_hash(HTree *tree, Item* it)
 {
     char buf[255];
-    int n = dc_decode(buf, it->key, KEYLENGTH(it));
+    int n = dc_decode(tree->dc, buf, it->key, KEYLENGTH(it));
     return fnv1a(buf, n);
 }
 
@@ -107,7 +108,7 @@ static Item* create_item(HTree *tree, const char* key, int len, uint32_t pos, ui
     it->pos = pos;
     it->ver = ver;
     it->hash = hash;
-    int n = dc_encode(it->key, key, len);
+    int n = dc_encode(tree->dc, it->key, key, len);
     it->length = sizeof(Item) + n - ITEM_PADDING;
     return it;
 }
@@ -205,7 +206,7 @@ static void split_node(HTree *tree, Node *node)
     Data *data = get_data(node);
     Item *it = data->head;
     for (i=0; i<data->count; i++) {
-        int32_t keyhash = key_hash(it);
+        int32_t keyhash = key_hash(tree, it);
         add_item(tree, child + INDEX(it), it, keyhash, false);
         it = (Item*)((char*)it + it->length);
     }
@@ -255,7 +256,7 @@ static void merge_node(HTree *tree, Node *node)
         int count = (child+i)->count;
         for (j=0; j < count; j++){
             if (it->ver > 0) {
-                add_item(tree, node, it, key_hash(it), false);
+                add_item(tree, node, it, key_hash(tree, it), false);
             } // drop deleted items, ver < 0
             it = (Item*)((char*)it + it->length);
         }
@@ -384,12 +385,12 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
         if (prefix != NULL) prefix_len = strlen(prefix);
         for (i=0; i<data->count; i++, it = (Item*)((char*)it + it->length)){
             if (dlen > 0){
-                sprintf(pbuf, "%08x", key_hash(it));
+                sprintf(pbuf, "%08x", key_hash(tree, it));
                 if (memcmp(pbuf + tree->depth + node->depth, dir, dlen) != 0){
                     continue;
                 }
             }
-            int l = dc_decode(key, it->key, KEYLENGTH(it));
+            int l = dc_decode(tree->dc, key, it->key, KEYLENGTH(it));
             if (prefix == NULL || l >= prefix_len && strncmp(key, prefix, prefix_len) == 0) {
                 n += snprintf(buf+n, bsize-n-1, "%s %u %d\n", key, it->hash, it->ver);
                 if (bsize - n < 200) {
@@ -416,7 +417,7 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
         Item *it = (Item*)tree->buf;
         for (i=0; i<data->count; i++){
             memcpy(it, p, sizeof(Item));
-            dc_decode(it->key, p->key, KEYLENGTH(p));
+            dc_decode(tree->dc, it->key, p->key, KEYLENGTH(p));
             it->length = sizeof(Item) + strlen(it->key) - ITEM_PADDING;
             visitor(it, param);
             p = (Item*)((char*)p + p->length);
@@ -456,8 +457,8 @@ HTree* ht_new(int depth, int pos)
     tree->root = root;
     clear(tree, tree->root);
 
+    tree->dc = dc_new();
     pthread_mutex_init(&tree->lock, NULL);
-    dc_init();
     
     return tree;
 }
@@ -467,6 +468,8 @@ void ht_destroy(HTree *tree)
     if (!tree) return;
 
     pthread_mutex_lock(&tree->lock);
+    
+    dc_destroy(tree->dc);
 
     int i;
     int pool_size = g_index[tree->height];
