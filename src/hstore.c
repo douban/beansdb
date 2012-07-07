@@ -32,11 +32,11 @@
 #define NUM_OF_MUTEX 97
 const int APPEND_FLAG  = 0x00000100;
 const int INCR_FLAG    = 0x00000204;
-const int SCAN_THREADS = 16;
 
 struct t_hstore {
     int height, count;
     time_t before;
+    int scan_threads;
     int op_start, op_end, op_limit; // for optimization
     Mgr* mgr;
     Bitcask** bitcasks;
@@ -73,7 +73,7 @@ static void* scan_thread(void *_args)
     HStore *store = args->store;
     int i, index = args->index;
     for (i=0; i<store->count; i++) {
-        if (i % SCAN_THREADS == index) {
+        if (i % store->scan_threads == index) {
             bc_scan(store->bitcasks[i]);
         }
     }
@@ -87,7 +87,7 @@ static void* scan_thread(void *_args)
     return NULL;
 }
 
-HStore* hs_open(char *path, int height, time_t before)
+HStore* hs_open(char *path, int height, time_t before, int scan_threads)
 {
     if (NULL == path) return NULL;
     if (height < 0 || height > 3) {
@@ -113,7 +113,7 @@ HStore* hs_open(char *path, int height, time_t before)
         }
         if (height > 1){
             // try to mkdir
-            HStore *s = hs_open(path, height - 1, 0);
+            HStore *s = hs_open(path, height - 1, 0, 0);
             if (s == NULL){
                 return NULL;
             }
@@ -128,6 +128,7 @@ HStore* hs_open(char *path, int height, time_t before)
     store->height = height;
     store->count = count;
     store->before = before;
+    store->scan_threads = scan_threads;
     store->op_start = 0;
     store->op_end = 0;
     store->op_limit = 0;
@@ -165,7 +166,7 @@ HStore* hs_open(char *path, int height, time_t before)
     }
     free(buf);
    
-    if (SCAN_THREADS > 1 && count > 1) {
+    if (store->scan_threads > 1 && count > 1) {
         scan_completed = 0;
         pthread_mutex_init(&scan_lock, NULL);
         pthread_cond_init(&scan_cond, NULL);
@@ -175,8 +176,8 @@ HStore* hs_open(char *path, int height, time_t before)
         pthread_attr_init(&attr);
 
         int i, ret;
-        struct scan_args *args = (struct scan_args *) malloc(sizeof(struct scan_args) * SCAN_THREADS);
-        for (i=0; i<SCAN_THREADS; i++) {
+        struct scan_args *args = (struct scan_args *) malloc(sizeof(struct scan_args) * store->scan_threads);
+        for (i=0; i<store->scan_threads; i++) {
             args[i].store = store;
             args[i].index = i;
             if ((ret = pthread_create(&thread, &attr, scan_thread, args+i)) != 0) {
@@ -186,7 +187,7 @@ HStore* hs_open(char *path, int height, time_t before)
         }
 
         pthread_mutex_lock(&scan_lock);
-        while (scan_completed < SCAN_THREADS) {
+        while (scan_completed < store->scan_threads) {
             pthread_cond_wait(&scan_cond, &scan_lock);
         }
         pthread_mutex_unlock(&scan_lock);

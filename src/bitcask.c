@@ -271,6 +271,23 @@ void* build_thread(void *param)
     return NULL;
 }
 
+void bc_rotate(Bitcask *bc) {
+    // build in new thread
+    char hname[20], hintpath[255];
+    sprintf(hname, HINT_FILE, bc->curr);
+    sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
+    struct build_thread_args *args = (struct build_thread_args*)malloc(
+            sizeof(struct build_thread_args));
+    args->tree = bc->curr_tree;
+    args->path = strdup(hintpath);
+    pthread_t build_ptid;
+    pthread_create(&build_ptid, NULL, build_thread, args);
+    // next bucket
+    bc->curr ++;
+    bc->curr_tree = ht_new(bc->depth, bc->pos);
+    bc->wbuf_start_pos = 0;
+}
+
 void bc_flush(Bitcask *bc, int limit, int flush_period)
 {
     if (bc->curr >= MAX_BUCKET_COUNT) {
@@ -334,20 +351,7 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
         }
         
         if (bc->wbuf_start_pos + bc->wbuf_size > MAX_BUCKET_SIZE) {
-            // build in new thread
-            char hname[20], hintpath[255];
-            sprintf(hname, HINT_FILE, bc->curr);
-            sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
-            struct build_thread_args *args = (struct build_thread_args*)malloc(
-                    sizeof(struct build_thread_args));
-            args->tree = bc->curr_tree;
-            args->path = strdup(hintpath);
-            pthread_t build_ptid;
-            pthread_create(&build_ptid, NULL, build_thread, args);
-            // next bucket
-            bc->curr ++;
-            bc->curr_tree = ht_new(bc->depth, bc->pos);
-            bc->wbuf_start_pos = 0;
+            bc_rotate(bc);
         }
         pthread_mutex_unlock(&bc->buffer_lock);
     }
@@ -430,13 +434,18 @@ bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int v
 
     pthread_mutex_lock(&bc->buffer_lock);
     // record maybe larger than buffer
-    while (bc->wbuf_curr_pos + rlen > bc->wbuf_size) {
+    if (bc->wbuf_curr_pos + rlen > bc->wbuf_size) {
         pthread_mutex_unlock(&bc->buffer_lock);
         bc_flush(bc, 0, 0);
         pthread_mutex_lock(&bc->buffer_lock);
-        if (bc->wbuf_curr_pos + rlen > bc->wbuf_size) {
+        
+        while (rlen > bc->wbuf_size) {
             bc->wbuf_size *= 2;
-            bc->write_buffer = realloc(bc->write_buffer, bc->wbuf_size);
+            free(bc->write_buffer);
+            bc->write_buffer = malloc(bc->wbuf_size);
+        }
+        if (bc->wbuf_start_pos + bc->wbuf_size > MAX_BUCKET_SIZE) {
+            bc_rotate(bc);
         }
     }
     memcpy(bc->write_buffer + bc->wbuf_curr_pos, rbuf, rlen);

@@ -20,12 +20,18 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <pthread.h>
+#include <time.h>
 
 #include "hint.h"
 #include "quicklz.h"
 //#include "fnv1a.h"
 
 const int NAME_IN_RECORD = 2;
+
+const  int MAX_MMAP_SIZE = 1<<12; // 4G
+static int curr_mmap_size = 0;
+static pthread_mutex_t mmap_lock = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct hint_record {
     uint32_t ksize:8;
@@ -74,7 +80,7 @@ void write_file(char *buf, int size, const char* path)
     int n = fwrite(buf, 1, size, hf); 
     fclose(hf);
 
-    if (n == size) {
+    if (size == 0 || n == size) {
         unlink(path);
         rename(tmp, path);
     }else{
@@ -121,18 +127,30 @@ MFile* open_mfile(const char* path)
         return  NULL;
     }
     
+    pthread_mutex_lock(&mmap_lock);
+    int mb = sb.st_size >> 20;
+    while (curr_mmap_size + mb > MAX_MMAP_SIZE && mb > 100) {
+        pthread_mutex_unlock(&mmap_lock);
+        sleep(5);
+        pthread_mutex_lock(&mmap_lock);
+    }
+    curr_mmap_size += mb;
+    pthread_mutex_unlock(&mmap_lock);
+    
     char *addr = (char*) mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (addr == MAP_FAILED){
         fprintf(stderr, "mmap failed %s\n", path);
         close(fd);
+        pthread_mutex_lock(&mmap_lock);
+        curr_mmap_size -= mb;
+        pthread_mutex_unlock(&mmap_lock);
         return NULL;
     }
 
     MFile *f = (MFile*) malloc(sizeof(MFile));
     if (f == NULL) {
         fprintf(stderr, "out of memory\n");
-        close(fd); 
-        return NULL;
+        exit(1);
     }
 
     f->fd = fd;
@@ -145,6 +163,9 @@ void close_mfile(MFile *f)
 {
     munmap(f->addr, f->size);
     close(f->fd);
+    pthread_mutex_lock(&mmap_lock);
+    curr_mmap_size -= f->size >> 20;
+    pthread_mutex_unlock(&mmap_lock);
     free(f);
 }
 

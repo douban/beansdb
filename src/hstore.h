@@ -17,7 +17,7 @@
 
 typedef struct t_hstore HStore;
 
-HStore* hs_open(char *path, int height, time_t before);
+HStore* hs_open(char *path, int height, time_t before, int scan_threads);
 void    hs_flush(HStore *store, int limit, int period);
 void    hs_close(HStore *store);
 char*   hs_get(HStore *store, char *key, int *vlen, uint32_t *flag);

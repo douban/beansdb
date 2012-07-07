@@ -413,7 +413,7 @@ HTree* optimizeDataFile(HTree* tree, int bucket, const char* path, const char* h
         }
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
-        if (it && it->pos  == (pos | bucket) && it->ver > 0) {
+        if (it && it->pos  == (pos | bucket) && (it->ver > 0 || limit > 0)) {
             uint32_t new_pos = ftell(new_df);
             uint16_t hash = it->hash;
             ht_add2(cur_tree, r->key, r->ksz, new_pos | bucket, hash, it->ver);

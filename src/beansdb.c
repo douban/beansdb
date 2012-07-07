@@ -1647,7 +1647,7 @@ static void usage(void) {
            "-r            maximize core file limit\n"
            "-u <username> assume identity of <username> (only when run as root)\n"
            "-c <num>      max simultaneous connections, default is 1024\n"
-           "-t <num>      number of threads to use, default 16\n"
+           "-t <num>      number of threads to use (include scanning), default 16\n"
            "-H <dir>      home of database, default is 'testdb', multi-dir(splitted by ,;:)\n"
            "-T <num>      log of the number of db files(base 16), default is 1(16^1=16)\n"
            "-s <num>      slow command time limit, in ms, default is 100ms\n"
@@ -2013,7 +2013,7 @@ int main (int argc, char **argv) {
     }
 
     /* open db */
-    store = hs_open(dbhome, height, before_time);
+    store = hs_open(dbhome, height, before_time, settings.num_threads);
     if (!store){
         fprintf(stderr, "failed to open db %s\n", dbhome);
         exit(1);
