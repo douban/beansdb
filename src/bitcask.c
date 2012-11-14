@@ -37,15 +37,19 @@ const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
 const uint32_t MAX_BUCKET_SIZE = (uint32_t)4 << 30; // 2G
 const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
+const int SAVE_HTREE_LIMIT = 1;
+
 const char DATA_FILE[] = "%03d.data";
 const char HINT_FILE[] = "%03d.hint.qlz";
+const char HTREE_FILE[] = "%03d.htree";
 
 struct bitcask_t {
     uint32_t depth, pos;
     time_t before;
     Mgr    *mgr;
     HTree  *tree, *curr_tree;
-    uint64_t bytes;
+    int    last_snapshot;
+    uint64_t bytes, curr_bytes;
     uint32_t curr;
     char   *write_buffer;
     time_t last_flush_time;
@@ -79,7 +83,10 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     bc->depth = depth;
     bc->pos = pos;
     bc->before = before;
-    bc->tree = ht_new(depth, pos);
+    bc->bytes = 0;
+    bc->curr_bytes = 0;
+    bc->tree = NULL;
+    bc->last_snapshot = -1;
     bc->curr_tree = ht_new(depth, pos);
     bc->wbuf_size = 1024 * 4;
     bc->write_buffer = malloc(bc->wbuf_size);
@@ -96,7 +103,27 @@ void bc_scan(Bitcask* bc)
     char dname[20], hname[20], datapath[255], hintpath[255];
     int i=0;
     struct stat st;
-    for (i=0; i<MAX_BUCKET_COUNT; i++) {
+    // load snapshot of htree
+    for (i=MAX_BUCKET_COUNT-1; i>=0; i--) {
+        sprintf(dname, HTREE_FILE, i);
+        sprintf(datapath, "%s/%s", path, dname);
+        if (stat(datapath, &st) == 0) {
+            bc->tree = ht_open(bc->depth, bc->pos, datapath);
+            if (bc->tree != NULL) {
+                bc->last_snapshot = i;
+                break;
+            } else {
+                fprintf(stderr, "open HTree from %s failed\n", datapath);
+                unlink(datapath);
+            }
+        }
+    }
+    if (bc->tree == NULL) {
+        bc->tree = ht_new(bc->depth, bc->pos);
+    }
+
+    i ++;
+    for (; i<MAX_BUCKET_COUNT; i++) {
         sprintf(dname, DATA_FILE, i);
         sprintf(datapath, "%s/%s", path, dname);
         if (stat(datapath, &st) != 0) {
@@ -122,6 +149,24 @@ void bc_scan(Bitcask* bc)
             }
         }
     }
+
+    if (i - bc->last_snapshot > SAVE_HTREE_LIMIT) {
+        sprintf(dname, HTREE_FILE, i-1);
+        sprintf(datapath, "%s/%s.tmp", path, dname);
+        if (ht_save(bc->tree, datapath) == 0) {
+            sprintf(hintpath, "%s/%s", path, dname);
+            rename(datapath, hintpath);
+
+            sprintf(dname, HTREE_FILE, bc->last_snapshot);
+            sprintf(datapath, "%s/%s.tmp", path, dname);
+            unlink(datapath);
+
+            bc->last_snapshot = i-1;
+        } else {
+            fprintf(stderr, "save HTree to %s failed\n", datapath);
+        }
+    }
+    
     bc->curr = i;
 }
 
@@ -131,13 +176,14 @@ void bc_scan(Bitcask* bc)
 void bc_close(Bitcask *bc)
 {
     int i=0;
+    char dname[20], hname[20], datapath[255], hintpath[255];
+    
     pthread_mutex_lock(&bc->write_lock);
+    
     bc_flush(bc, 0, 0);
     
     if (NULL != bc->curr_tree) {
-        uint32_t curr;
-        ht_get_hash(bc->curr_tree, "@", &curr);
-        if (curr > 0) {
+        if (bc->curr_bytes > 0) {
             char name[255], buf[255];
             sprintf(name, HINT_FILE, bc->curr);
             sprintf(buf, "%s/%s", mgr_alloc(bc->mgr, name), name);
@@ -147,8 +193,25 @@ void bc_close(Bitcask *bc)
         }
         bc->curr_tree = NULL;
     }
-    bc->curr = 0;
+
+    if (bc->curr_bytes == 0) bc->curr --;
+    if (bc->curr - bc->last_snapshot >= SAVE_HTREE_LIMIT) {
+        const char* path = mgr_base(bc->mgr);
+        sprintf(dname, HTREE_FILE, bc->curr);
+        sprintf(datapath, "%s/%s.tmp", path, dname);
+        if (ht_save(bc->tree, datapath) == 0) {
+            sprintf(hintpath, "%s/%s", path, dname);
+            rename(datapath, hintpath);
+
+            sprintf(dname, HTREE_FILE, bc->last_snapshot);
+            sprintf(datapath, "%s/%s.tmp", path, dname);
+            unlink(datapath);
+        } else {
+            fprintf(stderr, "save HTree to %s failed\n", datapath);
+        }
+    }
     ht_destroy(bc->tree);
+
     mgr_destroy(bc->mgr);
     free(bc->write_buffer);
     free(bc);
@@ -330,6 +393,7 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
 
         pthread_mutex_lock(&bc->buffer_lock);
         bc->bytes += n;
+        bc->curr_bytes += n;
         if (n < bc->wbuf_curr_pos) {
             memmove(bc->write_buffer, bc->write_buffer + n, bc->wbuf_curr_pos - n);
         }

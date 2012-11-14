@@ -24,5 +24,9 @@ void dc_destroy(Codec *dc);
 int dc_encode(Codec* dc, char* buf, const char *src, int len);
 int dc_decode(Codec* dc, char* buf, const char *src, int len);
 
+int dc_size(Codec* dc);
+int dc_dump(Codec* dc, char *buf, int size);
+int dc_load(Codec* dc, const char *buf, int size);
+
 #endif
 

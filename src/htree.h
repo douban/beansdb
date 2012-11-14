@@ -43,6 +43,9 @@ uint32_t ht_get_hash(HTree *tree, const char *key, int *count);
 char*    ht_list(HTree *tree, const char *dir, const char *prefix);
 void     ht_visit(HTree *tree, fun_visitor visitor, void *param);
 
+HTree*     ht_open(int depth, int pos, const char *path);
+int     ht_save(HTree *tree, const char *path);
+
 // not thread safe
 void     ht_add2(HTree *tree, const char* key, int ksz, uint32_t pos, uint16_t hash, int32_t ver);
 void     ht_remove2(HTree *tree, const char *key, int ksz);

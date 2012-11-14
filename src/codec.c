@@ -22,16 +22,20 @@
 #include "codec.h"
 
 typedef struct {
-    int nargs;
-    char fmt[0];
+    unsigned char nargs;
+    char fmt[7];
 } Fmt;
 
-const size_t DICT_SIZE = 64 * 256;
-const size_t RDICT_SIZE = 64 * 256 * 128 - 1;
+inline int fmt_size(Fmt *fmt) {
+    return sizeof(Fmt) + strlen(fmt->fmt) - 7 + 1;
+}
+
+const size_t DICT_SIZE = 4096;
+const size_t RDICT_SIZE = 4096 * 19 - 1;
 
 struct t_codec {
     Fmt **dict;
-    int *rdict;
+    short *rdict;
     int dict_used;
 };
 
@@ -48,6 +52,68 @@ Codec* dc_new()
     dc->dict_used = 1;
 
     return dc;
+}
+
+int dc_size(Codec *dc) {
+    int i, s = sizeof(int) * 3;
+    for (i=1; i<dc->dict_used; i++) {
+        s += 1 + fmt_size(dc->dict[i]);
+    }
+    s += sizeof(short) * RDICT_SIZE;
+    return s;
+}
+
+int dc_dump(Codec *dc, char *buf, int size)
+{
+    char *orig = buf;
+    int i=0, *pi = (int*)buf;
+    if (size < sizeof(int) * 3) return -1;
+    pi[0] = DICT_SIZE;
+    pi[1] = RDICT_SIZE;
+    pi[2] = dc->dict_used;
+    buf += sizeof(int) * 3;
+
+    for (i=1; i<dc->dict_used; i++) {
+        unsigned char s = fmt_size(dc->dict[i]);
+        if (buf + s + 1 - orig > size) return -1;
+        *(unsigned char*)buf ++ = s;
+        memcpy(buf, &dc->dict[i], s);
+        buf += s;
+    }
+
+    if (buf + sizeof(short) * RDICT_SIZE - orig > size) return -1;
+    memcpy(buf, dc->rdict, sizeof(short) * RDICT_SIZE);
+    buf += sizeof(short) * RDICT_SIZE;
+
+    return buf - orig;
+}
+
+int dc_load(Codec *dc, const char *buf, int size)
+{
+    const char *orig = buf;
+    int i, *pi = (int*) buf;
+    if (dc == NULL) return -1;
+    if (pi[0] != DICT_SIZE || pi[1] != RDICT_SIZE) return -1;
+    dc->dict_used = pi[2];
+    buf += sizeof(int) * 3;
+
+    for (i=1; i<dc->dict_used; i++) {
+        size_t s = *(unsigned char*) buf++;
+        dc->dict[i] = (Fmt*)malloc(s);
+        if (dc->dict[i] == NULL) {
+            dc->dict_used = 1;
+            return -1;
+        }
+        memcpy(dc->dict[i], buf, s);
+        buf += s;
+    }
+
+    memcpy(dc->rdict, buf, sizeof(short) * RDICT_SIZE);
+    buf += sizeof(short) * RDICT_SIZE;
+
+    if (orig + size != buf) return -1;
+
+    return 0;
 }
 
 void dc_destroy(Codec *dc)
@@ -155,7 +221,7 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
             uint32_t h = fnv1a(fmt, flen) % RDICT_SIZE;
             if (dc->rdict[h] == 0){
                 if (dc->dict_used < DICT_SIZE) {
-                    dict[dc->dict_used] = (Fmt*) malloc(sizeof(Fmt) + flen + 1);
+                    dict[dc->dict_used] = (Fmt*) malloc(sizeof(Fmt) + flen - 7 + 1);
                     dict[dc->dict_used]->nargs = m;
                     memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
                     fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);

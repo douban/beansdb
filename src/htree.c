@@ -29,6 +29,8 @@ const int SPLIT_LIMIT = 64;
 const int MAX_DEPTH = 8;
 static const long long g_index[] = {0, 1, 17, 273, 4369, 69905, 1118481, 17895697, 286331153, 4581298449L};
 
+const char VERSION[] = "HTREE001";
+
 #define max(a,b) ((a)>(b)?(a):(b))
 #define INDEX(it) (0x0f & (keyhash >> ((7 - node->depth - tree->depth) * 4)))
 #define KEYLENGTH(it) ((it)->length-sizeof(Item)+ITEM_PADDING)
@@ -461,6 +463,190 @@ HTree* ht_new(int depth, int pos)
     pthread_mutex_init(&tree->lock, NULL);
     
     return tree;
+}
+
+HTree* ht_open(int depth, int pos, const char *path)
+{
+    char version[sizeof(VERSION)+1] = {0};
+    char *buf = NULL;
+
+    FILE *f = fopen(path, "rb");
+    if (f == NULL) {
+        fprintf(stderr, "open %s failed\n", path);
+        return NULL;
+    }
+
+    if (fread(version, sizeof(VERSION), 1, f) != 1
+        || memcmp(version, VERSION, sizeof(VERSION)) != 0) {
+        fprintf(stderr, "the version %s is not expected\n", version);
+        fclose(f);
+        return NULL;
+    }
+
+    off_t fsize = 0;
+    fread(&fsize, sizeof(fsize), 1, f);
+    fseek(f, 0, 2);
+    if (ftello(f) != fsize) {
+        fprintf(stderr, "the size %lu is not expected\n", fsize);
+        fclose(f);
+        return NULL;
+    }
+    fseek(f, sizeof(VERSION) + sizeof(off_t), 0);
+
+    HTree *tree = (HTree*)malloc(sizeof(HTree));
+    if (!tree) {
+        fclose(f);
+        return NULL;
+    }
+    memset(tree, 0, sizeof(HTree));
+    tree->depth = depth;
+    tree->pos = pos;
+
+    fread(&tree->height, sizeof(int), 1, f);
+    if (tree->height + depth < 0 || tree->height + depth > 9) {
+        fprintf(stderr, "invalid height: %d\n", tree->height);
+        free(tree);
+        fclose(f);
+        return NULL;
+    }
+    
+    int pool_size = g_index[tree->height];
+    int psize = sizeof(Node) * pool_size;
+    Node *root = (Node*)malloc(psize);
+    if (!root){
+        goto FAIL;
+    }
+    if (fread(root, psize, 1, f) != 1) {
+        goto FAIL;
+    }
+    tree->root = root;
+    
+    // load Data
+    int i,size = 0;
+    Data *data;
+    for (i=0; i<pool_size; i++) {
+        fread(&size, sizeof(int), 1, f);
+        if (size > 0) {
+            data = (Data*) malloc(size);
+            if (fread(data, size, 1, f) != 1) {
+                goto FAIL;
+            }
+            if (data->used != size) {
+                fprintf(stderr, "broken data: %d != %d\n", data->used, size);
+                goto FAIL;
+            }
+            data->size = size;
+        } else if (data == 0) {
+            data = NULL;
+        }
+        tree->root[i].data = data;
+    }
+
+    // load Codec
+    if (fread(&size, sizeof(int), 1, f) != 1
+        || size < 0 || size > (1<<20)) {
+        fprintf(stderr, "bad codec size: %d\n", size);
+        goto FAIL;
+    }
+    buf = (char*)malloc(size);
+    if (buf == NULL || fread(buf, size, 1, f) != 1) {
+        fprintf(stderr, "read codec failed\n");
+        goto FAIL;
+    }
+    tree->dc = dc_new();
+    if (dc_load(tree->dc, buf, size) != 0) {
+        fprintf(stderr, "load codec failed\n");
+        goto FAIL;
+    }
+    free(buf);
+
+    pthread_mutex_init(&tree->lock, NULL);
+
+    return tree;
+
+FAIL:
+    if (tree->dc != NULL) dc_destroy(tree->dc);
+    if (buf != NULL) free(buf);
+    if (root != NULL) free(root);
+    if (tree != NULL) free(tree);
+    fclose(f);
+    return NULL;
+}
+
+int ht_save(HTree *tree, const char *path)
+{
+    if (!tree || !path) return -1;
+
+    FILE *f = fopen(path, "wb");
+    if (f == NULL) {
+        fprintf(stderr, "open %s failed\n", path);
+        return -1;
+    }
+
+    off_t pos = 0;
+    if (fwrite(VERSION, sizeof(VERSION), 1, f) != 1 ||
+        fwrite(&pos, sizeof(off_t), 1, f) != 1) {
+        fprintf(stderr, "write version failed\n");
+        fclose(f);
+        return -1;
+    }
+
+    pthread_mutex_lock(&tree->lock);
+
+    fwrite(&tree->height, sizeof(int), 1, f);
+    int pool_size = g_index[tree->height];
+    if (fwrite(tree->root, sizeof(Node) * pool_size, 1, f) != 1 ) {
+        fprintf(stderr, "write nodes failed\n");
+        fclose(f);
+        return -1;
+    }
+
+    int i, zero = 0;
+    for (i=0; i<pool_size; i++) {
+        Data *data= tree->root[i].data;
+        if (data) {
+            if (fwrite(&data->used, sizeof(int), 1, f) != 1
+                || fwrite(data, data->used, 1, f) != 1) {
+                fclose(f);
+                return -1;
+            }
+        }else {
+            if (fwrite(&zero, sizeof(int), 1, f) != 1) {
+                fclose(f);
+                return -1;
+            }
+        }
+    }
+    
+    int s = dc_size(tree->dc);
+    char *buf = malloc(s + sizeof(int));
+    *(int*)buf = s;
+    if (dc_dump(tree->dc, buf + sizeof(int), s) != s) {
+        fprintf(stderr, "dump Codec failed\n");
+        free(buf);
+        fclose(f);
+        return -1;
+    }
+    if (fwrite(buf, s + sizeof(int), 1, f) != 1) {
+        fprintf(stderr, "write Codec failed\n");
+        free(buf);
+        fclose(f);
+        return -1;
+    }
+    free(buf);
+    
+    pos = ftello(f);
+    fseek(f, sizeof(VERSION), 0);
+    if (fwrite(&pos, sizeof(off_t), 1, f) != 1) {
+        fprintf(stderr, "write size failed\n");
+        fclose(f);
+        return -1;
+    }
+    
+    pthread_mutex_unlock(&tree->lock);
+
+    fclose(f);
+    return 0;
 }
 
 void ht_destroy(HTree *tree)
