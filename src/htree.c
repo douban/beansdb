@@ -25,7 +25,7 @@
 
 const int MAX_KEY_LENGTH = 200;
 const int BUCKET_SIZE = 16;
-const int SPLIT_LIMIT = 32; 
+const int SPLIT_LIMIT = 64; 
 const int MAX_DEPTH = 8;
 static const long long g_index[] = {0, 1, 17, 273, 4369, 69905, 1118481, 17895697, 286331153, 4581298449L};
 
