@@ -30,11 +30,17 @@ inline int fmt_size(Fmt *fmt) {
     return sizeof(Fmt) + strlen(fmt->fmt) - 7 + 1;
 }
 
-const size_t DICT_SIZE = 4096;
-const size_t RDICT_SIZE = 4096 * 19 - 1;
+const size_t DEFAULT_DICT_SIZE = 1024;
+const size_t MAX_DICT_SIZE = 32000;
+
+inline int rdict_size(int dict_size) {
+    return dict_size * 7 + 1;
+}
 
 struct t_codec {
+    size_t dict_size;
     Fmt **dict;
+    size_t rdict_size;
     short *rdict;
     int dict_used;
 };
@@ -42,12 +48,14 @@ struct t_codec {
 Codec* dc_new() 
 {
     Codec *dc = (Codec*) malloc(sizeof(struct t_codec));
-
-    dc->dict = (Fmt**)malloc(sizeof(char*) * DICT_SIZE);
-    memset(dc->dict, 0, sizeof(Fmt*) * DICT_SIZE);
     
-    dc->rdict = (int*)malloc(sizeof(int) * RDICT_SIZE);
-    memset(dc->rdict, 0, sizeof(int) * RDICT_SIZE);
+    dc->dict_size = DEFAULT_DICT_SIZE;
+    dc->dict = (Fmt**)malloc(sizeof(Fmt*) * dc->dict_size);
+    memset(dc->dict, 0, sizeof(Fmt*) * dc->dict_size);
+   
+    dc->rdict_size = rdict_size(dc->dict_size);
+    dc->rdict = (short*)malloc(sizeof(short) * dc->rdict_size);
+    memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
 
     dc->dict_used = 1;
 
@@ -55,50 +63,78 @@ Codec* dc_new()
 }
 
 int dc_size(Codec *dc) {
-    int i, s = sizeof(int) * 3;
+    int i, s = sizeof(int);
     for (i=1; i<dc->dict_used; i++) {
         s += 1 + fmt_size(dc->dict[i]);
     }
-    s += sizeof(short) * RDICT_SIZE;
     return s;
 }
 
 int dc_dump(Codec *dc, char *buf, int size)
 {
     char *orig = buf;
-    int i=0, *pi = (int*)buf;
-    if (size < sizeof(int) * 3) return -1;
-    pi[0] = DICT_SIZE;
-    pi[1] = RDICT_SIZE;
-    pi[2] = dc->dict_used;
-    buf += sizeof(int) * 3;
+    int i=0;
+    if (size < sizeof(int)) return -1;
+    *(int*)buf = dc->dict_used;
+    buf += sizeof(int);
 
     for (i=1; i<dc->dict_used; i++) {
         unsigned char s = fmt_size(dc->dict[i]);
         if (buf + s + 1 - orig > size) return -1;
         *(unsigned char*)buf ++ = s;
-        memcpy(buf, &dc->dict[i], s);
+        memcpy(buf, dc->dict[i], s);
         buf += s;
     }
-
-    if (buf + sizeof(short) * RDICT_SIZE - orig > size) return -1;
-    memcpy(buf, dc->rdict, sizeof(short) * RDICT_SIZE);
-    buf += sizeof(short) * RDICT_SIZE;
 
     return buf - orig;
 }
 
+void dc_rebuild(Codec *dc) 
+{
+    int i;
+    free(dc->rdict);
+    dc->rdict_size = rdict_size(dc->dict_size);
+    dc->rdict = (short*) malloc(sizeof(short) * dc->rdict_size);
+    memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
+    for (i=1; i<dc->dict_used; i++) {
+        uint32_t h = fnv1a(dc->dict[i]->fmt, strlen(dc->dict[i]->fmt)) % dc->rdict_size;
+        while (dc->rdict[h] > 0) {
+            h ++;
+            if (h == dc->rdict_size) h = 0;
+        }
+        dc->rdict[h] = i;
+    }
+}
+
+void dc_enlarge(Codec *dc)
+{
+    dc->dict_size *= 2;
+    if (dc->dict_size > MAX_DICT_SIZE) dc->dict_size = MAX_DICT_SIZE;
+    dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
+
+    dc_rebuild(dc);
+}    
+
 int dc_load(Codec *dc, const char *buf, int size)
 {
     const char *orig = buf;
-    int i, *pi = (int*) buf;
+    int i;
     if (dc == NULL) return -1;
-    if (pi[0] != DICT_SIZE || pi[1] != RDICT_SIZE) return -1;
-    dc->dict_used = pi[2];
-    buf += sizeof(int) * 3;
+    dc->dict_used = *(int*)buf;
+    buf += sizeof(int);
+    if (dc->dict_size < dc->dict_used * 2) {
+        free(dc->dict);
+        dc->dict_size = dc->dict_used * 2;
+        if (dc->dict_size > MAX_DICT_SIZE) dc->dict_size = MAX_DICT_SIZE;
+        Fmt ** dict = (Fmt**) malloc(sizeof(Fmt*) * dc->dict_size);
+        if (dict == NULL) {
+            return -1;
+        }
+        dc->dict = dict; 
+    }
 
     for (i=1; i<dc->dict_used; i++) {
-        size_t s = *(unsigned char*) buf++;
+        int s = *(unsigned char*) buf++;
         dc->dict[i] = (Fmt*)malloc(s);
         if (dc->dict[i] == NULL) {
             dc->dict_used = 1;
@@ -108,10 +144,7 @@ int dc_load(Codec *dc, const char *buf, int size)
         buf += s;
     }
 
-    memcpy(dc->rdict, buf, sizeof(short) * RDICT_SIZE);
-    buf += sizeof(short) * RDICT_SIZE;
-
-    if (orig + size != buf) return -1;
+    dc_rebuild(dc);
 
     return 0;
 }
@@ -218,21 +251,29 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
         int flen = dst - fmt, prefix;
         if (m > 0 && m <= 2){
             Fmt **dict = dc->dict;
-            uint32_t h = fnv1a(fmt, flen) % RDICT_SIZE;
-            if (dc->rdict[h] == 0){
-                if (dc->dict_used < DICT_SIZE) {
+            uint32_t h = fnv1a(fmt, flen) % dc->rdict_size;
+            // test hash collision
+            while (dc->rdict[h] > 0 && strcmp(fmt, dict[dc->rdict[h]]->fmt) != 0) {
+                h ++;
+                if (h == dc->rdict_size) h = 0;
+            }
+            int rh = dc->rdict[h];
+            if (rh == 0){
+                if (dc->dict_used < dc->dict_size) {
                     dict[dc->dict_used] = (Fmt*) malloc(sizeof(Fmt) + flen - 7 + 1);
                     dict[dc->dict_used]->nargs = m;
                     memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
-                    fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);
-                    dc->rdict[h] = dc->dict_used ++;
+                    // fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);
+                    dc->rdict[h] = rh = dc->dict_used ++;
+                    if (dc->dict_used == dc->dict_size && dc->dict_size < MAX_DICT_SIZE) {
+                        dc_enlarge(dc);
+                    }
                 } else {
                     fprintf(stderr, "not captched fmt: %s <= %s\n", fmt, src);
-                    dc->rdict[h] = -1; // not again
+                    dc->rdict[h] = rh = -1; // not again
                 }
             }
-            int rh = dc->rdict[h];
-            if (rh > 0 && dict[rh] != NULL && strcmp(fmt, dict[rh]->fmt) == 0) {
+            if (rh > 0) {
                 if (rh < 64) {
                     prefix = 1;
                     *buf = - rh;
@@ -243,9 +284,6 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
                 }
                 memcpy(buf+prefix, args, sizeof(int32_t)*m);
                 return prefix + m * sizeof(int32_t);
-            }
-            if (rh > 0) {
-                fprintf(stderr, "collision fmt: %s <= %s\n", fmt, src);
             }
         }
     }

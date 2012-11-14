@@ -484,9 +484,9 @@ HTree* ht_open(int depth, int pos, const char *path)
     }
 
     off_t fsize = 0;
-    fread(&fsize, sizeof(fsize), 1, f);
-    fseek(f, 0, 2);
-    if (ftello(f) != fsize) {
+    if (fread(&fsize, sizeof(fsize), 1, f) != 1 ||
+        fseek(f, 0, 2) != 0 ||
+        ftello(f) != fsize) {
         fprintf(stderr, "the size %lu is not expected\n", fsize);
         fclose(f);
         return NULL;
@@ -502,8 +502,8 @@ HTree* ht_open(int depth, int pos, const char *path)
     tree->depth = depth;
     tree->pos = pos;
 
-    fread(&tree->height, sizeof(int), 1, f);
-    if (tree->height + depth < 0 || tree->height + depth > 9) {
+    if (fread(&tree->height, sizeof(int), 1, f) != 1 || 
+        tree->height + depth < 0 || tree->height + depth > 9) {
         fprintf(stderr, "invalid height: %d\n", tree->height);
         free(tree);
         fclose(f);
@@ -525,7 +525,9 @@ HTree* ht_open(int depth, int pos, const char *path)
     int i,size = 0;
     Data *data;
     for (i=0; i<pool_size; i++) {
-        fread(&size, sizeof(int), 1, f);
+        if(fread(&size, sizeof(int), 1, f) != 1) {
+            goto FAIL;
+        }
         if (size > 0) {
             data = (Data*) malloc(size);
             if (fread(data, size, 1, f) != 1) {
@@ -536,15 +538,18 @@ HTree* ht_open(int depth, int pos, const char *path)
                 goto FAIL;
             }
             data->size = size;
-        } else if (data == 0) {
+        } else if (size == 0) {
             data = NULL;
+        } else {
+            fprintf(stderr, "unexpected size: %d\n", size);
+            goto FAIL;
         }
         tree->root[i].data = data;
     }
 
     // load Codec
     if (fread(&size, sizeof(int), 1, f) != 1
-        || size < 0 || size > (1<<20)) {
+        || size < 0 || size > (10<<20)) {
         fprintf(stderr, "bad codec size: %d\n", size);
         goto FAIL;
     }
@@ -593,9 +598,9 @@ int ht_save(HTree *tree, const char *path)
 
     pthread_mutex_lock(&tree->lock);
 
-    fwrite(&tree->height, sizeof(int), 1, f);
     int pool_size = g_index[tree->height];
-    if (fwrite(tree->root, sizeof(Node) * pool_size, 1, f) != 1 ) {
+    if (fwrite(&tree->height, sizeof(int), 1, f) != 1 ||
+        fwrite(tree->root, sizeof(Node) * pool_size, 1, f) != 1 ) {
         fprintf(stderr, "write nodes failed\n");
         fclose(f);
         return -1;

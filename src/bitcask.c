@@ -34,10 +34,10 @@
 #define MAX_BUCKET_COUNT 256
 
 const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
-const uint32_t MAX_BUCKET_SIZE = (uint32_t)4 << 30; // 2G
+const uint32_t MAX_BUCKET_SIZE = (uint32_t)(4000 << 20); // 4G
 const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
-const int SAVE_HTREE_LIMIT = 1;
+const int SAVE_HTREE_LIMIT = 10;
 
 const char DATA_FILE[] = "%03d.data";
 const char HINT_FILE[] = "%03d.hint.qlz";
@@ -122,14 +122,14 @@ void bc_scan(Bitcask* bc)
         bc->tree = ht_new(bc->depth, bc->pos);
     }
 
-    i ++;
-    for (; i<MAX_BUCKET_COUNT; i++) {
+    for (i=0; i<MAX_BUCKET_COUNT; i++) {
         sprintf(dname, DATA_FILE, i);
         sprintf(datapath, "%s/%s", path, dname);
         if (stat(datapath, &st) != 0) {
             break;
         }
         bc->bytes += st.st_size;
+        if (i <= bc->last_snapshot) continue;
 
         sprintf(hname, HINT_FILE, i);
         sprintf(hintpath, "%s/%s", path, hname);
@@ -158,7 +158,7 @@ void bc_scan(Bitcask* bc)
             rename(datapath, hintpath);
 
             sprintf(dname, HTREE_FILE, bc->last_snapshot);
-            sprintf(datapath, "%s/%s.tmp", path, dname);
+            sprintf(datapath, "%s/%s", path, dname);
             unlink(datapath);
 
             bc->last_snapshot = i-1;
@@ -204,7 +204,7 @@ void bc_close(Bitcask *bc)
             rename(datapath, hintpath);
 
             sprintf(dname, HTREE_FILE, bc->last_snapshot);
-            sprintf(datapath, "%s/%s.tmp", path, dname);
+            sprintf(datapath, "%s/%s", path, dname);
             unlink(datapath);
         } else {
             fprintf(stderr, "save HTree to %s failed\n", datapath);
