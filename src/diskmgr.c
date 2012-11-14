@@ -29,21 +29,22 @@ struct disk_mgr {
 
 Mgr* mgr_create(const char **disks, int ndisks)
 {
+    char *cwd = getcwd(NULL, 0);
     Mgr *mgr = (Mgr*) malloc(sizeof(Mgr));
     mgr->ndisks = ndisks;
     mgr->disks = (char**)malloc(sizeof(char*) * ndisks);
     int i=0;
     for (i=0; i<ndisks; i++) {
         if (0 != access(disks[i], F_OK) && 0 != mkdir(disks[i], 0755)) {
+            fprintf(stderr, "access %s failed\n", disks[i]);
             free(mgr->disks);
             free(mgr);
-            fprintf(stderr, "access %s failed\n", disks[i]);
             return NULL;
         }
         mgr->disks[i] = strdup(disks[i]);
 
         // auto symlink
-        if (i > 0) {
+        //if (1) {
             DIR* dp = opendir(disks[i]);
             if (dp == NULL) {
                 fprintf(stderr, "opendir failed: %s\n", disks[i]);
@@ -56,18 +57,21 @@ Mgr* mgr_create(const char **disks, int ndisks)
                 int len = strlen(de->d_name);
                 if (de->d_name[0] == '.') continue;
                 if (len != 8 && len != 12) continue;
-                sprintf(sym, "%s/%s", disks[0], de->d_name);
-                if (0 == access(sym, F_OK)) continue;
                 sprintf(target, "%s/%s", disks[i], de->d_name);
-                if (lstat(target, &sb) != 0 || (sb.st_mode & S_IFMT) != S_IFREG)
+                if (stat(target, &sb) != 0) {
+                    unlink(target);
+                }
+                if (i == 0) continue;
+                if (lstat(target, &sb) != 0 || (sb.st_mode & S_IFMT) != S_IFREG) {
+                    unlink(target);
                     continue;
+                }    
+                sprintf(sym, "%s/%s", disks[0], de->d_name);
+                if (0 == stat(sym, &sb)) continue;
                 int r = 0;
                 if (target[0] != '/') {
-                    if (realpath(target, real) != NULL) {
-                        r = symlink(real, sym);
-                    } else {
-                        r = -1;
-                    }
+                    sprintf(real, "%s/%s", cwd, target);
+                    r = symlink(real, sym);
                 } else {
                     r = symlink(target, sym);
                 }
@@ -76,7 +80,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
                 }
             }
             (void) closedir(dp);
-        }
+        //}
     }
     return mgr;
 }
