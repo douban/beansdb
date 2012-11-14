@@ -33,23 +33,23 @@
 
 #define MAX_BUCKET_COUNT 256
 
-const uint32_t MAX_RECORD_SIZE = 50 * 1024 * 1024; // 50M
-const uint32_t MAX_BUCKET_SIZE = (uint32_t)1024 * 1024 * 1024 * 2; // 2G
-const uint32_t WRITE_BUFFER_SIZE = 1024 * 1024 * 2; // 2M
+const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
+const uint32_t MAX_BUCKET_SIZE = (uint32_t)4 << 30; // 2G
+const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
 const char DATA_FILE[] = "%03d.data";
 const char HINT_FILE[] = "%03d.hint.qlz";
 
 struct bitcask_t {
-    int    depth, pos;
+    uint32_t depth, pos;
     time_t before;
     Mgr    *mgr;
     HTree  *tree, *curr_tree;
     uint64_t bytes;
-    int    curr;
+    uint32_t curr;
     char   *write_buffer;
     time_t last_flush_time;
-    int    wbuf_size, wbuf_start_pos, wbuf_curr_pos;
+    uint32_t    wbuf_size, wbuf_start_pos, wbuf_curr_pos;
     pthread_mutex_t flush_lock, buffer_lock, write_lock;
 };
 
@@ -63,15 +63,17 @@ Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
     const char* t[] = {path};
     Mgr *mgr = mgr_create(t, 1);
     if (mgr == NULL) return NULL;
-    
+
     Bitcask* bc = bc_open2(mgr, depth, pos, before);
-    bc_scan(bc);
+    if (bc != NULL) bc_scan(bc);
     return bc;
 }
 
 Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
 {
     Bitcask* bc = (Bitcask*)malloc(sizeof(Bitcask));
+    if (bc == NULL) return NULL;
+
     memset(bc, 0, sizeof(Bitcask));    
     bc->mgr = mgr;
     bc->depth = depth;
@@ -108,13 +110,8 @@ void bc_scan(Bitcask* bc)
             if (0 == stat(hintpath, &st)){
                 scanHintFile(bc->tree, i, hintpath, NULL);
             }else{
-                hintpath[strlen(hintpath)-4] = '\0'; // drop ".qlz"
-                if (0 == stat(hintpath, &st)){
-                    scanHintFile(bc->tree, i, hintpath, NULL);
-                }else{
-                    sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
-                    scanDataFile(bc->tree, i, datapath, hintpath);                
-                }
+                sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
+                scanDataFile(bc->tree, i, datapath, hintpath);                
             }
         }else{
             if (0 == stat(hintpath, &st) && 
@@ -205,7 +202,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         return NULL;
     }
     
-    int bucket = item->pos & 0xff;
+    uint32_t bucket = item->pos & 0xff;
     uint32_t pos = item->pos & 0xffffff00;
     if (bucket > bc->curr) {
         fprintf(stderr, "BUG: invalid bucket %d > %d\n", bucket, bc->curr);
@@ -218,7 +215,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     if (bucket == bc->curr) {
         pthread_mutex_lock(&bc->buffer_lock);
         if (bucket == bc->curr && pos >= bc->wbuf_start_pos){
-            int p = pos - bc->wbuf_start_pos;
+            uint32_t p = pos - bc->wbuf_start_pos;
             r = decode_record(bc->write_buffer + p, bc->wbuf_curr_pos - p, true);
         }
         pthread_mutex_unlock(&bc->buffer_lock);
@@ -244,7 +241,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     }else{
          // check key
         if (strcmp(key, r->key) != 0){
-            fprintf(stderr, "Bug: record %s is not expected %s\n", r->key, key);
+            fprintf(stderr, "Bug: record %s is not expected %s in %u @ %u\n", r->key, key, bucket, pos);
             free_record(r);
             r = NULL;
         } 
