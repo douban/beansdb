@@ -1,3 +1,8 @@
+2012-11-20 0.5.7
+    * new: dump HTree to disk to speed up boosting
+	* change: increase the size of data file to 4G 
+	* some bugfix
+
 2011-11-25 0.5.6 
 	* new: support multi directories as Home, manage disk spaces auto.
     * improve: using multi threads when boot scaning.
