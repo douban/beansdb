@@ -37,7 +37,7 @@ const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
 const uint32_t MAX_BUCKET_SIZE = (uint32_t)(4000 << 20); // 4G
 const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
-const int SAVE_HTREE_LIMIT = 10;
+const int SAVE_HTREE_LIMIT = 5;
 
 const char DATA_FILE[] = "%03d.data";
 const char HINT_FILE[] = "%03d.hint.qlz";
@@ -114,7 +114,7 @@ void bc_scan(Bitcask* bc)
                 break;
             } else {
                 fprintf(stderr, "open HTree from %s failed\n", datapath);
-                unlink(datapath);
+                mgr_unlink(datapath);
             }
         }
     }
@@ -152,14 +152,11 @@ void bc_scan(Bitcask* bc)
 
     if (i - bc->last_snapshot > SAVE_HTREE_LIMIT) {
         sprintf(dname, HTREE_FILE, i-1);
-        sprintf(datapath, "%s/%s.tmp", path, dname);
+        sprintf(datapath, "%s/%s", mgr_alloc(bc->mgr, dname), dname);
         if (ht_save(bc->tree, datapath) == 0) {
-            sprintf(hintpath, "%s/%s", path, dname);
-            rename(datapath, hintpath);
-
             sprintf(dname, HTREE_FILE, bc->last_snapshot);
             sprintf(datapath, "%s/%s", path, dname);
-            unlink(datapath);
+            mgr_unlink(datapath);
 
             bc->last_snapshot = i-1;
         } else {
@@ -198,14 +195,11 @@ void bc_close(Bitcask *bc)
     if (bc->curr - bc->last_snapshot >= SAVE_HTREE_LIMIT) {
         const char* path = mgr_base(bc->mgr);
         sprintf(dname, HTREE_FILE, bc->curr);
-        sprintf(datapath, "%s/%s.tmp", path, dname);
+        sprintf(datapath, "%s/%s", mgr_alloc(bc->mgr, dname), dname);
         if (ht_save(bc->tree, datapath) == 0) {
-            sprintf(hintpath, "%s/%s", path, dname);
-            rename(datapath, hintpath);
-
             sprintf(dname, HTREE_FILE, bc->last_snapshot);
             sprintf(datapath, "%s/%s", path, dname);
-            unlink(datapath);
+            mgr_unlink(datapath);
         } else {
             fprintf(stderr, "save HTree to %s failed\n", datapath);
         }

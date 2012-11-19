@@ -582,9 +582,12 @@ int ht_save(HTree *tree, const char *path)
 {
     if (!tree || !path) return -1;
 
-    FILE *f = fopen(path, "wb");
+    char tmp[256];
+    sprintf(tmp, "%s.tmp", path);
+
+    FILE *f = fopen(tmp, "wb");
     if (f == NULL) {
-        fprintf(stderr, "open %s failed\n", path);
+        fprintf(stderr, "open %s failed\n", tmp);
         return -1;
     }
 
@@ -651,6 +654,8 @@ int ht_save(HTree *tree, const char *path)
     pthread_mutex_unlock(&tree->lock);
 
     fclose(f);
+    rename(tmp, path);
+
     return 0;
 }
 

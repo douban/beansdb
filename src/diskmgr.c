@@ -56,7 +56,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
             while ((de = readdir(dp)) != NULL) {
                 int len = strlen(de->d_name);
                 if (de->d_name[0] == '.') continue;
-                if (len != 8 && len != 12) continue;
+                if (len != 8 && len != 9 && len != 12) continue; // .data .htree .hint.qlz
                 sprintf(target, "%s/%s", disks[i], de->d_name);
                 if (stat(target, &sb) != 0) {
                     unlink(target);
@@ -148,6 +148,17 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
         }
     }
     return mgr->disks[maxi];
+}
+
+void mgr_unlink(const char *path){
+    struct stat sb;
+    if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK) {
+        char buf[256];
+        if(readlink(path, buf, 255) > 0) {
+            unlink(buf);
+        }
+    }
+    unlink(path);
 }
 
 void mgr_stat(Mgr *mgr, uint64_t *total, uint64_t *avail)
