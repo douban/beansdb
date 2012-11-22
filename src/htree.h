@@ -16,6 +16,21 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <errno.h>
+
+inline static void* 
+my_malloc(size_t s, const char *file, int line, const char *func) {
+    void *p = malloc(s);
+    if (p == NULL) {
+        fprintf(stderr, "Out of memory: %d, %li bytes in %s (%s:%i)\n", errno, s, func, file, line);
+        exit(1);
+    }
+    //memset(p, 0, s);
+    return p;
+}
+
+#define malloc(X) my_malloc(X, __FILE__, __LINE__, __FUNCTION__)
 
 typedef struct t_item Item;
 struct t_item {
