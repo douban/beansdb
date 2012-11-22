@@ -29,7 +29,8 @@
 #include "bitcask.h"
 #include "diskmgr.h"
 
-#define NUM_OF_MUTEX 97
+#define NUM_OF_MUTEX 37
+#define MAX_PATHS 20
 const int APPEND_FLAG  = 0x00000100;
 const int INCR_FLAG    = 0x00000204;
 
@@ -39,8 +40,8 @@ struct t_hstore {
     int scan_threads;
     int op_start, op_end, op_limit; // for optimization
     Mgr* mgr;
-    Bitcask** bitcasks;
     pthread_mutex_t locks[NUM_OF_MUTEX];
+    Bitcask* bitcasks[];
 };
 
 inline int get_index(HStore *store, char *key)
@@ -106,6 +107,7 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     char *paths[20], *rpath = path;
     int npath = 0;
     while ((paths[npath] = strsep(&rpath, ",:;")) != NULL) {
+        if (npath >= MAX_PATHS) return NULL; 
         path = paths[npath];
         if (0 != access(path, F_OK) && 0 != mkdir(path, 0755)){
             fprintf(stderr, "mkdir %s failed\n", path);
@@ -124,7 +126,9 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     }
 
     int i, j, count = 1 << (height * 4);
-    HStore *store = (HStore*) malloc(sizeof(HStore));
+    HStore *store = (HStore*) malloc(sizeof(HStore) + sizeof(Bitcask*) * count);
+    if (!store) return NULL;
+    memset(store, 0, sizeof(HStore) + sizeof(Bitcask*) * count);
     store->height = height;
     store->count = count;
     store->before = before;
@@ -137,13 +141,11 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
         free(store);
         return NULL;
     }
-    store->bitcasks = (Bitcask**) malloc(sizeof(Bitcask*) * count);
-    memset(store->bitcasks, 0, sizeof(Bitcask*) * count);
     for (i=0; i<NUM_OF_MUTEX; i++) {
         pthread_mutex_init(&store->locks[i], NULL);
     }
 
-    char **buf = (char**) malloc(sizeof(char*)*npath);
+    char *buf[20] = {0};
     for (i=0;i<npath;i++) {
         buf[i] = malloc(255);
     }
@@ -164,7 +166,6 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     for (i=0;i<npath;i++) {
         free(buf[i]);
     }
-    free(buf);
    
     if (store->scan_threads > 1 && count > 1) {
         scan_completed = 0;
@@ -219,7 +220,6 @@ void hs_close(HStore *store)
     for (i=0; i<store->count; i++){
         bc_close(store->bitcasks[i]);
     }
-    free(store->bitcasks);
 }
 
 static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)
@@ -229,7 +229,7 @@ static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)
         int index = strtol(pos, NULL, 16);
         return bc_get_hash(store->bitcasks[index], "@", count);
     }else{
-        int i, hash=0;
+        uint16_t i, hash=0;
         *count = 0;
         char pos_buf[255];
         for (i=0; i<16; i++){
@@ -266,6 +266,7 @@ static char* hs_list(HStore *store, char *key)
     }else{
         int i, bsize = 1024, used = 0;
         char *buf = malloc(bsize);
+        if (!buf) return NULL;
         for (i=0; i < 16; i++) {
             char pos_buf[255];
             memcpy(pos_buf, key, p);
@@ -303,6 +304,10 @@ char *hs_get(HStore *store, char *key, int *vlen, uint32_t *flag)
     char *res = NULL;
     if (info){
         res = malloc(256);
+        if (!res) {
+            free_record(r);
+            return NULL;
+        }
         uint16_t hash = 0;
         if (r->version > 0){
             hash = gen_hash(r->value, r->vsz);
