@@ -237,6 +237,7 @@ item *item_get(char *key, size_t nkey);
 conn *do_conn_from_freelist();
 bool do_conn_add_to_freelist(conn *c);
 conn *conn_new(const int sfd, const int init_state, const int read_buffer_size);
+void conn_close(conn* c);
 
 int add_delta(char *key, size_t nkey, int64_t delta, char *buf);
 int store_item(item *item, int comm);
@@ -245,7 +246,7 @@ void thread_init(int nthreads);
 int add_event(int fd, int mask, conn *c);
 void loop_run(int nthreads);
 
-void drive_machine(conn *c);
+int drive_machine(conn *c);
 
 /* Lock wrappers for cache functions that are called from main loop. */
 conn *mt_conn_from_freelist(void);

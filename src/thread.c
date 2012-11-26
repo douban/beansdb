@@ -149,8 +149,6 @@ int add_event(int fd, int mask, conn *c)
         loop.conns[fd] = NULL;
         return AE_ERR;
     }
-//    if (fd > loop.maxfd)
-//        loop.maxfd = fd;
     return AE_OK;
 }
 
@@ -167,10 +165,9 @@ int update_event(int fd, int mask, conn *c)
 int delete_event(int fd)
 {
     if (fd >= AE_SETSIZE) return -1;
-    if (loop.conns[fd] == NULL) return 0;
+    loop.conns[fd] = NULL;
     if (aeApiDelEvent(&loop, fd) == -1)
         return -1;
-    loop.conns[fd] = NULL;
     return 0;
 }
 
@@ -194,15 +191,15 @@ AGAIN:
         conn *c = loop.conns[fd];
         if (c == NULL){
             fprintf(stderr, "Bug: conn %d should not be NULL\n", fd);
+            delete_event(fd);
             close(fd);
             goto AGAIN;
         }
-        loop.conns[fd] = NULL; 
+        //loop.conns[fd] = NULL; 
         pthread_mutex_unlock(&leader);
         
-        drive_machine(c);
-        if (c->ev_flags > 0) {
-            update_event(fd, c->ev_flags, c);
+        if (drive_machine(c)) {
+            if (update_event(fd, c->ev_flags, c)) conn_close(c);
         }
     }
     return NULL; 

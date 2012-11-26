@@ -79,7 +79,6 @@ static void stats_init(void);
 static void settings_init(void);
 
 /* event handling, network IO */
-static void conn_close(conn *c);
 static void conn_init(void);
 static void accept_new_conns(const bool do_accept);
 static bool update_event(conn *c, const int new_flags);
@@ -349,7 +348,7 @@ void conn_free(conn *c) {
     }
 }
 
-static void conn_close(conn *c) {
+void conn_close(conn *c) {
     assert(c != NULL);
 
     if (settings.verbose > 1)
@@ -1337,7 +1336,11 @@ static int transmit(conn *c) {
     }
 }
 
-void drive_machine(conn *c) {
+
+/*
+ * return 0 after close connection.
+ */
+int drive_machine(conn *c) {
     bool stop = false;
     int sfd, flags = 1;
     socklen_t addrlen;
@@ -1535,12 +1538,11 @@ void drive_machine(conn *c) {
 
         case conn_closing:
             conn_close(c);
-            stop = true;
-            break;
+            return 0;
         }
     }
 
-    return;
+    return 1;
 }
 
 static int new_socket(struct addrinfo *ai) {
