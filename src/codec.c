@@ -21,6 +21,8 @@
 
 #include "codec.h"
 
+#define max(a,b) ((a)>(b)?(a):(b))
+
 typedef struct {
     unsigned char nargs;
     char fmt[7];
@@ -112,8 +114,6 @@ void dc_enlarge(Codec *dc)
 
     dc_rebuild(dc);
 }    
-
-#define max(a,b) ((a)>(b)?(a):(b))
 
 int dc_load(Codec *dc, const char *buf, int size)
 {
