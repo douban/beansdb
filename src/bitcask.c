@@ -102,12 +102,16 @@ void bc_scan(Bitcask* bc)
     const char* path = mgr_base(bc->mgr);
     char dname[20], hname[20], datapath[255], hintpath[255];
     int i=0;
-    struct stat st;
+    struct stat st, hst;
     // load snapshot of htree
     for (i=MAX_BUCKET_COUNT-1; i>=0; i--) {
         sprintf(dname, HTREE_FILE, i);
         sprintf(datapath, "%s/%s", path, dname);
-        if (stat(datapath, &st) == 0) {
+        sprintf(hname, HINT_FILE, i);
+        sprintf(hintpath, "%s/%s", path, hname);
+        if (stat(datapath, &st) == 0 && stat(hintpath, &hst) == 0 
+                && st.st_mtime >= hst.st_mtime
+                && (bc->before == 0 || st.st_mtime < bc->before)) {
             bc->tree = ht_open(bc->depth, bc->pos, datapath);
             if (bc->tree != NULL) {
                 bc->last_snapshot = i;
@@ -238,6 +242,7 @@ void bc_optimize(Bitcask *bc, int limit)
         uint32_t recoverd = 0;
         HTree *cur_tree = optimizeDataFile(bc->tree, i, datapath, hintpath, limit, &recoverd);
         if (NULL == cur_tree) continue;
+        
         pthread_mutex_lock(&bc->buffer_lock);
         bc->bytes -= recoverd;
         pthread_mutex_unlock(&bc->buffer_lock);
@@ -245,9 +250,15 @@ void bc_optimize(Bitcask *bc, int limit)
         pthread_mutex_lock(&bc->write_lock);
         ht_visit(cur_tree, update_items, bc->tree);
         pthread_mutex_unlock(&bc->write_lock);
+       
+        // remove htree
+        sprintf(data, HTREE_FILE, i);
+        sprintf(datapath, "%s/%s", mgr_base(bc->mgr), data);
+        mgr_unlink(datapath);
 
         build_hint(cur_tree, hintpath);
     }
+    bc->last_snapshot = -1;
 }
 
 DataRecord* bc_get(Bitcask *bc, const char* key)
@@ -294,7 +305,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     
     r = fast_read_record(fd, pos, true);
     if (NULL == r){
-        fprintf(stderr, "Bug: get %s failed in %s %d %d\n", key, path, bucket, pos); 
+        fprintf(stderr, "Bug: get %s failed in %s %u %u\n", key, path, bucket, pos); 
     }else{
          // check key
         if (strcmp(key, r->key) != 0){
