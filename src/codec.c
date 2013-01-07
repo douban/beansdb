@@ -31,11 +31,9 @@ inline int fmt_size(Fmt *fmt) {
 }
 
 const size_t DEFAULT_DICT_SIZE = 1024;
-const size_t MAX_DICT_SIZE = 32000;
+const size_t MAX_DICT_SIZE = 16384;
 
-inline int rdict_size(int dict_size) {
-    return dict_size * 7 + 1;
-}
+#define RDICT_SIZE(DICT_SIZE) ((DICT_SIZE) * 7 + 1)
 
 struct t_codec {
     size_t dict_size;
@@ -53,7 +51,7 @@ Codec* dc_new()
     dc->dict = (Fmt**)malloc(sizeof(Fmt*) * dc->dict_size);
     memset(dc->dict, 0, sizeof(Fmt*) * dc->dict_size);
    
-    dc->rdict_size = rdict_size(dc->dict_size);
+    dc->rdict_size = RDICT_SIZE(dc->dict_size);
     dc->rdict = (short*)malloc(sizeof(short) * dc->rdict_size);
     memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
 
@@ -92,10 +90,11 @@ int dc_dump(Codec *dc, char *buf, int size)
 void dc_rebuild(Codec *dc) 
 {
     int i;
+    dc->rdict_size = RDICT_SIZE(dc->dict_size);
     free(dc->rdict);
-    dc->rdict_size = rdict_size(dc->dict_size);
     dc->rdict = (short*) malloc(sizeof(short) * dc->rdict_size);
     memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
+
     for (i=1; i<dc->dict_used; i++) {
         uint32_t h = fnv1a(dc->dict[i]->fmt, strlen(dc->dict[i]->fmt)) % dc->rdict_size;
         while (dc->rdict[h] > 0) {
@@ -108,12 +107,13 @@ void dc_rebuild(Codec *dc)
 
 void dc_enlarge(Codec *dc)
 {
-    dc->dict_size *= 2;
-    if (dc->dict_size > MAX_DICT_SIZE) dc->dict_size = MAX_DICT_SIZE;
+    dc->dict_size = max(dc->dict_size * 2, MAX_DICT_SIZE);
     dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
 
     dc_rebuild(dc);
 }    
+
+#define max(a,b) ((a)>(b)?(a):(b))
 
 int dc_load(Codec *dc, const char *buf, int size)
 {
@@ -121,16 +121,14 @@ int dc_load(Codec *dc, const char *buf, int size)
     int i;
     if (dc == NULL) return -1;
     dc->dict_used = *(int*)buf;
+    if (dc->dict_used >= MAX_DICT_SIZE) return -1;
     buf += sizeof(int);
     if (dc->dict_size < dc->dict_used * 2) {
-        free(dc->dict);
-        dc->dict_size = dc->dict_used * 2;
-        if (dc->dict_size > MAX_DICT_SIZE) dc->dict_size = MAX_DICT_SIZE;
-        Fmt ** dict = (Fmt**) malloc(sizeof(Fmt*) * dc->dict_size);
-        if (dict == NULL) {
+        dc->dict_size = max(dc->dict_used * 2, MAX_DICT_SIZE);
+        dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
+        if (dc->dict == NULL) {
             return -1;
         }
-        dc->dict = dict; 
     }
 
     for (i=1; i<dc->dict_used; i++) {
@@ -153,8 +151,8 @@ void dc_destroy(Codec *dc)
 {
     if (dc == NULL) return;
 
-    free(dc->rdict);
-    free(dc->dict);
+    if (dc->rdict) free(dc->rdict);
+    if (dc->dict) free(dc->dict);
     free(dc);
 }
 

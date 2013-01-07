@@ -366,7 +366,7 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
         // check file size
         uint64_t last_pos = ftell(f);
         if (last_pos > 0 && last_pos != bc->wbuf_start_pos) {
-            fprintf(stderr, "last pos not match: %llu != %d\n", last_pos, bc->wbuf_start_pos);
+            fprintf(stderr, "last pos not match: %llu != %d in %s\n", last_pos, bc->wbuf_start_pos, buf);
             exit(1);
         }
       

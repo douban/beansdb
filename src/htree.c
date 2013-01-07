@@ -564,6 +564,7 @@ HTree* ht_open(int depth, int pos, const char *path)
         goto FAIL;
     }
     free(buf);
+    fclose(f);
 
     pthread_mutex_init(&tree->lock, NULL);
 
