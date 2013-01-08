@@ -63,9 +63,12 @@ static int scan_completed = 0;
 static pthread_mutex_t scan_lock;
 static pthread_cond_t  scan_cond;
 
+typedef void (*BC_FUNC)(Bitcask *bc);
+
 struct scan_args {
     HStore *store;
     int index;
+    BC_FUNC func;
 };
 
 static void* scan_thread(void *_args)
@@ -75,7 +78,7 @@ static void* scan_thread(void *_args)
     int i, index = args->index;
     for (i=0; i<store->count; i++) {
         if (i % store->scan_threads == index) {
-            bc_scan(store->bitcasks[i]);
+            args->func(store->bitcasks[i]);
         }
     }
 
@@ -86,6 +89,35 @@ static void* scan_thread(void *_args)
 
 //    fprintf(stderr, "thread %d completed\n", index);
     return NULL;
+}
+
+static void parallelize(HStore *store, BC_FUNC func) {
+    scan_completed = 0;
+    pthread_mutex_init(&scan_lock, NULL);
+    pthread_cond_init(&scan_cond, NULL);
+
+    pthread_t thread;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+
+    int i, ret;
+    struct scan_args *args = (struct scan_args *) malloc(sizeof(struct scan_args) * store->scan_threads);
+    for (i=0; i<store->scan_threads; i++) {
+        args[i].store = store;
+        args[i].index = i;
+        args[i].func = func;
+        if ((ret = pthread_create(&thread, &attr, scan_thread, args+i)) != 0) {
+            fprintf(stderr, "Can't create thread: %s\n", strerror(ret));
+            exit(1);
+        }
+    }
+
+    pthread_mutex_lock(&scan_lock);
+    while (scan_completed < store->scan_threads) {
+        pthread_cond_wait(&scan_cond, &scan_lock);
+    }
+    pthread_mutex_unlock(&scan_lock);
+    free(args);
 }
 
 HStore* hs_open(char *path, int height, time_t before, int scan_threads)
@@ -168,32 +200,7 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     }
    
     if (store->scan_threads > 1 && count > 1) {
-        scan_completed = 0;
-        pthread_mutex_init(&scan_lock, NULL);
-        pthread_cond_init(&scan_cond, NULL);
-    
-        pthread_t thread;
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-
-        int i, ret;
-        struct scan_args *args = (struct scan_args *) malloc(sizeof(struct scan_args) * store->scan_threads);
-        for (i=0; i<store->scan_threads; i++) {
-            args[i].store = store;
-            args[i].index = i;
-            if ((ret = pthread_create(&thread, &attr, scan_thread, args+i)) != 0) {
-                fprintf(stderr, "Can't create thread: %s\n", strerror(ret));
-                exit(1);
-            }
-        }
-
-        pthread_mutex_lock(&scan_lock);
-        while (scan_completed < store->scan_threads) {
-            pthread_cond_wait(&scan_cond, &scan_lock);
-        }
-        pthread_mutex_unlock(&scan_lock);
-        free(args);
-
+        parallelize(store, bc_scan);
     }else{
         for (i=0; i<count; i++) {
             bc_scan(store->bitcasks[i]);
@@ -217,8 +224,12 @@ void hs_close(HStore *store)
 {
     if (!store) return;
     int i;
-    for (i=0; i<store->count; i++){
-        bc_close(store->bitcasks[i]);
+    if (store->scan_threads > 1 && store->count > 1) {
+        parallelize(store, bc_close);
+    } else {
+        for (i=0; i<store->count; i++){
+            bc_close(store->bitcasks[i]);
+        }
     }
 }
 
