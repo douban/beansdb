@@ -26,6 +26,7 @@ const char* mgr_base(Mgr *mgr);
 const char* mgr_alloc(Mgr *mgr, const char *path);
 
 void mgr_unlink(const char *path);
+void mgr_rename(const char *oldpath, const char *newpath);
 
 void mgr_stat(Mgr *mgr, uint64_t *total, uint64_t *avail);
 

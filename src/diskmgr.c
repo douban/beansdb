@@ -19,6 +19,7 @@
 #include <sys/statvfs.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <libgen.h>
 
 #include "diskmgr.h"
 
@@ -150,7 +151,8 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
     return mgr->disks[maxi];
 }
 
-void mgr_unlink(const char *path){
+void mgr_unlink(const char *path)
+{
     struct stat sb;
     if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK) {
         char buf[256];
@@ -159,6 +161,22 @@ void mgr_unlink(const char *path){
         }
     }
     unlink(path);
+}
+
+void mgr_rename(const char *oldpath, const char *newpath)
+{
+    struct stat sb;
+    if (lstat(oldpath, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK) {
+        char ropath[256];
+        if(readlink(oldpath, ropath, 255) <= 0) return;
+        char *rnpath = strcat(strcat(dirname(strdup(ropath)), "/"), 
+                              basename(strdup(newpath)));
+        rename(ropath, rnpath); 
+        symlink(rnpath, newpath);
+        unlink(oldpath);
+    } else {
+        rename(oldpath, newpath);
+    }
 }
 
 void mgr_stat(Mgr *mgr, uint64_t *total, uint64_t *avail)

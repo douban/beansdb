@@ -97,19 +97,56 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     return bc;
 }
 
+inline char *gen_path(char *dst, const char *base, const char *fmt, int i)
+{
+    char name[16];
+    sprintf(name, fmt, i);
+    sprintf(dst, "%s/%s",  base, name);
+    return dst;
+}
+
+inline bool file_exists(const char *path) {
+    struct stat st;
+    return stat(path, &st) == 0;
+}
+
+static void skip_empty_file(Bitcask* bc)
+{
+    int i, last=0;
+    char opath[255], npath[255];
+    
+    const char* base = mgr_base(bc->mgr);
+    for (i=0; i<MAX_BUCKET_COUNT; i++) {
+        if (file_exists(gen_path(opath, base, DATA_FILE, i))) {
+            if (i != last) {
+                mgr_rename(opath, gen_path(npath, base, DATA_FILE, last));
+                
+                if (file_exists(gen_path(opath, base, HINT_FILE, i))) {
+                    mgr_rename(opath, gen_path(npath, base, HINT_FILE, last));
+                }
+                
+                if (file_exists(gen_path(opath, base, HTREE_FILE, i))) {
+                    mgr_rename(opath, gen_path(npath, base, HTREE_FILE, last));
+                }
+            }
+            last ++;
+        }
+    }
+}
+
 void bc_scan(Bitcask* bc)
 {
-    const char* path = mgr_base(bc->mgr);
     char dname[20], hname[20], datapath[255], hintpath[255];
     int i=0;
     struct stat st, hst;
+    
+    skip_empty_file(bc);
+
+    const char* base = mgr_base(bc->mgr);
     // load snapshot of htree
     for (i=MAX_BUCKET_COUNT-1; i>=0; i--) {
-        sprintf(dname, HTREE_FILE, i);
-        sprintf(datapath, "%s/%s", path, dname);
-        sprintf(hname, HINT_FILE, i);
-        sprintf(hintpath, "%s/%s", path, hname);
-        if (stat(datapath, &st) == 0 && stat(hintpath, &hst) == 0 
+        if (stat(gen_path(datapath, base, HTREE_FILE, i), &st) == 0 
+                && stat(gen_path(hintpath, base, HINT_FILE, i), &hst) == 0 
                 && st.st_mtime >= hst.st_mtime
                 && (bc->before == 0 || st.st_mtime < bc->before)) {
             bc->tree = ht_open(bc->depth, bc->pos, datapath);
@@ -127,16 +164,13 @@ void bc_scan(Bitcask* bc)
     }
 
     for (i=0; i<MAX_BUCKET_COUNT; i++) {
-        sprintf(dname, DATA_FILE, i);
-        sprintf(datapath, "%s/%s", path, dname);
-        if (stat(datapath, &st) != 0) {
+        if (stat(gen_path(datapath, base, DATA_FILE, i), &st) != 0) {
             break;
         }
         bc->bytes += st.st_size;
         if (i <= bc->last_snapshot) continue;
 
-        sprintf(hname, HINT_FILE, i);
-        sprintf(hintpath, "%s/%s", path, hname);
+        gen_path(hintpath, base, HINT_FILE, i);
         if (bc->before == 0){
             if (0 == stat(hintpath, &st)){
                 scanHintFile(bc->tree, i, hintpath, NULL);
@@ -159,7 +193,7 @@ void bc_scan(Bitcask* bc)
         sprintf(datapath, "%s/%s", mgr_alloc(bc->mgr, dname), dname);
         if (ht_save(bc->tree, datapath) == 0) {
             sprintf(dname, HTREE_FILE, bc->last_snapshot);
-            sprintf(datapath, "%s/%s", path, dname);
+            sprintf(datapath, "%s/%s", base, dname);
             mgr_unlink(datapath);
 
             bc->last_snapshot = i-1;
@@ -185,10 +219,9 @@ void bc_close(Bitcask *bc)
     
     if (NULL != bc->curr_tree) {
         if (bc->curr_bytes > 0) {
-            char name[255], buf[255];
-            sprintf(name, HINT_FILE, bc->curr);
-            sprintf(buf, "%s/%s", mgr_alloc(bc->mgr, name), name);
-            build_hint(bc->curr_tree, buf);
+            sprintf(hname, HINT_FILE, bc->curr);
+            sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
+            build_hint(bc->curr_tree, hintpath);
         }else{
             ht_destroy(bc->curr_tree);
         }
