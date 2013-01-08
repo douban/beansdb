@@ -127,9 +127,7 @@ static void skip_empty_file(Bitcask* bc)
                     mgr_rename(opath, gen_path(npath, base, HINT_FILE, last));
                 }
                 
-                if (file_exists(gen_path(opath, base, HTREE_FILE, i))) {
-                    mgr_rename(opath, gen_path(npath, base, HTREE_FILE, last));
-                }
+                mgr_unlink(gen_path(opath, base, HTREE_FILE, i));
             }
             last ++;
         }
