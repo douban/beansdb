@@ -172,7 +172,7 @@ HintFile *open_hint(const char* path, const char* new_path)
     hint->buf = f->addr;
     hint->size = f->size;
 
-    if (strcmp(path + strlen(path) - 4, ".qlz") == 0) {
+    if (strcmp(path + strlen(path) - 4, ".qlz") == 0 && hint->size > 0) {
         char wbuf[QLZ_SCRATCH_DECOMPRESS];
         int size = qlz_size_decompressed(hint->buf);
         char* buf = malloc(size);
@@ -187,16 +187,7 @@ HintFile *open_hint(const char* path, const char* new_path)
     }
     
     if (new_path != NULL) {
-        if (strcmp(new_path + strlen(new_path) - 4, ".qlz") == 0) {
-            char* wbuf = malloc(QLZ_SCRATCH_COMPRESS);
-            char* dst = malloc(hint->size + 400);
-            int dst_size = qlz_compress(hint->buf, dst, hint->size, wbuf);
-            write_hint_file(dst, dst_size, new_path);
-            free(dst);
-            free(wbuf);
-        } else {
-            write_hint_file(hint->buf, hint->size, new_path);
-        }
+        write_hint_file(hint->buf, hint->size, new_path);
     }
     
     return hint;
