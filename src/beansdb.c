@@ -1794,7 +1794,7 @@ int main (int argc, char **argv) {
     int c;
     struct in_addr addr;
     char *dbhome = "testdb";
-    int height = 0;
+    int height = 1;
     time_t before_time = 0;
     bool daemonize = false;
     int maxcore = 0;

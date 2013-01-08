@@ -34,7 +34,7 @@
 #define MAX_BUCKET_COUNT 256
 
 const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
-const uint32_t MAX_BUCKET_SIZE = (uint32_t)(4000 << 10); // 4G
+const uint32_t MAX_BUCKET_SIZE = (uint32_t)(4000 << 20); // 4G
 const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
 const int SAVE_HTREE_LIMIT = 5;
