@@ -34,7 +34,7 @@
 #define MAX_BUCKET_COUNT 256
 
 const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
-const uint32_t MAX_BUCKET_SIZE = (uint32_t)(4000 << 20); // 4G
+const uint32_t MAX_BUCKET_SIZE = (uint32_t)(4000 << 10); // 4G
 const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
 const int SAVE_HTREE_LIMIT = 5;
@@ -99,7 +99,9 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
 
 inline char *gen_path(char *dst, const char *base, const char *fmt, int i)
 {
+    static char path[256];
     char name[16];
+    if (dst == NULL) dst = path;
     sprintf(name, fmt, i);
     sprintf(dst, "%s/%s",  base, name);
     return dst;
@@ -175,6 +177,7 @@ void bc_scan(Bitcask* bc)
             if (0 == stat(hintpath, &st)){
                 scanHintFile(bc->tree, i, hintpath, NULL);
             }else{
+                sprintf(hname, HINT_FILE, i);
                 sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
                 scanDataFile(bc->tree, i, datapath, hintpath);                
             }
@@ -248,50 +251,67 @@ void bc_close(Bitcask *bc)
     free(bc);
 }
 
-void update_items(Item *it, void *args)
-{
-    HTree *tree = (HTree*) args;
-    Item *p = ht_get(tree, it->key);
-    if (!p) {
-        fprintf(stderr, "Bug, item missed after optimized\n");
-        return;
-    }
-    if (it->pos != p->pos && (it->pos & 0xff) == (p->pos & 0xff) ) {
-        ht_add(tree, p->key, it->pos, p->hash, p->ver);
-    }
-    free(p);
+uint64_t data_file_size(Bitcask *bc, int bucket) {
+    char path[255];
+    gen_path(path, mgr_base(bc->mgr), DATA_FILE, bucket);
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) return 0;
+    fseek(fp, 0, 2);
+    uint64_t size = ftell(fp);
+    fclose(fp);
+    return size;
 }
 
 void bc_optimize(Bitcask *bc, int limit)
 {
-    int i;
+    int i, total, last = -1;
+    const char *base = mgr_base(bc->mgr);
+    // remove htree
     for (i=0; i < bc->curr; i++) {
-        char data[20], hint[20], datapath[255], hintpath[255];
-        sprintf(data, DATA_FILE, i);
-        sprintf(hint, HINT_FILE, i);
-        sprintf(datapath, "%s/%s", mgr_alloc(bc->mgr, data), data);
-        sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hint), hint);
-        
+        mgr_unlink(gen_path(NULL, base, HTREE_FILE, i));
+    }
+    bc->last_snapshot = -1;
+
+    for (i=0; i < bc->curr; i++) {
+        char datapath[255], hintpath[255];
+        gen_path(datapath, base, DATA_FILE, i); 
+        gen_path(hintpath, base, HINT_FILE, i); 
+        int deleted = count_deleted_record(bc->tree, i, hintpath, &total);
+        if (deleted <= total * 0.1 && deleted <= limit) {
+            fprintf(stderr, "only %d records deleted in %d, skip %s\n", deleted, total, datapath);
+            last = i;
+            continue;
+        }
+
+        // last data file size
+        uint64_t dsize = data_file_size(bc, i) * (total - deleted / 2) / total; // guess
+        uint64_t last_size = data_file_size(bc, last);
         uint32_t recoverd = 0;
-        HTree *cur_tree = optimizeDataFile(bc->tree, i, datapath, hintpath, limit, &recoverd);
-        if (NULL == cur_tree) continue;
+        if (last >= 0 && last_size + dsize < MAX_BUCKET_SIZE) {
+            char ldpath[255], lhpath[255];
+            gen_path(ldpath, base, DATA_FILE, last);
+            gen_path(lhpath, base, HINT_FILE, last);
+            recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
+                    limit, MAX_BUCKET_SIZE, last, ldpath, lhpath);
+        }
+        if (recoverd == 0) {
+            recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
+                    limit, MAX_BUCKET_SIZE, i, NULL, NULL);
+            if (data_file_size(bc, i) == 0) {
+                mgr_unlink(datapath);
+                mgr_unlink(hintpath);
+            } else {
+                last = i;
+            }
+        }
+        if (recoverd < 0) {
+            break;
+        }
         
         pthread_mutex_lock(&bc->buffer_lock);
         bc->bytes -= recoverd;
         pthread_mutex_unlock(&bc->buffer_lock);
-
-        pthread_mutex_lock(&bc->write_lock);
-        ht_visit(cur_tree, update_items, bc->tree);
-        pthread_mutex_unlock(&bc->write_lock);
-       
-        // remove htree
-        sprintf(data, HTREE_FILE, i);
-        sprintf(datapath, "%s/%s", mgr_base(bc->mgr), data);
-        mgr_unlink(datapath);
-
-        build_hint(cur_tree, hintpath);
     }
-    bc->last_snapshot = -1;
 }
 
 DataRecord* bc_get(Bitcask *bc, const char* key)

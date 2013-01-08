@@ -377,69 +377,141 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
     close_mfile(f);
 }
 
-HTree* optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
-    int limit, uint32_t *recovered) 
+// update pos in HTree
+void update_items(Item *it, void *args)
 {
-    int all = 0;
-    int deleted = count_deleted_record(tree, bucket, hintpath, &all);
-    if (deleted <= all * 0.1 && deleted <= limit) {
-        fprintf(stderr, "only %d records deleted in %d, skip %s\n", deleted, all, path);
-        return NULL;
+    HTree *tree = (HTree*) args;
+    Item *p = ht_get(tree, it->key);
+    if (p) {
+        if (it->pos != p->pos && it->ver == p->ver) {
+            if (it->ver > 0) {
+                ht_add(tree, p->key, it->pos, p->hash, p->ver);
+            } else {
+                ht_remove(tree, p->key);
+            }
+        }
+        free(p);
+    } else {
+        ht_add(tree, it->key, it->pos, it->hash, it->ver);
     }
+}
 
+uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
+    int limit, uint32_t max_data_size, int last_bucket, const char *lastdata, const char *lasthint) 
+{
     MFile *f = open_mfile(path);
-    if (f == NULL) return;
+    if (f == NULL) return -1;
     
-    char tmp[255];
-    sprintf(tmp, "%s.tmp", path);
-    FILE *new_df = fopen(tmp, "wb");
-    if (NULL==new_df){
-        fprintf(stderr, "open %s failed\n", tmp);
+    FILE *new_df = NULL;
+    char tmp[255], *hintdata = NULL;
+    uint32_t hint_used=0, hint_size = 0, old_data_size=0;
+    if (lastdata != NULL) {
+        new_df = fopen(lastdata, "ab");
+        old_data_size = ftell(new_df);
+
+        HintFile *hint = open_hint(lasthint, NULL);
+        if (hint == NULL) {
+            fprintf(stderr, "open last hint file %s failed\n", lasthint);
+            close_mfile(f);
+            return 0;
+        }
+        hint_size = hint->size * 2;
+        if (hint_size < 4096) hint_size = 4096;
+        hintdata = malloc(hint_size);
+        memcpy(hintdata, hint->buf, hint->size);
+        hint_used = hint->size;
+        close_hint(hint);
+    } else {
+        sprintf(tmp, "%s.tmp", path);
+        new_df = fopen(tmp, "wb");
+        hintdata = malloc(1<<20);
+        hint_size = 1<<20;
+    }
+    if (new_df == NULL){
+        fprintf(stderr, "open new datafile failed\n");
         close_mfile(f);
-        return NULL;
+        return -1;
     }
     
     HTree *cur_tree = ht_new(0,0);
-    deleted = 0;
+    int deleted = 0;
     char *p = f->addr, *end = f->addr + f->size;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
         if (r == NULL) {
             fprintf(stderr, "read data failed: %s\n", path);
+            free(hintdata);
             ht_destroy(cur_tree);
             close_mfile(f);
             fclose(new_df);
-            return NULL;
+            return -1;
         }
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
         if (it && it->pos  == (pos | bucket) && (it->ver > 0 || limit > 0)) {
             uint32_t new_pos = ftell(new_df);
+            if (new_pos + record_length(r) > max_data_size) {
+                fprintf(stderr, "optimize %s into %s failed\n", path, lastdata);
+                free(hintdata);
+                ht_destroy(cur_tree);
+                close_mfile(f);
+                ftruncate(new_df, old_data_size);
+                fclose(new_df);
+                return 0; // overflow
+            }
+
             uint16_t hash = it->hash;
-            ht_add2(cur_tree, r->key, r->ksz, new_pos | bucket, hash, it->ver);
+            ht_add2(cur_tree, r->key, r->ksz, new_pos | last_bucket, hash, it->ver);
+            // append record to hint file
+            int hsize = sizeof(HintRecord) - NAME_IN_RECORD + r->ksz + 1;
+            if (hint_used + hsize > hint_size) {
+                hint_size *= 2;
+                hintdata = realloc(hintdata, hint_size);
+            }
+            HintRecord *hr = (HintRecord*)(hintdata + hint_used);
+            hr->ksize = r->ksz;
+            hr->pos = new_pos >> 8;
+            hr->version = it->ver;
+            hr->hash = hash;
+            memcpy(hr->key, r->key, r->ksz + 1);
+            hint_used += hsize;
+
             if (write_record(new_df, r) != 0) {
-                fprintf(stderr, "write error: %s\n", tmp);
+                fprintf(stderr, "write error: %s\n", path);
+                free(hintdata);
                 ht_destroy(cur_tree);
                 close_mfile(f);
                 fclose(new_df);
-                return NULL;
+                return -1;
             }
         }else{
+            if (it && it->pos == (pos | bucket) && it->ver < 0) 
+                ht_add2(cur_tree, r->key, r->ksz, 0, it->hash, it->ver);
             deleted ++;
         }
         if (it) free(it);
         p += record_length(r); 
         free_record(r);
     }
-    uint32_t deleted_bytes = f->size - ftell(new_df);
-    if (recovered != NULL) *recovered = deleted_bytes;
+    uint32_t deleted_bytes = f->size - (ftell(new_df) - old_data_size);
+    
     close_mfile(f);
     fclose(new_df);
     
-    unlink(hintpath);
-    unlink(path);
-    rename(tmp, path);
+    ht_visit(cur_tree, update_items, tree);
+    ht_destroy(cur_tree);
+
+    unlink(path, NULL);
+    if (lastdata != NULL) {
+        write_hint_file(hintdata, hint_used, lasthint);
+        unlink(hintpath);
+    } else {
+        write_hint_file(hintdata, hint_used, hintpath);
+        rename(tmp, path);
+    }
+    free(hintdata);
+
     fprintf(stderr, "optimize %s complete, %d records deleted, %u bytes came back\n", 
             path, deleted, deleted_bytes);
-    return cur_tree;
+    return deleted_bytes;
 }

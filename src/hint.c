@@ -27,19 +27,9 @@
 #include "quicklz.h"
 //#include "fnv1a.h"
 
-const int NAME_IN_RECORD = 2;
-
 const  int MAX_MMAP_SIZE = 1<<12; // 4G
 static int curr_mmap_size = 0;
 static pthread_mutex_t mmap_lock = PTHREAD_MUTEX_INITIALIZER;
-
-typedef struct hint_record {
-    uint32_t ksize:8;
-    uint32_t pos:24;
-    int32_t version;
-    uint16_t hash;
-    char key[2]; // allign
-} HintRecord;
 
 
 // for build hint
@@ -51,7 +41,8 @@ struct param {
 
 void collect_items(Item* it, void* param)
 {
-    int length = sizeof(HintRecord) + strlen(it->key) + 1 - NAME_IN_RECORD;
+    int ksize = strlen(it->key);
+    int length = sizeof(HintRecord) + ksize + 1 - NAME_IN_RECORD;
     struct param *p = (struct param *)param;
     if (p->size - p->curr < length) {
         p->size *= 2;
@@ -59,7 +50,7 @@ void collect_items(Item* it, void* param)
     }
     
     HintRecord *r = (HintRecord*)(p->buf + p->curr);
-    r->ksize = strlen(it->key);
+    r->ksize = ksize;
     r->pos = it->pos >> 8;
     r->version = it->ver;
     r->hash = it->hash;
@@ -68,19 +59,29 @@ void collect_items(Item* it, void* param)
     p->curr += length;
 }
 
-void write_file(char *buf, int size, const char* path)
+void write_hint_file(char *buf, int size, const char* path)
 {
-    char tmp[255];
+    // compress
+    char *dst = buf;
+    if (strcmp(path + strlen(path) - 4, ".qlz") == 0) {
+        char* wbuf = malloc(QLZ_SCRATCH_COMPRESS);
+        dst = malloc(size + 400);
+        size = qlz_compress(buf, dst, size, wbuf);
+        free(wbuf);
+    }
+    
+    char tmp[PATH_MAX];
     sprintf(tmp, "%s.tmp", path);
     FILE *hf = fopen(tmp, "wb");
     if (NULL==hf){
         fprintf(stderr, "open %s failed\n", tmp);
         return;
     }
-    int n = fwrite(buf, 1, size, hf); 
+    int n = fwrite(dst, 1, size, hf); 
     fclose(hf);
+    if (dst != buf) free(dst);
 
-    if (size == 0 || n == size) {
+    if (n == size) {
         unlink(path);
         rename(tmp, path);
     }else{
@@ -98,18 +99,7 @@ void build_hint(HTree* tree, const char* hintpath)
     ht_visit(tree, collect_items, &p);
     ht_destroy(tree);    
 
-    // compress
-    if (strcmp(hintpath + strlen(hintpath) - 4, ".qlz") == 0) {
-        char* wbuf = malloc(QLZ_SCRATCH_COMPRESS);
-        char* dst = malloc(p.size + 400);
-        int dst_size = qlz_compress(p.buf, dst, p.curr, wbuf);
-        free(p.buf);
-        p.curr = dst_size;
-        p.buf = dst;
-        free(wbuf);
-    }
-
-    write_file(p.buf, p.curr, hintpath);
+    write_hint_file(p.buf, p.curr, hintpath);
     free(p.buf);
 }
 
@@ -122,7 +112,7 @@ MFile* open_mfile(const char* path)
     }
 
     struct stat sb;
-    if (fstat(fd, &sb) == -1 || sb.st_size == 0){
+    if (fstat(fd, &sb) == -1){
         close(fd);
         return  NULL;
     }
@@ -136,44 +126,39 @@ MFile* open_mfile(const char* path)
     }
     curr_mmap_size += mb;
     pthread_mutex_unlock(&mmap_lock);
-    
-    char *addr = (char*) mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (addr == MAP_FAILED){
-        fprintf(stderr, "mmap failed %s\n", path);
-        close(fd);
-        pthread_mutex_lock(&mmap_lock);
-        curr_mmap_size -= mb;
-        pthread_mutex_unlock(&mmap_lock);
-        return NULL;
-    }
-
+   
     MFile *f = (MFile*) malloc(sizeof(MFile));
-    if (f == NULL) {
-        fprintf(stderr, "out of memory\n");
-        exit(1);
-    }
-
     f->fd = fd;
     f->size = sb.st_size;
-    f->addr = addr;
+
+    if (f->size > 0) {
+        f->addr = (char*) mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+        if (f->addr == MAP_FAILED){
+            fprintf(stderr, "mmap failed %s\n", path);
+            close(fd);
+            pthread_mutex_lock(&mmap_lock);
+            curr_mmap_size -= mb;
+            pthread_mutex_unlock(&mmap_lock);
+            free(f);
+            return NULL;
+        }
+    } else {
+        f->addr = NULL;
+    }
+
     return f;
 }
 
 void close_mfile(MFile *f)
 {
-    munmap(f->addr, f->size);
+    if (f->addr)
+        munmap(f->addr, f->size);
     close(f->fd);
     pthread_mutex_lock(&mmap_lock);
     curr_mmap_size -= f->size >> 20;
     pthread_mutex_unlock(&mmap_lock);
     free(f);
 }
-
-typedef struct {
-    MFile *f;
-    size_t size;
-    char *buf;
-} HintFile;
 
 HintFile *open_hint(const char* path, const char* new_path) 
 {
@@ -192,7 +177,7 @@ HintFile *open_hint(const char* path, const char* new_path)
         int size = qlz_size_decompressed(hint->buf);
         char* buf = malloc(size);
         int vsize = qlz_decompress(hint->buf, buf, wbuf);
-        if (vsize < size) {
+        if (vsize != size) {
             fprintf(stderr, "decompress %s failed: %d < %d, remove it\n", path, vsize, size);
             unlink(path);
             exit(1);
@@ -206,11 +191,11 @@ HintFile *open_hint(const char* path, const char* new_path)
             char* wbuf = malloc(QLZ_SCRATCH_COMPRESS);
             char* dst = malloc(hint->size + 400);
             int dst_size = qlz_compress(hint->buf, dst, hint->size, wbuf);
-            write_file(dst, dst_size, new_path);
+            write_hint_file(dst, dst_size, new_path);
             free(dst);
             free(wbuf);
         } else {
-            write_file(hint->buf, hint->size, new_path);
+            write_hint_file(hint->buf, hint->size, new_path);
         }
     }
     
