@@ -275,7 +275,7 @@ void bc_optimize(Bitcask *bc, int limit)
         gen_path(datapath, base, DATA_FILE, i); 
         gen_path(hintpath, base, HINT_FILE, i); 
         int deleted = count_deleted_record(bc->tree, i, hintpath, &total);
-        uint64_t dsize = data_file_size(bc, i) * (total - deleted) / total; // guess
+        uint64_t dsize = data_file_size(bc, i) * (total - deleted) / (total+1); // guess
         uint64_t last_size = data_file_size(bc, last);
         if (deleted <= total * 0.1 && deleted <= limit 
             && (last == -1 || dsize + last_size > MAX_BUCKET_SIZE)) {
