@@ -2060,10 +2060,6 @@ int main (int argc, char **argv) {
     if (log_file) {
         fclose(log_file);
     }
-    if (pid_file) {
-       fprintf(stderr, "length of pid_file: %d\n", strlen(pid_file));
-       fprintf(stderr, pid_file);
-    }
 
     /* remove the PID file if we're a daemon */
     if (daemonize)
