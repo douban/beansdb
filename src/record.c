@@ -121,8 +121,8 @@ DataRecord* decompress_record(DataRecord *r)
             goto DECOMP_END;
         }
         int ret = qlz_decompress(r->value, v, scratch);
-        if (ret < size) {
-            fprintf(stderr, "decompress %s failed: %d < %d\n", r->key, ret, size);
+        if (ret != size) {
+            fprintf(stderr, "decompress %s failed: %d != %d\n", r->key, ret, size);
             goto DECOMP_END;
         }
         if (r->free_value) {
@@ -153,7 +153,11 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
         fprintf(stderr, "not enough data in buffer: %d < %d\n", size, need);
         return NULL;
     }
-    // CRC check ?
+    uint32_t crc = crc32(0, buf + sizeof(uint32_t),  need - sizeof(uint32_t));
+    if (r->crc != crc) {
+        fprintf(stderr, "CRC checksum failed\n");
+        return NULL;
+    }
 
     DataRecord *r2 = (DataRecord *) malloc(need + 1 + sizeof(char*));
     memcpy(&r2->crc, &r->crc, sizeof(DataRecord) - sizeof(char*) + ksz);
@@ -324,6 +328,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     char *p = f->addr, *end = f->addr + f->size;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
+
         if (r != NULL) {
             uint32_t pos = p - f->addr;
             p += record_length(r); 
@@ -337,7 +342,8 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
             ht_add2(cur_tree, r->key, r->ksz, pos | bucket, hash, r->version);
             free_record(r);
         } else {
-            p += PADDING;
+            fprintf(stderr, "broken data file %s at %ld\n", path, p - f->addr);
+            break;
         }
     }
 
@@ -370,7 +376,8 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             }
             free_record(r);
         } else {
-            p += PADDING;
+            fprintf(stderr, "broken data file %s at %ld\n", path, p - f->addr);
+            break;
         }
     }
 
