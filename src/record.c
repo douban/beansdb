@@ -446,12 +446,8 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
         if (r == NULL) {
-            fprintf(stderr, "read data failed: %s\n", path);
-            free(hintdata);
-            ht_destroy(cur_tree);
-            close_mfile(f);
-            fclose(new_df);
-            return -1;
+            fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr);
+            break;
         }
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
