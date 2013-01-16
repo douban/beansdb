@@ -96,17 +96,17 @@ static void parallelize(HStore *store, BC_FUNC func) {
     pthread_mutex_init(&scan_lock, NULL);
     pthread_cond_init(&scan_cond, NULL);
 
-    pthread_t thread;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
 
     int i, ret;
+    pthread_t *thread_ids = malloc(sizeof(pthread_t) * store->scan_threads);
     struct scan_args *args = (struct scan_args *) malloc(sizeof(struct scan_args) * store->scan_threads);
     for (i=0; i<store->scan_threads; i++) {
         args[i].store = store;
         args[i].index = i;
         args[i].func = func;
-        if ((ret = pthread_create(&thread, &attr, scan_thread, args+i)) != 0) {
+        if ((ret = pthread_create(thread_ids + i, &attr, scan_thread, args + i)) != 0) {
             fprintf(stderr, "Can't create thread: %s\n", strerror(ret));
             exit(1);
         }
@@ -117,6 +117,12 @@ static void parallelize(HStore *store, BC_FUNC func) {
         pthread_cond_wait(&scan_cond, &scan_lock);
     }
     pthread_mutex_unlock(&scan_lock);
+
+    for (i=0; i<store->scan_threads; i++) {
+        pthread_join(thread_ids[i], NULL);
+        pthread_detach(thread_ids[i]);
+    }
+    free(thread_ids);
     free(args);
 }
 
@@ -231,6 +237,8 @@ void hs_close(HStore *store)
             bc_close(store->bitcasks[i]);
         }
     }
+    mgr_destroy(store->mgr);
+    free(store);
 }
 
 static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)

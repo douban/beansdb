@@ -2054,6 +2054,8 @@ int main (int argc, char **argv) {
     /* wait other thread to ends */
     fprintf(stderr, "waiting for close ... \n");
     pthread_join(flush_id, NULL);
+    pthread_detach(flush_id);
+
     hs_close(store);
     fprintf(stderr, "done.\n");
 

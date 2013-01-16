@@ -149,9 +149,12 @@ int dc_load(Codec *dc, const char *buf, int size)
 
 void dc_destroy(Codec *dc)
 {
+    int i;
     if (dc == NULL) return;
-
+    
     if (dc->rdict) free(dc->rdict);
+    for (i=1; i<dc->dict_used; i++)
+        free(dc->dict[i]);
     if (dc->dict) free(dc->dict);
     free(dc);
 }

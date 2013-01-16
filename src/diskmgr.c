@@ -83,6 +83,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
             (void) closedir(dp);
         //}
     }
+    free(cwd);
     return mgr;
 }
 

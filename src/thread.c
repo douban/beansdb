@@ -225,6 +225,9 @@ void loop_run(int nthread)
     // wait workers to stop
     for (i=0; i<nthread - 1; i++) {
         (void) pthread_join(tids[i], NULL);
+        pthread_detach(tids[i]);
     }
     free(tids);
+
+    aeApiFree(&loop);
 }
