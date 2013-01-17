@@ -55,6 +55,7 @@ struct bitcask_t {
     time_t last_flush_time;
     uint32_t    wbuf_size, wbuf_start_pos, wbuf_curr_pos;
     pthread_mutex_t flush_lock, buffer_lock, write_lock;
+    int    optimize_flag;
 };
 
 Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
@@ -229,6 +230,13 @@ void bc_close(Bitcask *bc)
         bc->curr_tree = NULL;
     }
 
+    if (bc->optimize_flag > 0) {
+        bc->optimize_flag = 2;
+        while (bc->optimize_flag > 0) {
+            sleep(1);
+        }
+    }
+
     if (bc->curr_bytes == 0) bc->curr --;
     if (bc->curr - bc->last_snapshot >= SAVE_HTREE_LIMIT) {
         const char* path = mgr_base(bc->mgr);
@@ -263,6 +271,7 @@ uint64_t data_file_size(Bitcask *bc, int bucket) {
 void bc_optimize(Bitcask *bc, int limit)
 {
     int i, total, last = -1;
+    bc->optimize_flag = 1;
     const char *base = mgr_base(bc->mgr);
     // remove htree
     for (i=0; i < bc->curr; i++) {
@@ -270,7 +279,7 @@ void bc_optimize(Bitcask *bc, int limit)
     }
     bc->last_snapshot = -1;
 
-    for (i=0; i < bc->curr; i++) {
+    for (i=0; i < bc->curr && bc->optimize_flag == 1; i++) {
         char datapath[255], hintpath[255];
         gen_path(datapath, base, DATA_FILE, i); 
         gen_path(hintpath, base, HINT_FILE, i); 
@@ -311,6 +320,7 @@ void bc_optimize(Bitcask *bc, int limit)
         bc->bytes -= recoverd;
         pthread_mutex_unlock(&bc->buffer_lock);
     }
+    bc->optimize_flag = 0;
 }
 
 DataRecord* bc_get(Bitcask *bc, const char* key)

@@ -228,8 +228,11 @@ void hs_flush(HStore *store, int limit, int period)
 
 void hs_close(HStore *store)
 {
-    if (!store) return;
     int i;
+    if (!store) return;
+    // stop optimizing
+    store->op_start = store->op_end = 0;
+    
     if (store->scan_threads > 1 && store->count > 1) {
         parallelize(store, bc_close);
     } else {
