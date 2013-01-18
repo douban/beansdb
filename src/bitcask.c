@@ -367,17 +367,19 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     
     r = fast_read_record(fd, pos, true);
     if (NULL == r){
-        fprintf(stderr, "Bug: get %s failed in %s %u %u\n", key, path, bucket, pos); 
-    }else{
+        if (bc->optimize_flag == 0)
+            fprintf(stderr, "Bug: get %s failed in %s %u %u\n", key, path, bucket, pos); 
+    } else {
          // check key
         if (strcmp(key, r->key) != 0){
-            fprintf(stderr, "Bug: record %s is not expected %s in %u @ %u\n", r->key, key, bucket, pos);
+            if (bc->optimize_flag == 0)
+                fprintf(stderr, "Bug: record %s is not expected %s in %u @ %u\n", r->key, key, bucket, pos);
             free_record(r);
             r = NULL;
         } 
     }
 GET_END:
-    if (NULL == r)
+    if (NULL == r && bc->optimize_flag == 0)
         ht_remove(bc->tree, key);
     if (fd != -1) close(fd);
     free(item);
