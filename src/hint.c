@@ -107,7 +107,7 @@ MFile* open_mfile(const char* path)
 {
     int fd = open(path, O_RDONLY);
     if (fd == -1) {
-        fprintf(stderr, "open %s failed\n", path);
+        fprintf(stderr, "open mfile %s failed\n", path);
         return NULL;     
     }
 

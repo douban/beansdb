@@ -217,6 +217,13 @@ void bc_close(Bitcask *bc)
     
     pthread_mutex_lock(&bc->write_lock);
     
+    if (bc->optimize_flag > 0) {
+        bc->optimize_flag = 2;
+        while (bc->optimize_flag > 0) {
+            sleep(1);
+        }
+    }
+    
     bc_flush(bc, 0, 0);
     
     if (NULL != bc->curr_tree) {
@@ -228,13 +235,6 @@ void bc_close(Bitcask *bc)
             ht_destroy(bc->curr_tree);
         }
         bc->curr_tree = NULL;
-    }
-
-    if (bc->optimize_flag > 0) {
-        bc->optimize_flag = 2;
-        while (bc->optimize_flag > 0) {
-            sleep(1);
-        }
     }
 
     if (bc->curr_bytes == 0) bc->curr --;
@@ -268,6 +268,31 @@ uint64_t data_file_size(Bitcask *bc, int bucket) {
     return size;
 }
 
+
+// update pos in HTree
+struct update_args {
+    HTree *tree;
+    uint32_t index;
+};
+
+static void update_item_pos(Item *it, void *_args)
+{
+    struct update_args *args = _args;
+    HTree *tree = (HTree*) args->tree;
+    Item *p = ht_get(tree, it->key);
+    if (p) {
+        if (it->pos == p->pos && it->ver == p->ver) {
+            uint32_t npos = (it->pos & 0xffffff00) | args->index;
+            ht_add(tree, p->key, npos, p->hash, p->ver);
+        } else {
+            fprintf(stderr, "Bug: item %s not match with one in tree\n", it->key);
+        }
+        free(p);
+    } else {
+        fprintf(stderr, "Bug: item %s not in tree\n", it->key);
+    }
+}
+
 void bc_optimize(Bitcask *bc, int limit)
 {
     int i, total, last = -1;
@@ -284,42 +309,66 @@ void bc_optimize(Bitcask *bc, int limit)
         gen_path(datapath, base, DATA_FILE, i); 
         gen_path(hintpath, base, HINT_FILE, i); 
         int deleted = count_deleted_record(bc->tree, i, hintpath, &total);
-        uint64_t dsize = data_file_size(bc, i) * (total - deleted) / (total+1); // guess
-        uint64_t last_size = data_file_size(bc, last);
+        uint64_t curr_size = data_file_size(bc, i) * (total - deleted) / (total+1); // guess
+        uint64_t last_size = last >= 0 ? data_file_size(bc, last) : -1;
         if (deleted <= total * 0.1 && deleted <= limit 
-            && (last == -1 || dsize + last_size > MAX_BUCKET_SIZE)) {
+            && (last == -1 || curr_size + last_size > MAX_BUCKET_SIZE)) {
             fprintf(stderr, "only %d records deleted in %d, skip %s\n", deleted, total, datapath);
-            last = i;
+            last ++;
             continue;
         }
 
         // last data file size
         uint32_t recoverd = 0;
-        if (last >= 0 && last_size + dsize < MAX_BUCKET_SIZE) {
+        if (last == -1 || last_size + curr_size > MAX_BUCKET_SIZE) {
+            last ++;
+        }
+        while (last < i) {
             char ldpath[255], lhpath[255];
             gen_path(ldpath, base, DATA_FILE, last);
             gen_path(lhpath, base, HINT_FILE, last);
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
                     limit, MAX_BUCKET_SIZE, last, ldpath, lhpath);
+            if (recoverd == 0) {
+                last ++;
+            } else {
+                break;
+            }
         }
         if (recoverd == 0) {
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
-                    limit, MAX_BUCKET_SIZE, i, NULL, NULL);
-            if (data_file_size(bc, i) == 0) {
-                mgr_unlink(datapath);
-                mgr_unlink(hintpath);
-            } else {
-                last = i;
-            }
+                    limit, MAX_BUCKET_SIZE, last, NULL, NULL);
         }
-        if (recoverd < 0) {
-            break;
-        }
+        if (recoverd < 0) break; // failed
         
         pthread_mutex_lock(&bc->buffer_lock);
         bc->bytes -= recoverd;
         pthread_mutex_unlock(&bc->buffer_lock);
     }
+
+    // update pos of items in curr_tree
+    pthread_mutex_lock(&bc->flush_lock);
+    if (i == bc->curr && ++last < bc->curr) {
+        char opath[255], npath[255];
+        gen_path(opath, base, DATA_FILE, bc->curr);
+
+        if (file_exists(opath)) {
+            gen_path(npath, base, DATA_FILE, last);
+            symlink(opath, npath);
+
+            struct update_args args;
+            args.tree = bc->tree;
+            args.index = last;
+            ht_visit(bc->curr_tree, update_item_pos, &args);
+
+            unlink(npath);
+            mgr_rename(opath, npath);
+        }
+
+        bc->curr = last;
+    }
+    pthread_mutex_unlock(&bc->flush_lock);
+
     bc->optimize_flag = 0;
 }
 
@@ -527,14 +576,10 @@ bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int v
              && memcmp(value, r->value, vlen) == 0) {
             if (version != 0){
                 // update version
-                ht_add(bc->tree, key, it->pos, it->hash, ver);
                 if (it->pos & 0xff == bc->curr){
-                    if (bc->curr_tree == NULL) {
-                        fprintf(stderr, "BUG: curr_tree should not be NULL\n");
-                    }else{
-                        ht_add(bc->curr_tree, key, it->pos, it->hash, ver);
-                    }
+                    ht_add(bc->curr_tree, key, it->pos, it->hash, ver);
                 }
+                ht_add(bc->tree, key, it->pos, it->hash, ver);
             }
             suc = true;
             free_record(r);
@@ -583,8 +628,8 @@ bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int v
     bc->wbuf_curr_pos += rlen;
     pthread_mutex_unlock(&bc->buffer_lock);
    
-    ht_add(bc->tree, key, pos, hash, ver);
     ht_add(bc->curr_tree, key, pos, hash, ver);
+    ht_add(bc->tree, key, pos, hash, ver);
     suc = true;
     free(rbuf);
     free_record(r);

@@ -416,18 +416,24 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         new_df = fopen(lastdata, "ab");
         old_data_size = ftell(new_df);
 
-        HintFile *hint = open_hint(lasthint, NULL);
-        if (hint == NULL) {
-            fprintf(stderr, "open last hint file %s failed\n", lasthint);
-            close_mfile(f);
-            return 0;
+        if (old_data_size > 0) {
+            HintFile *hint = open_hint(lasthint, NULL);
+            if (hint == NULL) {
+                fprintf(stderr, "open last hint file %s failed\n", lasthint);
+                close_mfile(f);
+                return 0;
+            }
+            hint_size = hint->size * 2;
+            if (hint_size < 4096) hint_size = 4096;
+            hintdata = malloc(hint_size);
+            memcpy(hintdata, hint->buf, hint->size);
+            hint_used = hint->size;
+            close_hint(hint);
+        } else {
+            hint_size = 4096;
+            hintdata = malloc(hint_size);
+            hint_used = 0;
         }
-        hint_size = hint->size * 2;
-        if (hint_size < 4096) hint_size = 4096;
-        hintdata = malloc(hint_size);
-        memcpy(hintdata, hint->buf, hint->size);
-        hint_used = hint->size;
-        close_hint(hint);
     } else {
         sprintf(tmp, "%s.tmp", path);
         new_df = fopen(tmp, "wb");
@@ -504,14 +510,12 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     ht_visit(cur_tree, update_items, tree);
     ht_destroy(cur_tree);
 
-    unlink(path, NULL);
-    if (lastdata != NULL) {
-        write_hint_file(hintdata, hint_used, lasthint);
-        unlink(hintpath);
-    } else {
-        write_hint_file(hintdata, hint_used, hintpath);
+    unlink(path);
+    if (lastdata == NULL) 
         rename(tmp, path);
-    }
+    
+    unlink(hintpath);
+    write_hint_file(hintdata, hint_used, lasthint ? lasthint : hintpath);
     free(hintdata);
 
     fprintf(stderr, "optimize %s complete, %d records deleted, %u bytes came back\n", 
