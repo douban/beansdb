@@ -204,7 +204,7 @@ DataRecord* read_record(FILE *f, bool decomp)
         int ret = 0;
         if (need > 0 && need != (ret=fread(r->value + read_size, 1, need, f))) {
             r->key[ksz] = 0; // c str    
-            fprintf(stderr, "read record %s faied: %d < %d @%ld\n", r->key, ret, need, ftell(f)); 
+            fprintf(stderr, "read record %s faied: %d < %d @%ld\n", r->key, ret, need, ftello(f)); 
             goto READ_END;
         }
     }
@@ -214,7 +214,7 @@ DataRecord* read_record(FILE *f, bool decomp)
                     sizeof(DataRecord) - sizeof(char*) - sizeof(uint32_t) + ksz);
     crc = crc32(crc, r->value, vsz);
     if (crc != crc_old){
-        fprintf(stderr, "%s @%ld crc32 check failed %d != %d\n", r->key, ftell(f), crc, r->crc);
+        fprintf(stderr, "%s @%ld crc32 check failed %d != %d\n", r->key, ftello(f), crc, r->crc);
         goto READ_END;
     }
 
@@ -425,7 +425,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     uint32_t hint_used=0, hint_size = 0, old_data_size=0;
     if (lastdata != NULL) {
         new_df = fopen(lastdata, "ab");
-        old_data_size = ftell(new_df);
+        old_data_size = ftello(new_df);
 
         if (old_data_size > 0) {
             HintFile *hint = open_hint(lasthint, NULL);
@@ -475,7 +475,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
         if (it && it->pos  == (pos | bucket) && (it->ver > 0 || limit > 0)) {
-            uint32_t new_pos = ftell(new_df);
+            uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size) {
                 fprintf(stderr, "optimize %s into %s failed\n", path, lastdata);
                 free(hintdata);
@@ -519,7 +519,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         p += record_length(r); 
         free_record(r);
     }
-    uint32_t deleted_bytes = f->size - (ftell(new_df) - old_data_size);
+    uint32_t deleted_bytes = f->size - (ftello(new_df) - old_data_size);
     
     close_mfile(f);
     fclose(new_df);

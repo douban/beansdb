@@ -485,13 +485,13 @@ HTree* ht_open(int depth, int pos, const char *path)
 
     off_t fsize = 0;
     if (fread(&fsize, sizeof(fsize), 1, f) != 1 ||
-        fseek(f, 0, 2) != 0 ||
+        fseeko(f, 0, 2) != 0 ||
         ftello(f) != fsize) {
         fprintf(stderr, "the size %lu is not expected\n", fsize);
         fclose(f);
         return NULL;
     }
-    fseek(f, sizeof(VERSION) + sizeof(off_t), 0);
+    fseeko(f, sizeof(VERSION) + sizeof(off_t), 0);
 
     HTree *tree = (HTree*)malloc(sizeof(HTree));
     if (!tree) {
@@ -645,7 +645,7 @@ int ht_save(HTree *tree, const char *path)
     free(buf);
     
     pos = ftello(f);
-    fseek(f, sizeof(VERSION), 0);
+    fseeko(f, sizeof(VERSION), 0);
     if (fwrite(&pos, sizeof(off_t), 1, f) != 1) {
         fprintf(stderr, "write size failed\n");
         fclose(f);

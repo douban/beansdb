@@ -257,14 +257,12 @@ void bc_close(Bitcask *bc)
 }
 
 uint64_t data_file_size(Bitcask *bc, int bucket) {
+    struct stat st;
     char path[255];
     gen_path(path, mgr_base(bc->mgr), DATA_FILE, bucket);
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) return 0;
-    fseek(fp, 0, 2);
-    uint64_t size = ftell(fp);
-    fclose(fp);
-    return size;
+    if (stat(path, &st) != 0) return 0;
+    fprintf(stderr, "%s  size: %u MB\n", path, st.st_size >> 20); 
+    return st.st_size;
 }
 
 
@@ -487,7 +485,7 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
             exit(1);
         }
         // check file size
-        uint64_t last_pos = ftell(f);
+        uint64_t last_pos = ftello(f);
         if (last_pos > 0 && last_pos != bc->wbuf_start_pos) {
             fprintf(stderr, "last pos not match: %llu != %d in %s\n", last_pos, bc->wbuf_start_pos, buf);
             exit(1);
