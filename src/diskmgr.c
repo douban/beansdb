@@ -157,8 +157,12 @@ void mgr_unlink(const char *path)
     struct stat sb;
     if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK) {
         char buf[256];
-        if(readlink(path, buf, 255) > 0) {
+        int n = readlink(path, buf, 255);
+        if (n > 0) {
+            buf[n] = 0;
             unlink(buf);
+        }else{
+            fprintf(stderr, "readlink failed: %s\n", path);
         }
     }
     unlink(path);
@@ -167,14 +171,19 @@ void mgr_unlink(const char *path)
 void mgr_rename(const char *oldpath, const char *newpath)
 {
     struct stat sb;
+    char ropath[256];
     if (lstat(oldpath, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK) {
-        char ropath[256];
-        if(readlink(oldpath, ropath, 255) <= 0) return;
-        char *rnpath = strcat(strcat(dirname(strdup(ropath)), "/"), 
-                              basename(strdup(newpath)));
-        rename(ropath, rnpath); 
-        symlink(rnpath, newpath);
-        unlink(oldpath);
+        int n = readlink(oldpath, ropath, 255);
+        if (n > 0) {
+            ropath[n] = 0;
+            char *rnpath = strcat(strcat(dirname(strdup(ropath)), "/"), 
+                                  basename(strdup(newpath)));
+            rename(ropath, rnpath); 
+            symlink(rnpath, newpath);
+            unlink(oldpath);
+        } else {
+            fprintf(stderr, "readlink failed: %s\n", oldpath);
+        }
     } else {
         rename(oldpath, newpath);
     }
