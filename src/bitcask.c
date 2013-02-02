@@ -98,6 +98,11 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     return bc;
 }
 
+inline bool file_exists(const char *path) {
+    struct stat st;
+    return stat(path, &st) == 0;
+}
+
 inline char *gen_path(char *dst, const char *base, const char *fmt, int i)
 {
     static char path[256];
@@ -108,9 +113,15 @@ inline char *gen_path(char *dst, const char *base, const char *fmt, int i)
     return dst;
 }
 
-inline bool file_exists(const char *path) {
-    struct stat st;
-    return stat(path, &st) == 0;
+inline char *new_path(char *dst, Mgr *mgr, const char *fmt, int i)
+{
+    char *path = gen_path(dst, mgr_base(mgr), fmt, i);
+    if (!file_exists(dst)) {
+        char name[16];
+        sprintf(name, fmt, i);
+        sprintf(path, "%s/%s",  mgr_alloc(mgr, name), name);
+    }
+    return path;
 }
 
 static void skip_empty_file(Bitcask* bc)
@@ -137,7 +148,7 @@ static void skip_empty_file(Bitcask* bc)
 
 void bc_scan(Bitcask* bc)
 {
-    char dname[20], hname[20], datapath[255], hintpath[255];
+    char datapath[255], hintpath[255];
     int i=0;
     struct stat st, hst;
     
@@ -176,9 +187,8 @@ void bc_scan(Bitcask* bc)
             if (0 == stat(hintpath, &st)){
                 scanHintFile(bc->tree, i, hintpath, NULL);
             }else{
-                sprintf(hname, HINT_FILE, i);
-                sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
-                scanDataFile(bc->tree, i, datapath, hintpath);                
+                scanDataFile(bc->tree, i, datapath,
+                        new_path(hintpath, bc->mgr, HINT_FILE, i));
             }
         }else{
             if (0 == stat(hintpath, &st) && 
@@ -191,12 +201,8 @@ void bc_scan(Bitcask* bc)
     }
 
     if (i - bc->last_snapshot > SAVE_HTREE_LIMIT) {
-        sprintf(dname, HTREE_FILE, i-1);
-        sprintf(datapath, "%s/%s", mgr_alloc(bc->mgr, dname), dname);
-        if (ht_save(bc->tree, datapath) == 0) {
-            sprintf(dname, HTREE_FILE, bc->last_snapshot);
-            sprintf(datapath, "%s/%s", base, dname);
-            mgr_unlink(datapath);
+        if (ht_save(bc->tree, new_path(datapath, bc->mgr, HTREE_FILE, i-1)) == 0) {
+            mgr_unlink(gen_path(NULL, base, HTREE_FILE, bc->last_snapshot));
 
             bc->last_snapshot = i-1;
         } else {
@@ -213,7 +219,7 @@ void bc_scan(Bitcask* bc)
 void bc_close(Bitcask *bc)
 {
     int i=0;
-    char dname[20], hname[20], datapath[255], hintpath[255];
+    char datapath[255], hintpath[255];
     
     pthread_mutex_lock(&bc->write_lock);
     
@@ -228,9 +234,7 @@ void bc_close(Bitcask *bc)
     
     if (NULL != bc->curr_tree) {
         if (bc->curr_bytes > 0) {
-            sprintf(hname, HINT_FILE, bc->curr);
-            sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
-            build_hint(bc->curr_tree, hintpath);
+            build_hint(bc->curr_tree, new_path(hintpath, bc->mgr, HINT_FILE, bc->curr));
         }else{
             ht_destroy(bc->curr_tree);
         }
@@ -239,13 +243,8 @@ void bc_close(Bitcask *bc)
 
     if (bc->curr_bytes == 0) bc->curr --;
     if (bc->curr - bc->last_snapshot >= SAVE_HTREE_LIMIT) {
-        const char* path = mgr_base(bc->mgr);
-        sprintf(dname, HTREE_FILE, bc->curr);
-        sprintf(datapath, "%s/%s", mgr_alloc(bc->mgr, dname), dname);
-        if (ht_save(bc->tree, datapath) == 0) {
-            sprintf(dname, HTREE_FILE, bc->last_snapshot);
-            sprintf(datapath, "%s/%s", path, dname);
-            mgr_unlink(datapath);
+        if (ht_save(bc->tree, new_path(datapath, bc->mgr, HTREE_FILE, bc->curr)) == 0) {
+            mgr_unlink(gen_path(datapath, mgr_base(bc->mgr), HTREE_FILE, bc->last_snapshot));
         } else {
             fprintf(stderr, "save HTree to %s failed\n", datapath);
         }
@@ -325,19 +324,21 @@ void bc_optimize(Bitcask *bc, int limit)
         }
         while (last < i) {
             char ldpath[255], lhpath[255];
-            gen_path(ldpath, base, DATA_FILE, last);
-            gen_path(lhpath, base, HINT_FILE, last);
+            new_path(ldpath, bc->mgr, DATA_FILE, last);
+            new_path(lhpath, bc->mgr, HINT_FILE, last);
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
                     limit, MAX_BUCKET_SIZE, last, ldpath, lhpath);
             if (recoverd == 0) {
+                fprintf(stderr, "Bug: %u %u %u\n", last_size, curr_size, MAX_BUCKET_SIZE);
                 last ++;
             } else {
                 break;
             }
         }
         if (recoverd == 0) {
+            // last == i
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
-                    limit, MAX_BUCKET_SIZE, last, NULL, NULL);
+                limit, MAX_BUCKET_SIZE, last, NULL, NULL);
         }
         if (recoverd < 0) break; // failed
         
@@ -361,7 +362,7 @@ void bc_optimize(Bitcask *bc, int limit)
             args.index = last;
             ht_visit(bc->curr_tree, update_item_pos, &args);
 
-            unlink(npath);
+            mgr_unlink(npath);
             mgr_rename(opath, npath);
         }
 
@@ -451,9 +452,8 @@ void* build_thread(void *param)
 
 void bc_rotate(Bitcask *bc) {
     // build in new thread
-    char hname[20], hintpath[255];
-    sprintf(hname, HINT_FILE, bc->curr);
-    sprintf(hintpath, "%s/%s", mgr_alloc(bc->mgr, hname), hname);
+    char hintpath[255];
+    new_path(hintpath, bc->mgr, HINT_FILE, bc->curr);
     struct build_thread_args *args = (struct build_thread_args*)malloc(
             sizeof(struct build_thread_args));
     args->tree = bc->curr_tree;
@@ -478,9 +478,8 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
     time_t now = time(NULL);
     if (bc->wbuf_curr_pos > limit * 1024 || 
         now > bc->last_flush_time + flush_period && bc->wbuf_curr_pos > 0) {
-        char name[20], buf[255];
-        sprintf(name, DATA_FILE, bc->curr);
-        sprintf(buf, "%s/%s", mgr_alloc(bc->mgr, name), name);
+        char buf[255];
+        new_path(buf, bc->mgr, DATA_FILE, bc->curr);
 
         FILE *f = fopen(buf, "ab");
         if (f == NULL) {

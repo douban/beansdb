@@ -25,6 +25,7 @@
 
 #include "hint.h"
 #include "quicklz.h"
+#include "diskmgr.h"
 //#include "fnv1a.h"
 
 const  int MAX_MMAP_SIZE = 1<<12; // 4G
@@ -82,8 +83,8 @@ void write_hint_file(char *buf, int size, const char* path)
     if (dst != buf) free(dst);
 
     if (n == size) {
-        unlink(path);
-        rename(tmp, path);
+        mgr_unlink(path);
+        mgr_rename(tmp, path);
     }else{
         fprintf(stderr, "write to %s failed \n", tmp);
     }
@@ -179,7 +180,7 @@ HintFile *open_hint(const char* path, const char* new_path)
         int vsize = qlz_decompress(hint->buf, buf, wbuf);
         if (vsize != size) {
             fprintf(stderr, "decompress %s failed: %d < %d, remove it\n", path, vsize, size);
-            unlink(path);
+            mgr_unlink(path);
             exit(1);
         }
         hint->size = size;

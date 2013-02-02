@@ -24,6 +24,7 @@
 #include "record.h"
 #include "hint.h"
 #include "crc32.c"
+#include "diskmgr.h"
 #include "quicklz.h"
 //#include "fnv1a.h"
 
@@ -145,7 +146,7 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
     DataRecord *r = (DataRecord *) (buf - sizeof(char*));
     int ksz = r->ksz, vsz = r->vsz;
     if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024){
-        fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
+        //fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
         return NULL;
     }
     int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
@@ -326,6 +327,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     fprintf(stderr, "scan datafile %s\n", path);
     HTree *cur_tree = ht_new(0,0);
     char *p = f->addr, *end = f->addr + f->size;
+    int broken = 0;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
 
@@ -342,8 +344,12 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
             ht_add2(cur_tree, r->key, r->ksz, pos | bucket, hash, r->version);
             free_record(r);
         } else {
-            fprintf(stderr, "broken data file %s at %ld\n", path, p - f->addr);
-            break;
+            broken ++;
+            if (broken > 40960) { // 10M
+                fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr - broken * PADDING);
+                break;
+            }
+            p += PADDING;
         }
     }
 
@@ -358,6 +364,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
     
     fprintf(stderr, "scan datafile %s before %ld\n", path, before);
     char *p = f->addr, *end = f->addr + f->size;
+    int broken = 0;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
         if (r != NULL) {
@@ -376,8 +383,12 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             }
             free_record(r);
         } else {
-            fprintf(stderr, "broken data file %s at %ld\n", path, p - f->addr);
-            break;
+            broken ++;
+            if (broken > 40960) { // 10M
+                fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr - broken * PADDING);
+                break;
+            }
+            p += PADDING;
         }
     }
 
@@ -447,13 +458,19 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     }
     
     HTree *cur_tree = ht_new(0,0);
-    int deleted = 0;
+    int deleted = 0, broken = 0;
     char *p = f->addr, *end = f->addr + f->size;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
         if (r == NULL) {
-            fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr);
-            break;
+            broken ++;
+            if (broken > 40960) { // 10M
+                // TODO: delete broken keys from htree
+                fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr - broken * PADDING);
+                break;
+            }
+            p += PADDING;
+            continue;
         }
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
@@ -510,11 +527,11 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     ht_visit(cur_tree, update_items, tree);
     ht_destroy(cur_tree);
 
-    unlink(path);
+    mgr_unlink(path);
     if (lastdata == NULL) 
-        rename(tmp, path);
+        mgr_rename(tmp, path);
     
-    unlink(hintpath);
+    mgr_unlink(hintpath);
     write_hint_file(hintdata, hint_used, lasthint ? lasthint : hintpath);
     free(hintdata);
 
