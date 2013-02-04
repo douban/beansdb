@@ -120,13 +120,15 @@ int dc_load(Codec *dc, const char *buf, int size)
     const char *orig = buf;
     int i;
     if (dc == NULL) return -1;
-    dc->dict_used = *(int*)buf;
-    if (dc->dict_used >= MAX_DICT_SIZE) return -1;
+    int used = *(int*)buf;
+    if (used >= MAX_DICT_SIZE) return -1;
+    dc->dict_used = used;
     buf += sizeof(int);
     if (dc->dict_size < dc->dict_used * 2) {
         dc->dict_size = max(dc->dict_used * 2, MAX_DICT_SIZE);
         dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
         if (dc->dict == NULL) {
+            dc->dict_used = 1;
             return -1;
         }
     }
