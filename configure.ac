@@ -9,6 +9,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_SEARCH_LIBS(socket, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(mallinfo, malloc)
+AC_SEARCH_LIBS(pthread_create, pthread)
 
 AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_FUNC(daemon,AC_DEFINE([HAVE_DAEMON],,[Define this if you have daemon()]),[AC_LIBOBJ(daemon)])
