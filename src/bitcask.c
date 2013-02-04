@@ -261,7 +261,6 @@ uint64_t data_file_size(Bitcask *bc, int bucket) {
     char path[255];
     gen_path(path, mgr_base(bc->mgr), DATA_FILE, bucket);
     if (stat(path, &st) != 0) return 0;
-    fprintf(stderr, "%s  size: %u MB\n", path, st.st_size >> 20); 
     return st.st_size;
 }
 
@@ -306,12 +305,12 @@ void bc_optimize(Bitcask *bc, int limit)
         gen_path(datapath, base, DATA_FILE, i); 
         gen_path(hintpath, base, HINT_FILE, i); 
         int deleted = count_deleted_record(bc->tree, i, hintpath, &total);
-        uint64_t curr_size = data_file_size(bc, i) * (total - deleted) / (total+1); // guess
+        uint64_t curr_size = data_file_size(bc, i) * (total - deleted/2) / (total+1); // guess
         uint64_t last_size = last >= 0 ? data_file_size(bc, last) : -1;
-        if (deleted <= total * 0.1 && deleted <= limit 
+        if (last == i-1 && deleted <= total * 0.1 && deleted <= limit 
             && (last == -1 || curr_size + last_size > MAX_BUCKET_SIZE)) {
             fprintf(stderr, "only %d records deleted in %d, skip %s\n", deleted, total, datapath);
-            last ++;
+            last = i;
             continue;
         }
 
@@ -327,7 +326,6 @@ void bc_optimize(Bitcask *bc, int limit)
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
                     limit, MAX_BUCKET_SIZE, last, ldpath, lhpath);
             if (recoverd == 0) {
-                fprintf(stderr, "Bug: %u %u %u\n", last_size, curr_size, MAX_BUCKET_SIZE);
                 last ++;
             } else {
                 break;
