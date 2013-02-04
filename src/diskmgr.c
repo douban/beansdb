@@ -179,8 +179,9 @@ void mgr_rename(const char *oldpath, const char *newpath)
             char *rnpath = strcat(strcat(dirname(strdup(ropath)), "/"), 
                                   basename(strdup(newpath)));
             rename(ropath, rnpath); 
-            symlink(rnpath, newpath);
             unlink(oldpath);
+            if (symlink(rnpath, newpath) != 0)
+                fprintf(stderr, "symlink failed: %s -> %s\n", rnpath, newpath);
         } else {
             fprintf(stderr, "readlink failed: %s\n", oldpath);
         }

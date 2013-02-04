@@ -159,43 +159,6 @@ void dc_destroy(Codec *dc)
     free(dc);
 }
 
-static inline 
-int32_t b64_encode(const char* src, int len) {
-    int32_t n = 0;
-    int i;
-    for (i=0; i<len; i++) {
-         n <<= 6;
-         char c = src[i];
-         if ('0'<=c && c <= '9') {
-            n += c-'0';
-         }else if ('a'<=c && c<='z'){
-            n += c-'a' + 10;
-         }else if ('A'<=c && c<='Z'){
-            n += c-'A' + 36;
-         }
-    }
-    return n;
-}
-
-static inline
-int b64_decode(char* dst, int32_t n) {
-    int i;
-    for (i=0;i<5;i++) {
-         char c;
-         int32_t m = n & 0x3f;
-         if (m >= 36) {
-            c = 'A' + (m-36);
-         }else if (m >= 10){
-            c = 'a' + (m-10);
-         }else {
-            c = '0' + m;
-         }
-         dst[4-i] = c;
-         n >>= 6;
-    }
-    return 5;
-}
-
 int dc_encode(Codec* dc, char* buf, const char* src, int len)
 {
     if (src == NULL || buf == NULL){
@@ -310,19 +273,12 @@ int dc_decode(Codec* dc, char* buf, const char* src, int len)
         Fmt *f = dc->dict[idx];
         int rlen = 0;
         int flen = strlen(f->fmt);
-        if (f->fmt[flen-1] == 'v' && f->fmt[flen-2] == '%') {
-            //hack for /status/xxx/1xxxx
-            memcpy(buf, f->fmt, flen-2);
-            b64_decode(buf+flen-2, args[0]);
-            rlen = flen+3;
-            buf[rlen] = 0;
-        }else{
         switch(f->nargs){
             case 1: rlen = sprintf(buf, f->fmt, args[0]); break;
             case 2: rlen = sprintf(buf, f->fmt, args[0], args[1]); break;
             case 3: rlen = sprintf(buf, f->fmt, args[0], args[1], args[2]); break;
             default: ; 
-        }}
+        }
         return rlen;
     }
     memcpy(buf, src, len);

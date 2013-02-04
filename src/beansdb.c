@@ -1905,7 +1905,7 @@ int main (int argc, char **argv) {
                 char buf[] = "2000-01-01-00:00:00";
                 struct tm tb;
                 memcpy(buf, optarg, strlen(optarg));
-                if (strptime(buf, fmt, &tb) != NULL) {
+                if (strptime(buf, fmt, &tb) != 0) {
                     before_time = timelocal(&tb);
                 }else{
                     fprintf(stderr, "invalid time:%s, need:%s\n", optarg, fmt);

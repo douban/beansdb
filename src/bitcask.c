@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include "bitcask.h"
 #include "htree.h"
@@ -351,7 +352,8 @@ void bc_optimize(Bitcask *bc, int limit)
 
         if (file_exists(opath)) {
             gen_path(npath, base, DATA_FILE, last);
-            symlink(opath, npath);
+            if (symlink(opath, npath) != 0)
+                fprintf(stderr, "symlink failed: %s -> %s\n", opath, npath);
 
             struct update_args args;
             args.tree = bc->tree;
@@ -485,7 +487,7 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
         // check file size
         uint64_t last_pos = ftello(f);
         if (last_pos > 0 && last_pos != bc->wbuf_start_pos) {
-            fprintf(stderr, "last pos not match: %llu != %d in %s\n", last_pos, bc->wbuf_start_pos, buf);
+            fprintf(stderr, "last pos not match: %"PRIu64" != %d in %s\n", last_pos, bc->wbuf_start_pos, buf);
             exit(1);
         }
       
