@@ -1,6 +1,7 @@
-2013-01-13 0.5.8
-    * new: merge data files into large one when GC (need restart)
+2013-02-04 0.5.8
+    * new: merge data files into large one when GC
 	* change: close bitcask in parallel 
+    * bugfix: readlink() should ends with \0 (used when GC)
 
 2012-11-20 0.5.7
     * new: dump HTree to disk to speed up boosting
