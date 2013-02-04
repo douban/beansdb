@@ -360,7 +360,7 @@ void bc_optimize(Bitcask *bc, int limit)
             args.index = last;
             ht_visit(bc->curr_tree, update_item_pos, &args);
 
-            mgr_unlink(npath);
+            unlink(npath);
             mgr_rename(opath, npath);
         }
 
