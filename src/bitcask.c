@@ -474,10 +474,16 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
     }
     
     pthread_mutex_lock(&bc->flush_lock);
+    pthread_mutex_lock(&bc->buffer_lock);
 
     time_t now = time(NULL);
     if (bc->wbuf_curr_pos > limit * 1024 || 
         now > bc->last_flush_time + flush_period && bc->wbuf_curr_pos > 0) {
+        uint32_t size = bc->wbuf_curr_pos;
+        char * tmp = (char*) malloc(size);
+        memcpy(tmp, bc->write_buffer, size);
+        pthread_mutex_unlock(&bc->buffer_lock);
+        
         char buf[255];
         new_path(buf, bc->mgr, DATA_FILE, bc->curr);
 
@@ -493,14 +499,8 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
             exit(1);
         }
       
-        pthread_mutex_lock(&bc->buffer_lock);
-        int size = bc->wbuf_curr_pos;
-        char * tmp = (char*) malloc(size);
-        memcpy(tmp, bc->write_buffer, size);
-        pthread_mutex_unlock(&bc->buffer_lock);
-        
         int n = fwrite(tmp, 1, size, f);
-        if (n <= 0) {
+        if (n < size) {
             fprintf(stderr, "write failed: return %d\n", n);
             exit(1);
         }
@@ -531,8 +531,9 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
         if (bc->wbuf_start_pos + bc->wbuf_size > MAX_BUCKET_SIZE) {
             bc_rotate(bc);
         }
-        pthread_mutex_unlock(&bc->buffer_lock);
     }
+    
+    pthread_mutex_unlock(&bc->buffer_lock);
     pthread_mutex_unlock(&bc->flush_lock);
 }
 
