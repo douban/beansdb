@@ -345,6 +345,7 @@ void bc_optimize(Bitcask *bc, int limit)
     }
 
     // update pos of items in curr_tree
+    pthread_mutex_lock(&bc->write_lock);
     pthread_mutex_lock(&bc->flush_lock);
     if (i == bc->curr && ++last < bc->curr) {
         char opath[255], npath[255];
@@ -367,6 +368,7 @@ void bc_optimize(Bitcask *bc, int limit)
         bc->curr = last;
     }
     pthread_mutex_unlock(&bc->flush_lock);
+    pthread_mutex_unlock(&bc->write_lock);
 
     bc->optimize_flag = 0;
 }
