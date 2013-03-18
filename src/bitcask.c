@@ -281,12 +281,8 @@ static void update_item_pos(Item *it, void *_args)
         if (it->pos == p->pos && it->ver == p->ver) {
             uint32_t npos = (it->pos & 0xffffff00) | args->index;
             ht_add(tree, p->key, npos, p->hash, p->ver);
-        } else {
-            fprintf(stderr, "Bug: item %s not match with one in tree\n", it->key);
         }
         free(p);
-    } else {
-        fprintf(stderr, "Bug: item %s not in tree\n", it->key);
     }
 }
 
@@ -317,11 +313,41 @@ void bc_optimize(Bitcask *bc, int limit)
         if (stat(datapath, &st) != 0) {
             continue; // skip empty file
         }
+        // skip recent modified file
         if (st.st_mtime > limit_time) {
             skipped = true;
-            last = i;
-            continue; // skip recent modified file
+           
+            last ++; 
+            if (last != i) { // rotate data file
+                char npath[255];
+                gen_path(npath, base, DATA_FILE, last);
+                if (symlink(datapath, npath) != 0) {
+                    fprintf(stderr, "symlink failed: %s -> %s\n", datapath, npath);
+                    last = i;
+                    continue;
+                }
+                
+                // update HTree to use new index
+                if (stat(hintpath, &st) != 0) {
+                    fprintf(stderr, "no hint file: %s, skip it\n", hintpath);
+                    last = i;
+                    continue;
+                }
+                HTree *tree = ht_new(bc->depth, bc->pos);
+                scanHintFile(tree, i, hintpath, NULL);
+                struct update_args args;
+                args.tree = bc->tree;
+                args.index = last;
+                ht_visit(tree, update_item_pos, &args);
+                ht_destroy(tree);
+
+                unlink(npath);
+                mgr_rename(datapath, npath);
+                mgr_rename(hintpath, gen_path(npath, base, HINT_FILE, last));
+            }
+            continue;
         }
+
         int deleted = count_deleted_record(bc->tree, i, hintpath, &total);
         uint64_t curr_size = data_file_size(bc, i) * (total - deleted/2) / (total+1); // guess
         uint64_t last_size = last >= 0 ? data_file_size(bc, last) : -1;
