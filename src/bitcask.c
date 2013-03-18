@@ -50,8 +50,8 @@ struct bitcask_t {
     Mgr    *mgr;
     HTree  *tree, *curr_tree;
     int    last_snapshot;
+    int    curr;
     uint64_t bytes, curr_bytes;
-    uint32_t curr;
     char   *write_buffer;
     time_t last_flush_time;
     uint32_t    wbuf_size, wbuf_start_pos, wbuf_curr_pos;
