@@ -222,14 +222,14 @@ void bc_close(Bitcask *bc)
     int i=0;
     char datapath[255], hintpath[255];
     
-    pthread_mutex_lock(&bc->write_lock);
-    
     if (bc->optimize_flag > 0) {
         bc->optimize_flag = 2;
         while (bc->optimize_flag > 0) {
             sleep(1);
         }
     }
+    
+    pthread_mutex_lock(&bc->write_lock);
     
     bc_flush(bc, 0, 0);
     
@@ -301,19 +301,30 @@ void bc_optimize(Bitcask *bc, int limit)
     }
     bc->last_snapshot = -1;
 
+    time_t limit_time = 0;
+    if (limit > 3600 * 24 * 365 * 10) { // more than 10 years
+        limit_time = limit; // absolute time
+    } else {
+        limit_time = time(NULL) - limit; // relative time 
+    }
+
+    struct stat st;
+    bool skipped = false;
     for (i=0; i < bc->curr && bc->optimize_flag == 1; i++) {
         char datapath[255], hintpath[255];
         gen_path(datapath, base, DATA_FILE, i); 
         gen_path(hintpath, base, HINT_FILE, i); 
+        if (stat(datapath, &st) != 0) {
+            continue; // skip empty file
+        }
+        if (st.st_mtime > limit_time) {
+            skipped = true;
+            last = i;
+            continue; // skip recent modified file
+        }
         int deleted = count_deleted_record(bc->tree, i, hintpath, &total);
         uint64_t curr_size = data_file_size(bc, i) * (total - deleted/2) / (total+1); // guess
         uint64_t last_size = last >= 0 ? data_file_size(bc, last) : -1;
-        if (last == i-1 && deleted <= total * 0.1 && deleted <= limit 
-            && (last == -1 || curr_size + last_size > MAX_BUCKET_SIZE)) {
-            fprintf(stderr, "only %d records deleted in %d, skip %s\n", deleted, total, datapath);
-            last = i;
-            continue;
-        }
 
         // last data file size
         uint32_t recoverd = 0;
@@ -325,7 +336,7 @@ void bc_optimize(Bitcask *bc, int limit)
             new_path(ldpath, bc->mgr, DATA_FILE, last);
             new_path(lhpath, bc->mgr, HINT_FILE, last);
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
-                    limit, MAX_BUCKET_SIZE, last, ldpath, lhpath);
+                    skipped, MAX_BUCKET_SIZE, last, ldpath, lhpath);
             if (recoverd == 0) {
                 last ++;
             } else {
@@ -335,7 +346,7 @@ void bc_optimize(Bitcask *bc, int limit)
         if (recoverd == 0) {
             // last == i
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath, 
-                limit, MAX_BUCKET_SIZE, last, NULL, NULL);
+                skipped, MAX_BUCKET_SIZE, last, NULL, NULL);
         }
         if (recoverd < 0) break; // failed
         

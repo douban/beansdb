@@ -415,7 +415,7 @@ void update_items(Item *it, void *args)
 }
 
 uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
-    int limit, uint32_t max_data_size, int last_bucket, const char *lastdata, const char *lasthint) 
+    bool skipped, uint32_t max_data_size, int last_bucket, const char *lastdata, const char *lasthint) 
 {
     MFile *f = open_mfile(path);
     if (f == NULL) return -1;
@@ -474,7 +474,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         }
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
-        if (it && it->pos  == (pos | bucket) && (it->ver > 0 || limit > 0)) {
+        if (it && it->pos  == (pos | bucket) && (it->ver > 0 || skipped)) {
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size) {
                 fprintf(stderr, "optimize %s into %s failed\n", path, lastdata);

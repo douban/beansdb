@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <errno.h>
+#include <time.h>
 
 #include "htree.h"
 #include "hstore.h"
@@ -422,12 +423,15 @@ INCR_END:
 void* do_optimize(void *arg)
 {
     HStore *store = (HStore *) arg;
+    time_t st = time(NULL);
     fprintf(stderr, "start to optimize from %d to %d\n", 
         store->op_start, store->op_end);
     for (; store->op_start < store->op_end; store->op_start ++) {
         bc_optimize(store->bitcasks[store->op_start], store->op_limit);
     }
     store->op_start = store->op_end = 0;
+    fprintf(stderr, "optimization completed in %lld seconds\n", 
+            (long long)(time(NULL) - st));
     return NULL;
 }
 
