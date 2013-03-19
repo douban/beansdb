@@ -278,7 +278,7 @@ static void update_item_pos(Item *it, void *_args)
     HTree *tree = (HTree*) args->tree;
     Item *p = ht_get(tree, it->key);
     if (p) {
-        if (it->pos == p->pos && it->ver == p->ver) {
+        if (it->pos == p->pos) {
             uint32_t npos = (it->pos & 0xffffff00) | args->index;
             ht_add(tree, p->key, npos, p->hash, p->ver);
         }
