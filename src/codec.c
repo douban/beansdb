@@ -32,8 +32,8 @@ inline int fmt_size(Fmt *fmt) {
     return sizeof(Fmt) + strlen(fmt->fmt) - 7 + 1;
 }
 
-const size_t DEFAULT_DICT_SIZE = 1024;
-const size_t MAX_DICT_SIZE = 16384;
+const int DEFAULT_DICT_SIZE = 1024;
+const int MAX_DICT_SIZE = 16384;
 
 #define RDICT_SIZE(DICT_SIZE) ((DICT_SIZE) * 7 + 1)
 
@@ -121,29 +121,33 @@ int dc_load(Codec *dc, const char *buf, int size)
     int i;
     if (dc == NULL) return -1;
     int used = *(int*)buf;
-    if (used >= MAX_DICT_SIZE) return -1;
-    dc->dict_used = used;
     buf += sizeof(int);
-    if (dc->dict_size < dc->dict_used * 2) {
-        dc->dict_size = max(dc->dict_used * 2, MAX_DICT_SIZE);
-        dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
+    if (used > MAX_DICT_SIZE) {
+        fprintf(stderr, "number of formats overflow: %d > %d\n", used, MAX_DICT_SIZE);
+        return -1;
+    }
+    int dict_size = max(used * 2, MAX_DICT_SIZE);
+    if (dc->dict_size < dict_size) {
+        dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dict_size);
         if (dc->dict == NULL) {
-            dc->dict_used = 1;
+            fprintf(stderr, "realloc failed: %lu\n", sizeof(Fmt*) * dict_size);
             return -1;
         }
+        dc->dict_size = dict_size;
     }
 
-    for (i=1; i<dc->dict_used; i++) {
+    for (i=1; i<used; i++) {
         int s = *(unsigned char*) buf++;
         dc->dict[i] = (Fmt*)malloc(s);
         if (dc->dict[i] == NULL) {
-            dc->dict_used = 1;
+            fprintf(stderr, "malloc failed: %d\n", s);
             return -1;
         }
         memcpy(dc->dict[i], buf, s);
         buf += s;
     }
-
+    
+    dc->dict_used = used;
     dc_rebuild(dc);
 
     return 0;
