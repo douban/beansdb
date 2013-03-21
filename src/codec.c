@@ -136,6 +136,7 @@ int dc_load(Codec *dc, const char *buf, int size)
         dc->dict_size = dict_size;
     }
 
+    dc->dict_used = 1;
     for (i=1; i<used; i++) {
         int s = *(unsigned char*) buf++;
         dc->dict[i] = (Fmt*)malloc(s);
@@ -143,11 +144,11 @@ int dc_load(Codec *dc, const char *buf, int size)
             fprintf(stderr, "malloc failed: %d\n", s);
             return -1;
         }
+        dc->dict_used ++;
         memcpy(dc->dict[i], buf, s);
         buf += s;
     }
     
-    dc->dict_used = used;
     dc_rebuild(dc);
 
     return 0;

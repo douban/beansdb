@@ -468,6 +468,9 @@ HTree* ht_new(int depth, int pos)
 HTree* ht_open(int depth, int pos, const char *path)
 {
     char version[sizeof(VERSION)+1] = {0};
+    HTree *tree = NULL;
+    Node *root = NULL;
+    int pool_used = 0;
     char *buf = NULL;
 
     FILE *f = fopen(path, "rb");
@@ -485,15 +488,14 @@ HTree* ht_open(int depth, int pos, const char *path)
 
     off_t fsize = 0;
     if (fread(&fsize, sizeof(fsize), 1, f) != 1 ||
-        fseeko(f, 0, 2) != 0 ||
-        ftello(f) != fsize) {
+        fseeko(f, 0, 2) != 0 || ftello(f) != fsize) {
         fprintf(stderr, "the size %lu is not expected\n", fsize);
         fclose(f);
         return NULL;
     }
     fseeko(f, sizeof(VERSION) + sizeof(off_t), 0);
 
-    HTree *tree = (HTree*)malloc(sizeof(HTree));
+    tree = (HTree*)malloc(sizeof(HTree));
     if (!tree) {
         fclose(f);
         return NULL;
@@ -505,14 +507,12 @@ HTree* ht_open(int depth, int pos, const char *path)
     if (fread(&tree->height, sizeof(int), 1, f) != 1 || 
         tree->height + depth < 0 || tree->height + depth > 9) {
         fprintf(stderr, "invalid height: %d\n", tree->height);
-        free(tree);
-        fclose(f);
-        return NULL;
+        goto FAIL;
     }
     
     int pool_size = g_index[tree->height];
     int psize = sizeof(Node) * pool_size;
-    Node *root = (Node*)malloc(psize);
+    root = (Node*)malloc(psize);
     if (!root){
         goto FAIL;
     }
@@ -545,6 +545,7 @@ HTree* ht_open(int depth, int pos, const char *path)
             goto FAIL;
         }
         tree->root[i].data = data;
+        pool_used ++;
     }
 
     // load Codec
@@ -571,10 +572,15 @@ HTree* ht_open(int depth, int pos, const char *path)
     return tree;
 
 FAIL:
-    if (tree->dc != NULL) dc_destroy(tree->dc);
-    if (buf != NULL) free(buf);
-    if (root != NULL) free(root);
-    if (tree != NULL) free(tree);
+    if (tree->dc) dc_destroy(tree->dc);
+    if (buf) free(buf);
+    if (root) {
+        for (i=0; i<pool_used; i++) {
+            if (root[i].data) free(root[i].data);
+        }
+        free(root);
+    }
+    free(tree);
     fclose(f);
     return NULL;
 }
