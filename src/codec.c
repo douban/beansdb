@@ -168,9 +168,6 @@ void dc_destroy(Codec *dc)
 
 int dc_encode(Codec* dc, char* buf, const char* src, int len)
 {
-    if (src == NULL || buf == NULL){
-        return 0;
-    }
     if (dc != NULL && len > 6 && len < 100 && src[0] > 0){
         int m=0;
         char fmt[255];
@@ -265,11 +262,7 @@ RET:
 
 int dc_decode(Codec* dc, char* buf, const char* src, int len)
 {
-    if (buf == NULL || src == NULL || len == 0){
-        return 0;
-    }
-
-    if (dc != NULL && src[0] < 0){
+    if (src[0] < 0 && len >= 5){
         int idx = -*src;
         int32_t* args = (int32_t*)(src + 1);
         if (idx >= 64) {
@@ -278,6 +271,20 @@ int dc_decode(Codec* dc, char* buf, const char* src, int len)
             args = (int32_t*)(src + 2);
         }
         Fmt *f = dc->dict[idx];
+        if (f == NULL) {
+            fprintf(stderr, "invalid fmt index: %d\n", idx);
+            fprintf(stderr, "invalid key: ");
+            for (idx=0; idx < len; idx++) {
+                fprintf(stderr, "%x ", src[idx]);
+            }
+            fprintf(stderr, "\n");
+            return 0;
+        }
+        int nlen = f->nargs * sizeof(int32_t) + ((char *)args - src);
+        if (len != nlen) {
+            fprintf(stderr, "invalid length of key: %d != %d\n", len, nlen);
+            return 0;
+        }
         int rlen = 0;
         int flen = strlen(f->fmt);
         switch(f->nargs){
@@ -288,6 +295,7 @@ int dc_decode(Codec* dc, char* buf, const char* src, int len)
         }
         return rlen;
     }
+COPY:    
     memcpy(buf, src, len);
     buf[len] = 0;
     return len;
