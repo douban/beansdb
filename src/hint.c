@@ -143,6 +143,10 @@ MFile* open_mfile(const char* path)
             free(f);
             return NULL;
         }
+
+        if (madvise(f->addr, sb.st_size, MADV_SEQUENTIAL) < 0) {
+            fprintf(stderr, "Unable to madvise() region %p\n", f->addr);
+        }
     } else {
         f->addr = NULL;
     }

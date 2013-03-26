@@ -18,6 +18,7 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
+#include <fcntl.h>
 
 #include "fnv1a.h"
 #include "htree.h"
@@ -478,7 +479,7 @@ HTree* ht_open(int depth, int pos, const char *path)
         fprintf(stderr, "open %s failed\n", path);
         return NULL;
     }
-
+    
     if (fread(version, sizeof(VERSION), 1, f) != 1
         || memcmp(version, VERSION, sizeof(VERSION)) != 0) {
         fprintf(stderr, "the version %s is not expected\n", version);
@@ -494,6 +495,9 @@ HTree* ht_open(int depth, int pos, const char *path)
         return NULL;
     }
     fseeko(f, sizeof(VERSION) + sizeof(off_t), 0);
+    if (posix_fadvise(fileno(f), 0, fsize, POSIX_FADV_SEQUENTIAL) != 0) {
+        fprintf(stderr, "posix_favise() failed\n");
+    }
 
     tree = (HTree*)malloc(sizeof(HTree));
     if (!tree) {
