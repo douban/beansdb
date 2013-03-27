@@ -328,6 +328,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     HTree *cur_tree = ht_new(0,0);
     char *p = f->addr, *end = f->addr + f->size;
     int broken = 0;
+    size_t last_advise = 0;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
 
@@ -351,6 +352,12 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
             }
             p += PADDING;
         }
+	size_t pos = p - f->addr;
+	if (pos - last_advise > (64<<20)) {
+	    madvise(f->addr, pos, MADV_DONTNEED);  
+	    posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
+	    last_advise = pos;
+	}
     }
 
     close_mfile(f);
@@ -365,6 +372,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
     fprintf(stderr, "scan datafile %s before %ld\n", path, before);
     char *p = f->addr, *end = f->addr + f->size;
     int broken = 0;
+    size_t last_advise = 0;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
         if (r != NULL) {
@@ -390,6 +398,12 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             }
             p += PADDING;
         }
+	size_t pos = p - f->addr;
+	if (pos - last_advise > (64<<20)) {
+	    madvise(f->addr, pos, MADV_DONTNEED);  
+	    posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
+	    last_advise = pos;
+	}
     }
 
     close_mfile(f);
@@ -460,6 +474,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     HTree *cur_tree = ht_new(0,0);
     int deleted = 0, broken = 0;
     char *p = f->addr, *end = f->addr + f->size;
+    size_t last_advise = 0;
     while (p < end) {
         DataRecord *r = decode_record(p, end-p, false);
         if (r == NULL) {
@@ -518,6 +533,12 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         if (it) free(it);
         p += record_length(r); 
         free_record(r);
+	
+	if (pos - last_advise > (64<<20)) {
+	    madvise(f->addr, pos, MADV_DONTNEED);  
+	    posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
+	    last_advise = pos;
+	}
     }
     uint32_t deleted_bytes = f->size - (ftello(new_df) - old_data_size);
     

@@ -117,7 +117,8 @@ MFile* open_mfile(const char* path)
         close(fd);
         return  NULL;
     }
-    
+    posix_fadvise(fd, 0, sb.st_size, POSIX_FADV_SEQUENTIAL);
+
     pthread_mutex_lock(&mmap_lock);
     int mb = sb.st_size >> 20;
     while (curr_mmap_size + mb > MAX_MMAP_SIZE && mb > 100) {
@@ -156,8 +157,11 @@ MFile* open_mfile(const char* path)
 
 void close_mfile(MFile *f)
 {
-    if (f->addr)
+    if (f->addr) {
+        madvise(f->addr, f->size, MADV_DONTNEED);
         munmap(f->addr, f->size);
+    }
+    posix_fadvise(f->fd, 0, f->size, POSIX_FADV_DONTNEED);
     close(f->fd);
     pthread_mutex_lock(&mmap_lock);
     curr_mmap_size -= f->size >> 20;
