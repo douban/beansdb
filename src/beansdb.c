@@ -97,6 +97,7 @@ struct settings settings;
 HStore *store = NULL;
 FILE   *access_log = NULL;
 int daemon_quit = 0;
+int    stopme = 0;
 
 /** file scope variables **/
 static int stub_fd = 0;
@@ -1145,6 +1146,11 @@ static void process_command(conn *c, char *command) {
         out_string(c, "OK");
         return;
 
+    } else if (stopme && ntokens == 2 && (strcmp(tokens[COMMAND_TOKEN].value, "stopme") == 0)) {
+
+        fprintf(stderr, "quit under request\n");
+        daemon_quit = 1;
+
     } else {
         out_string(c, "ERROR");
         return;
@@ -1814,7 +1820,7 @@ int main (int argc, char **argv) {
     setbuf(stderr, NULL);
 
     /* process arguments */
-    while ((c = getopt(argc, argv, "a:p:c:hivl:dru:P:L:t:b:H:T:m:s:f:n:")) != -1) {
+    while ((c = getopt(argc, argv, "a:p:c:hivl:dru:P:L:t:b:H:T:m:s:f:n:S")) != -1) {
         switch (c) {
         case 'a':
             if (strcmp(optarg, "-") == 0) {
@@ -1913,6 +1919,10 @@ int main (int argc, char **argv) {
                 }
                 break;
             }
+        case 'S':
+            fprintf(stderr, "dangerous: it can been stopped by command 'stopme'\n");
+            stopme = 1;
+            break;
         default:
             fprintf(stderr, "Illegal argument \"%c\"\n", c);
             exit(EXIT_FAILURE);
