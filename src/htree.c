@@ -372,8 +372,9 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
         }else{
             for (i=0; i<BUCKET_SIZE; i++) {
                 char *r = list_dir(tree, child + i, "", prefix);
-                if (bsize - n < strlen(r) + 1) {
-                    bsize *= 2;
+                int rl = strlen(r) + 1;
+                if (bsize - n < rl) {
+                    bsize += rl;
                     buf = (char*)realloc(buf, bsize);
                 }
                 n += sprintf(buf + n, "%s", r);
@@ -397,8 +398,8 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
             if (prefix == NULL || l >= prefix_len && strncmp(key, prefix, prefix_len) == 0) {
                 n += snprintf(buf+n, bsize-n-1, "%s %u %d\n", key, it->hash, it->ver);
                 if (bsize - n < 200) {
-                    buf = (char*)realloc(buf, bsize * 2);
                     bsize *= 2;
+                    buf = (char*)realloc(buf, bsize);
                 }
             }
         }
