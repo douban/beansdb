@@ -21,7 +21,7 @@
 
 #include "codec.h"
 
-#define max(a,b) ((a)>(b)?(a):(b))
+#define min(a,b) ((a)<(b)?(a):(b))
 
 typedef struct {
     unsigned char nargs;
@@ -109,7 +109,7 @@ void dc_rebuild(Codec *dc)
 
 void dc_enlarge(Codec *dc)
 {
-    dc->dict_size = max(dc->dict_size * 2, MAX_DICT_SIZE);
+    dc->dict_size = min(dc->dict_size * 2, MAX_DICT_SIZE);
     dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
 
     dc_rebuild(dc);
@@ -126,7 +126,7 @@ int dc_load(Codec *dc, const char *buf, int size)
         fprintf(stderr, "number of formats overflow: %d > %d\n", used, MAX_DICT_SIZE);
         return -1;
     }
-    int dict_size = max(used * 2, MAX_DICT_SIZE);
+    int dict_size = min(used * 2, MAX_DICT_SIZE);
     if (dc->dict_size < dict_size) {
         dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dict_size);
         if (dc->dict == NULL) {
