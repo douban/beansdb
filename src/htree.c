@@ -491,14 +491,16 @@ HTree* ht_open(int depth, int pos, const char *path)
     off_t fsize = 0;
     if (fread(&fsize, sizeof(fsize), 1, f) != 1 ||
         fseeko(f, 0, 2) != 0 || ftello(f) != fsize) {
-        fprintf(stderr, "the size %lu is not expected\n", fsize);
+        fprintf(stderr, "the size %lld is not expected\n", fsize);
         fclose(f);
         return NULL;
     }
     fseeko(f, sizeof(VERSION) + sizeof(off_t), 0);
+#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L    
     if (posix_fadvise(fileno(f), 0, fsize, POSIX_FADV_SEQUENTIAL) != 0) {
         fprintf(stderr, "posix_favise() failed\n");
     }
+#endif
 
     tree = (HTree*)malloc(sizeof(HTree));
     if (!tree) {

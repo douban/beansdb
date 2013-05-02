@@ -204,7 +204,7 @@ DataRecord* read_record(FILE *f, bool decomp)
         int ret = 0;
         if (need > 0 && need != (ret=fread(r->value + read_size, 1, need, f))) {
             r->key[ksz] = 0; // c str    
-            fprintf(stderr, "read record %s faied: %d < %d @%ld\n", r->key, ret, need, ftello(f)); 
+            fprintf(stderr, "read record %s faied: %d < %d @%lld\n", r->key, ret, need, ftello(f)); 
             goto READ_END;
         }
     }
@@ -214,7 +214,7 @@ DataRecord* read_record(FILE *f, bool decomp)
                     sizeof(DataRecord) - sizeof(char*) - sizeof(uint32_t) + ksz);
     crc = crc32(crc, r->value, vsz);
     if (crc != crc_old){
-        fprintf(stderr, "%s @%ld crc32 check failed %d != %d\n", r->key, ftello(f), crc, r->crc);
+        fprintf(stderr, "%s @%lld crc32 check failed %d != %d\n", r->key, ftello(f), crc, r->crc);
         goto READ_END;
     }
 
@@ -258,7 +258,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
         int ret = 0;
         if (need > 0 && need != (ret=pread(fd, r->value + read_size, need, offset+PADDING))) {
             r->key[ksz] = 0; // c str    
-            fprintf(stderr, "read record %s faied: %d < %d @%ld\n", r->key, ret, need, offset); 
+            fprintf(stderr, "read record %s faied: %d < %d @%lld\n", r->key, ret, need, offset); 
             goto READ_END;
         }
     }
@@ -268,7 +268,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
                     sizeof(DataRecord) - sizeof(char*) - sizeof(uint32_t) + ksz);
     crc = crc32(crc, r->value, vsz);
     if (crc != crc_old){
-        fprintf(stderr, "%s @%ld crc32 check failed %d != %d\n", r->key, offset, crc, r->crc);
+        fprintf(stderr, "%s @%lld crc32 check failed %d != %d\n", r->key, offset, crc, r->crc);
         goto READ_END;
     }
 
@@ -355,7 +355,9 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
 	size_t pos = p - f->addr;
 	if (pos - last_advise > (64<<20)) {
 	    madvise(f->addr, pos, MADV_DONTNEED);  
+#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L        
 	    posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
+#endif        
 	    last_advise = pos;
 	}
     }
@@ -401,7 +403,9 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
 	size_t pos = p - f->addr;
 	if (pos - last_advise > (64<<20)) {
 	    madvise(f->addr, pos, MADV_DONTNEED);  
+#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L        
 	    posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
+#endif        
 	    last_advise = pos;
 	}
     }
@@ -536,7 +540,9 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
 	
 	if (pos - last_advise > (64<<20)) {
 	    madvise(f->addr, pos, MADV_DONTNEED);  
+#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L        
 	    posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
+#endif        
 	    last_advise = pos;
 	}
     }

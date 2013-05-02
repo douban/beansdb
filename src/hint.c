@@ -117,7 +117,9 @@ MFile* open_mfile(const char* path)
         close(fd);
         return  NULL;
     }
+#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L    
     posix_fadvise(fd, 0, sb.st_size, POSIX_FADV_SEQUENTIAL);
+#endif
 
     pthread_mutex_lock(&mmap_lock);
     int mb = sb.st_size >> 20;
@@ -161,7 +163,9 @@ void close_mfile(MFile *f)
         madvise(f->addr, f->size, MADV_DONTNEED);
         munmap(f->addr, f->size);
     }
+#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L    
     posix_fadvise(f->fd, 0, f->size, POSIX_FADV_DONTNEED);
+#endif    
     close(f->fd);
     pthread_mutex_lock(&mmap_lock);
     curr_mmap_size -= f->size >> 20;
