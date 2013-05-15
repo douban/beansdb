@@ -186,7 +186,7 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     
     if (node->count > SPLIT_LIMIT){
         if (node->depth == tree->height - 1){
-            if (enlarge && node->count > SPLIT_LIMIT * 2){
+            if (enlarge && node->count > SPLIT_LIMIT * 4){
                 int pos = node - tree->root;
                 enlarge_pool(tree);
                 node = tree->root + pos; // reload
@@ -281,7 +281,7 @@ static void update_node(HTree *tree, Node *node)
             node->count += child[i].count;
         }
         for (i=0; i<BUCKET_SIZE; i++){
-            if (node->count > 128){
+            if (node->count > SPLIT_LIMIT * 4){
                 node->hash *= 97;               
             }
             node->hash += child[i].hash;
@@ -363,7 +363,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
         update_node(tree, node);
 
         Node *child = get_child(tree, node, 0);
-        if (node->count > 100000 || prefix==NULL && node->count > 128) {
+        if (node->count > 100000 || prefix==NULL && node->count > SPLIT_LIMIT * 4) {
             for (i=0; i<BUCKET_SIZE; i++) {
                 Node *t = child + i;
                 n += snprintf(buf + n, bsize - n, "%x/ %u %u\n", 
