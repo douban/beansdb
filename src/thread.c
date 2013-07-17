@@ -31,7 +31,6 @@
 #include <pthread.h>
 
 typedef struct EventLoop {
-//    int   maxfd;
     conn* conns[AE_SETSIZE];
     int   fired[AE_SETSIZE];
     int   nready;
