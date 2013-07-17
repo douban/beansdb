@@ -8,16 +8,14 @@ Stupid (KISS).
 
 The clients write to N Beansdb node, then read from R of them (solving 
 conflict). Data in different nodes is synced through hash tree, in cronjob. 
-Beansdb base on memcached and Tokyo Cabinet, with efficient persistant 
-hash tree (called Hex Tree) support.
 
-It conforms to memcache protocol (not completed, see below), so any memcached 
-client can interactive with it without any modification.  
+It conforms to memcache protocol (not fully supported, see below), so any 
+memcached client can interactive with it without any modification.  
 
-Beansdb is heavy used in http://www.douban.com/, stored images, mp3,  text 
-fields and so on, see benchmark below.
+Beansdb is heavy used in http://www.douban.com/, is used to stored images, 
+mp3,  text fields and so on, see benchmark below.
 
-Any suggestion or feedback is welcome.
+Any suggestion or feedback is welcomed.
 
 
 # Features
@@ -48,3 +46,50 @@ Any suggestion or feedback is welcome.
 
 * get @xxx, list the content of hash tree, such as @0f
 * get ?xxx, get the meta data of key.
+
+# Python Example  
+```
+from dbclient import Beansdb
+
+# three beansdb nodes on localhost
+BEANSDBCFG = {
+    "localhost:7901": range(16),
+    "localhost:7902": range(16),
+    "localhost:7903": range(16),
+}
+
+db = Beansdb(BEANSDBCFG, 16)
+
+db.set('hello', 'world')
+db.get('hello')
+db.delete('hello')
+```
+
+# Benchmark
+```
+　$ beansdb -d 
+　$ memstorm -s localhost:7900 -n 1000000 -k 10 -l 100 
+　　 
+　　---- 
+　　Num of Records : 1000000 
+　　Non-Blocking IO : 0 
+　　TCP No-Delay : 0 
+　　 
+　　Successful [SET] : 1000000 
+　　Failed [SET] : 0 
+　　Total Time [SET] : 51.77594s 
+　　Average Time [SET] : 0.00005s 
+　　 
+　　Successful [GET] : 1000000 
+　　Failed [GET] : 0 
+　　Total Time [GET] : 40.93667s 
+　　Average Time [GET] : 0.00004s 
+```
+
+# Real performance in production
+
+* cluster 1: 1.1B records, 55TB data, 48 nodes, 1100 get/25 set per seconds, 
+             med/avg/90%/99% time is 12/20/37/186 ms.
+* cluster 2: 3.3B records, 3.5TB data, 15 nodes, 1000 get/500 set per seconds,
+             med/avg/90%/99% time is 1/11/15/123 ms.
+
