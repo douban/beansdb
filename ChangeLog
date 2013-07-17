@@ -1,3 +1,14 @@
+2013-07-15 0.6.0
+    * new: stopme command
+    * improve: add madvise() and fadvise() to improve fs buffer usage 
+    * bugfix: make select() work, if no epoll and kqueue
+    * bugfix: overflow in htree and codec
+
+2013-05-21 0.5.9
+    * improve: improve GC, do not need restart any more
+    * bugfix: limit number of formats in codec
+    * several bugfix
+
 2013-02-04 0.5.8
     * new: merge data files into large one when GC
 	* change: close bitcask in parallel 
