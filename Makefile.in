@@ -66,12 +66,13 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_beansdb_OBJECTS = beansdb-beansdb.$(OBJEXT) beansdb-item.$(OBJEXT) \
-	beansdb-thread.$(OBJEXT) beansdb-htree.$(OBJEXT) \
-	beansdb-hint.$(OBJEXT) beansdb-record.$(OBJEXT) \
-	beansdb-codec.$(OBJEXT) beansdb-bitcask.$(OBJEXT) \
-	beansdb-hstore.$(OBJEXT) beansdb-quicklz.$(OBJEXT) \
-	beansdb-diskmgr.$(OBJEXT)
+am__dirstamp = $(am__leading_dot)dirstamp
+am_beansdb_OBJECTS = src/beansdb-beansdb.$(OBJEXT) \
+	src/beansdb-item.$(OBJEXT) src/beansdb-thread.$(OBJEXT) \
+	src/beansdb-htree.$(OBJEXT) src/beansdb-hint.$(OBJEXT) \
+	src/beansdb-record.$(OBJEXT) src/beansdb-codec.$(OBJEXT) \
+	src/beansdb-bitcask.$(OBJEXT) src/beansdb-hstore.$(OBJEXT) \
+	src/beansdb-quicklz.$(OBJEXT) src/beansdb-diskmgr.$(OBJEXT)
 beansdb_OBJECTS = $(am_beansdb_OBJECTS)
 beansdb_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -331,195 +332,226 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+src/$(am__dirstamp):
+	@$(MKDIR_P) src
+	@: > src/$(am__dirstamp)
+src/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) src/$(DEPDIR)
+	@: > src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-beansdb.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-item.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-thread.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-htree.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-hint.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-record.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-codec.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-bitcask.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-hstore.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-quicklz.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/beansdb-diskmgr.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 beansdb$(EXEEXT): $(beansdb_OBJECTS) $(beansdb_DEPENDENCIES) $(EXTRA_beansdb_DEPENDENCIES) 
 	@rm -f beansdb$(EXEEXT)
 	$(LINK) $(beansdb_OBJECTS) $(beansdb_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f src/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-beansdb.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-bitcask.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-codec.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-diskmgr.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-hint.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-hstore.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-htree.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-item.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-quicklz.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-record.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/beansdb-thread.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-beansdb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-bitcask.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-codec.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-diskmgr.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-hint.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-hstore.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-htree.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-item.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-quicklz.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-record.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/beansdb-thread.Po@am__quote@
 
 .c.o:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(COMPILE) -c $<
+@am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ $<
 
 .c.obj:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
+@am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
-beansdb-beansdb.o: src/beansdb.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-beansdb.o -MD -MP -MF $(DEPDIR)/beansdb-beansdb.Tpo -c -o beansdb-beansdb.o `test -f 'src/beansdb.c' || echo '$(srcdir)/'`src/beansdb.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-beansdb.Tpo $(DEPDIR)/beansdb-beansdb.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/beansdb.c' object='beansdb-beansdb.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-beansdb.o: src/beansdb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-beansdb.o -MD -MP -MF src/$(DEPDIR)/beansdb-beansdb.Tpo -c -o src/beansdb-beansdb.o `test -f 'src/beansdb.c' || echo '$(srcdir)/'`src/beansdb.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-beansdb.Tpo src/$(DEPDIR)/beansdb-beansdb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/beansdb.c' object='src/beansdb-beansdb.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-beansdb.o `test -f 'src/beansdb.c' || echo '$(srcdir)/'`src/beansdb.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-beansdb.o `test -f 'src/beansdb.c' || echo '$(srcdir)/'`src/beansdb.c
 
-beansdb-beansdb.obj: src/beansdb.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-beansdb.obj -MD -MP -MF $(DEPDIR)/beansdb-beansdb.Tpo -c -o beansdb-beansdb.obj `if test -f 'src/beansdb.c'; then $(CYGPATH_W) 'src/beansdb.c'; else $(CYGPATH_W) '$(srcdir)/src/beansdb.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-beansdb.Tpo $(DEPDIR)/beansdb-beansdb.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/beansdb.c' object='beansdb-beansdb.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-beansdb.obj: src/beansdb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-beansdb.obj -MD -MP -MF src/$(DEPDIR)/beansdb-beansdb.Tpo -c -o src/beansdb-beansdb.obj `if test -f 'src/beansdb.c'; then $(CYGPATH_W) 'src/beansdb.c'; else $(CYGPATH_W) '$(srcdir)/src/beansdb.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-beansdb.Tpo src/$(DEPDIR)/beansdb-beansdb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/beansdb.c' object='src/beansdb-beansdb.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-beansdb.obj `if test -f 'src/beansdb.c'; then $(CYGPATH_W) 'src/beansdb.c'; else $(CYGPATH_W) '$(srcdir)/src/beansdb.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-beansdb.obj `if test -f 'src/beansdb.c'; then $(CYGPATH_W) 'src/beansdb.c'; else $(CYGPATH_W) '$(srcdir)/src/beansdb.c'; fi`
 
-beansdb-item.o: src/item.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-item.o -MD -MP -MF $(DEPDIR)/beansdb-item.Tpo -c -o beansdb-item.o `test -f 'src/item.c' || echo '$(srcdir)/'`src/item.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-item.Tpo $(DEPDIR)/beansdb-item.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/item.c' object='beansdb-item.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-item.o: src/item.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-item.o -MD -MP -MF src/$(DEPDIR)/beansdb-item.Tpo -c -o src/beansdb-item.o `test -f 'src/item.c' || echo '$(srcdir)/'`src/item.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-item.Tpo src/$(DEPDIR)/beansdb-item.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/item.c' object='src/beansdb-item.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-item.o `test -f 'src/item.c' || echo '$(srcdir)/'`src/item.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-item.o `test -f 'src/item.c' || echo '$(srcdir)/'`src/item.c
 
-beansdb-item.obj: src/item.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-item.obj -MD -MP -MF $(DEPDIR)/beansdb-item.Tpo -c -o beansdb-item.obj `if test -f 'src/item.c'; then $(CYGPATH_W) 'src/item.c'; else $(CYGPATH_W) '$(srcdir)/src/item.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-item.Tpo $(DEPDIR)/beansdb-item.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/item.c' object='beansdb-item.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-item.obj: src/item.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-item.obj -MD -MP -MF src/$(DEPDIR)/beansdb-item.Tpo -c -o src/beansdb-item.obj `if test -f 'src/item.c'; then $(CYGPATH_W) 'src/item.c'; else $(CYGPATH_W) '$(srcdir)/src/item.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-item.Tpo src/$(DEPDIR)/beansdb-item.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/item.c' object='src/beansdb-item.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-item.obj `if test -f 'src/item.c'; then $(CYGPATH_W) 'src/item.c'; else $(CYGPATH_W) '$(srcdir)/src/item.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-item.obj `if test -f 'src/item.c'; then $(CYGPATH_W) 'src/item.c'; else $(CYGPATH_W) '$(srcdir)/src/item.c'; fi`
 
-beansdb-thread.o: src/thread.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-thread.o -MD -MP -MF $(DEPDIR)/beansdb-thread.Tpo -c -o beansdb-thread.o `test -f 'src/thread.c' || echo '$(srcdir)/'`src/thread.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-thread.Tpo $(DEPDIR)/beansdb-thread.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/thread.c' object='beansdb-thread.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-thread.o: src/thread.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-thread.o -MD -MP -MF src/$(DEPDIR)/beansdb-thread.Tpo -c -o src/beansdb-thread.o `test -f 'src/thread.c' || echo '$(srcdir)/'`src/thread.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-thread.Tpo src/$(DEPDIR)/beansdb-thread.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/thread.c' object='src/beansdb-thread.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-thread.o `test -f 'src/thread.c' || echo '$(srcdir)/'`src/thread.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-thread.o `test -f 'src/thread.c' || echo '$(srcdir)/'`src/thread.c
 
-beansdb-thread.obj: src/thread.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-thread.obj -MD -MP -MF $(DEPDIR)/beansdb-thread.Tpo -c -o beansdb-thread.obj `if test -f 'src/thread.c'; then $(CYGPATH_W) 'src/thread.c'; else $(CYGPATH_W) '$(srcdir)/src/thread.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-thread.Tpo $(DEPDIR)/beansdb-thread.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/thread.c' object='beansdb-thread.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-thread.obj: src/thread.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-thread.obj -MD -MP -MF src/$(DEPDIR)/beansdb-thread.Tpo -c -o src/beansdb-thread.obj `if test -f 'src/thread.c'; then $(CYGPATH_W) 'src/thread.c'; else $(CYGPATH_W) '$(srcdir)/src/thread.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-thread.Tpo src/$(DEPDIR)/beansdb-thread.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/thread.c' object='src/beansdb-thread.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-thread.obj `if test -f 'src/thread.c'; then $(CYGPATH_W) 'src/thread.c'; else $(CYGPATH_W) '$(srcdir)/src/thread.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-thread.obj `if test -f 'src/thread.c'; then $(CYGPATH_W) 'src/thread.c'; else $(CYGPATH_W) '$(srcdir)/src/thread.c'; fi`
 
-beansdb-htree.o: src/htree.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-htree.o -MD -MP -MF $(DEPDIR)/beansdb-htree.Tpo -c -o beansdb-htree.o `test -f 'src/htree.c' || echo '$(srcdir)/'`src/htree.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-htree.Tpo $(DEPDIR)/beansdb-htree.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/htree.c' object='beansdb-htree.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-htree.o: src/htree.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-htree.o -MD -MP -MF src/$(DEPDIR)/beansdb-htree.Tpo -c -o src/beansdb-htree.o `test -f 'src/htree.c' || echo '$(srcdir)/'`src/htree.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-htree.Tpo src/$(DEPDIR)/beansdb-htree.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/htree.c' object='src/beansdb-htree.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-htree.o `test -f 'src/htree.c' || echo '$(srcdir)/'`src/htree.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-htree.o `test -f 'src/htree.c' || echo '$(srcdir)/'`src/htree.c
 
-beansdb-htree.obj: src/htree.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-htree.obj -MD -MP -MF $(DEPDIR)/beansdb-htree.Tpo -c -o beansdb-htree.obj `if test -f 'src/htree.c'; then $(CYGPATH_W) 'src/htree.c'; else $(CYGPATH_W) '$(srcdir)/src/htree.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-htree.Tpo $(DEPDIR)/beansdb-htree.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/htree.c' object='beansdb-htree.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-htree.obj: src/htree.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-htree.obj -MD -MP -MF src/$(DEPDIR)/beansdb-htree.Tpo -c -o src/beansdb-htree.obj `if test -f 'src/htree.c'; then $(CYGPATH_W) 'src/htree.c'; else $(CYGPATH_W) '$(srcdir)/src/htree.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-htree.Tpo src/$(DEPDIR)/beansdb-htree.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/htree.c' object='src/beansdb-htree.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-htree.obj `if test -f 'src/htree.c'; then $(CYGPATH_W) 'src/htree.c'; else $(CYGPATH_W) '$(srcdir)/src/htree.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-htree.obj `if test -f 'src/htree.c'; then $(CYGPATH_W) 'src/htree.c'; else $(CYGPATH_W) '$(srcdir)/src/htree.c'; fi`
 
-beansdb-hint.o: src/hint.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-hint.o -MD -MP -MF $(DEPDIR)/beansdb-hint.Tpo -c -o beansdb-hint.o `test -f 'src/hint.c' || echo '$(srcdir)/'`src/hint.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-hint.Tpo $(DEPDIR)/beansdb-hint.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hint.c' object='beansdb-hint.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-hint.o: src/hint.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-hint.o -MD -MP -MF src/$(DEPDIR)/beansdb-hint.Tpo -c -o src/beansdb-hint.o `test -f 'src/hint.c' || echo '$(srcdir)/'`src/hint.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-hint.Tpo src/$(DEPDIR)/beansdb-hint.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hint.c' object='src/beansdb-hint.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-hint.o `test -f 'src/hint.c' || echo '$(srcdir)/'`src/hint.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-hint.o `test -f 'src/hint.c' || echo '$(srcdir)/'`src/hint.c
 
-beansdb-hint.obj: src/hint.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-hint.obj -MD -MP -MF $(DEPDIR)/beansdb-hint.Tpo -c -o beansdb-hint.obj `if test -f 'src/hint.c'; then $(CYGPATH_W) 'src/hint.c'; else $(CYGPATH_W) '$(srcdir)/src/hint.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-hint.Tpo $(DEPDIR)/beansdb-hint.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hint.c' object='beansdb-hint.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-hint.obj: src/hint.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-hint.obj -MD -MP -MF src/$(DEPDIR)/beansdb-hint.Tpo -c -o src/beansdb-hint.obj `if test -f 'src/hint.c'; then $(CYGPATH_W) 'src/hint.c'; else $(CYGPATH_W) '$(srcdir)/src/hint.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-hint.Tpo src/$(DEPDIR)/beansdb-hint.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hint.c' object='src/beansdb-hint.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-hint.obj `if test -f 'src/hint.c'; then $(CYGPATH_W) 'src/hint.c'; else $(CYGPATH_W) '$(srcdir)/src/hint.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-hint.obj `if test -f 'src/hint.c'; then $(CYGPATH_W) 'src/hint.c'; else $(CYGPATH_W) '$(srcdir)/src/hint.c'; fi`
 
-beansdb-record.o: src/record.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-record.o -MD -MP -MF $(DEPDIR)/beansdb-record.Tpo -c -o beansdb-record.o `test -f 'src/record.c' || echo '$(srcdir)/'`src/record.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-record.Tpo $(DEPDIR)/beansdb-record.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/record.c' object='beansdb-record.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-record.o: src/record.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-record.o -MD -MP -MF src/$(DEPDIR)/beansdb-record.Tpo -c -o src/beansdb-record.o `test -f 'src/record.c' || echo '$(srcdir)/'`src/record.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-record.Tpo src/$(DEPDIR)/beansdb-record.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/record.c' object='src/beansdb-record.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-record.o `test -f 'src/record.c' || echo '$(srcdir)/'`src/record.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-record.o `test -f 'src/record.c' || echo '$(srcdir)/'`src/record.c
 
-beansdb-record.obj: src/record.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-record.obj -MD -MP -MF $(DEPDIR)/beansdb-record.Tpo -c -o beansdb-record.obj `if test -f 'src/record.c'; then $(CYGPATH_W) 'src/record.c'; else $(CYGPATH_W) '$(srcdir)/src/record.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-record.Tpo $(DEPDIR)/beansdb-record.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/record.c' object='beansdb-record.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-record.obj: src/record.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-record.obj -MD -MP -MF src/$(DEPDIR)/beansdb-record.Tpo -c -o src/beansdb-record.obj `if test -f 'src/record.c'; then $(CYGPATH_W) 'src/record.c'; else $(CYGPATH_W) '$(srcdir)/src/record.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-record.Tpo src/$(DEPDIR)/beansdb-record.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/record.c' object='src/beansdb-record.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-record.obj `if test -f 'src/record.c'; then $(CYGPATH_W) 'src/record.c'; else $(CYGPATH_W) '$(srcdir)/src/record.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-record.obj `if test -f 'src/record.c'; then $(CYGPATH_W) 'src/record.c'; else $(CYGPATH_W) '$(srcdir)/src/record.c'; fi`
 
-beansdb-codec.o: src/codec.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-codec.o -MD -MP -MF $(DEPDIR)/beansdb-codec.Tpo -c -o beansdb-codec.o `test -f 'src/codec.c' || echo '$(srcdir)/'`src/codec.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-codec.Tpo $(DEPDIR)/beansdb-codec.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/codec.c' object='beansdb-codec.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-codec.o: src/codec.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-codec.o -MD -MP -MF src/$(DEPDIR)/beansdb-codec.Tpo -c -o src/beansdb-codec.o `test -f 'src/codec.c' || echo '$(srcdir)/'`src/codec.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-codec.Tpo src/$(DEPDIR)/beansdb-codec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/codec.c' object='src/beansdb-codec.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-codec.o `test -f 'src/codec.c' || echo '$(srcdir)/'`src/codec.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-codec.o `test -f 'src/codec.c' || echo '$(srcdir)/'`src/codec.c
 
-beansdb-codec.obj: src/codec.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-codec.obj -MD -MP -MF $(DEPDIR)/beansdb-codec.Tpo -c -o beansdb-codec.obj `if test -f 'src/codec.c'; then $(CYGPATH_W) 'src/codec.c'; else $(CYGPATH_W) '$(srcdir)/src/codec.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-codec.Tpo $(DEPDIR)/beansdb-codec.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/codec.c' object='beansdb-codec.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-codec.obj: src/codec.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-codec.obj -MD -MP -MF src/$(DEPDIR)/beansdb-codec.Tpo -c -o src/beansdb-codec.obj `if test -f 'src/codec.c'; then $(CYGPATH_W) 'src/codec.c'; else $(CYGPATH_W) '$(srcdir)/src/codec.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-codec.Tpo src/$(DEPDIR)/beansdb-codec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/codec.c' object='src/beansdb-codec.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-codec.obj `if test -f 'src/codec.c'; then $(CYGPATH_W) 'src/codec.c'; else $(CYGPATH_W) '$(srcdir)/src/codec.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-codec.obj `if test -f 'src/codec.c'; then $(CYGPATH_W) 'src/codec.c'; else $(CYGPATH_W) '$(srcdir)/src/codec.c'; fi`
 
-beansdb-bitcask.o: src/bitcask.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-bitcask.o -MD -MP -MF $(DEPDIR)/beansdb-bitcask.Tpo -c -o beansdb-bitcask.o `test -f 'src/bitcask.c' || echo '$(srcdir)/'`src/bitcask.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-bitcask.Tpo $(DEPDIR)/beansdb-bitcask.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/bitcask.c' object='beansdb-bitcask.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-bitcask.o: src/bitcask.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-bitcask.o -MD -MP -MF src/$(DEPDIR)/beansdb-bitcask.Tpo -c -o src/beansdb-bitcask.o `test -f 'src/bitcask.c' || echo '$(srcdir)/'`src/bitcask.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-bitcask.Tpo src/$(DEPDIR)/beansdb-bitcask.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/bitcask.c' object='src/beansdb-bitcask.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-bitcask.o `test -f 'src/bitcask.c' || echo '$(srcdir)/'`src/bitcask.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-bitcask.o `test -f 'src/bitcask.c' || echo '$(srcdir)/'`src/bitcask.c
 
-beansdb-bitcask.obj: src/bitcask.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-bitcask.obj -MD -MP -MF $(DEPDIR)/beansdb-bitcask.Tpo -c -o beansdb-bitcask.obj `if test -f 'src/bitcask.c'; then $(CYGPATH_W) 'src/bitcask.c'; else $(CYGPATH_W) '$(srcdir)/src/bitcask.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-bitcask.Tpo $(DEPDIR)/beansdb-bitcask.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/bitcask.c' object='beansdb-bitcask.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-bitcask.obj: src/bitcask.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-bitcask.obj -MD -MP -MF src/$(DEPDIR)/beansdb-bitcask.Tpo -c -o src/beansdb-bitcask.obj `if test -f 'src/bitcask.c'; then $(CYGPATH_W) 'src/bitcask.c'; else $(CYGPATH_W) '$(srcdir)/src/bitcask.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-bitcask.Tpo src/$(DEPDIR)/beansdb-bitcask.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/bitcask.c' object='src/beansdb-bitcask.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-bitcask.obj `if test -f 'src/bitcask.c'; then $(CYGPATH_W) 'src/bitcask.c'; else $(CYGPATH_W) '$(srcdir)/src/bitcask.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-bitcask.obj `if test -f 'src/bitcask.c'; then $(CYGPATH_W) 'src/bitcask.c'; else $(CYGPATH_W) '$(srcdir)/src/bitcask.c'; fi`
 
-beansdb-hstore.o: src/hstore.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-hstore.o -MD -MP -MF $(DEPDIR)/beansdb-hstore.Tpo -c -o beansdb-hstore.o `test -f 'src/hstore.c' || echo '$(srcdir)/'`src/hstore.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-hstore.Tpo $(DEPDIR)/beansdb-hstore.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hstore.c' object='beansdb-hstore.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-hstore.o: src/hstore.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-hstore.o -MD -MP -MF src/$(DEPDIR)/beansdb-hstore.Tpo -c -o src/beansdb-hstore.o `test -f 'src/hstore.c' || echo '$(srcdir)/'`src/hstore.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-hstore.Tpo src/$(DEPDIR)/beansdb-hstore.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hstore.c' object='src/beansdb-hstore.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-hstore.o `test -f 'src/hstore.c' || echo '$(srcdir)/'`src/hstore.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-hstore.o `test -f 'src/hstore.c' || echo '$(srcdir)/'`src/hstore.c
 
-beansdb-hstore.obj: src/hstore.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-hstore.obj -MD -MP -MF $(DEPDIR)/beansdb-hstore.Tpo -c -o beansdb-hstore.obj `if test -f 'src/hstore.c'; then $(CYGPATH_W) 'src/hstore.c'; else $(CYGPATH_W) '$(srcdir)/src/hstore.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-hstore.Tpo $(DEPDIR)/beansdb-hstore.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hstore.c' object='beansdb-hstore.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-hstore.obj: src/hstore.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-hstore.obj -MD -MP -MF src/$(DEPDIR)/beansdb-hstore.Tpo -c -o src/beansdb-hstore.obj `if test -f 'src/hstore.c'; then $(CYGPATH_W) 'src/hstore.c'; else $(CYGPATH_W) '$(srcdir)/src/hstore.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-hstore.Tpo src/$(DEPDIR)/beansdb-hstore.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/hstore.c' object='src/beansdb-hstore.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-hstore.obj `if test -f 'src/hstore.c'; then $(CYGPATH_W) 'src/hstore.c'; else $(CYGPATH_W) '$(srcdir)/src/hstore.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-hstore.obj `if test -f 'src/hstore.c'; then $(CYGPATH_W) 'src/hstore.c'; else $(CYGPATH_W) '$(srcdir)/src/hstore.c'; fi`
 
-beansdb-quicklz.o: src/quicklz.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-quicklz.o -MD -MP -MF $(DEPDIR)/beansdb-quicklz.Tpo -c -o beansdb-quicklz.o `test -f 'src/quicklz.c' || echo '$(srcdir)/'`src/quicklz.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-quicklz.Tpo $(DEPDIR)/beansdb-quicklz.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/quicklz.c' object='beansdb-quicklz.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-quicklz.o: src/quicklz.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-quicklz.o -MD -MP -MF src/$(DEPDIR)/beansdb-quicklz.Tpo -c -o src/beansdb-quicklz.o `test -f 'src/quicklz.c' || echo '$(srcdir)/'`src/quicklz.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-quicklz.Tpo src/$(DEPDIR)/beansdb-quicklz.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/quicklz.c' object='src/beansdb-quicklz.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-quicklz.o `test -f 'src/quicklz.c' || echo '$(srcdir)/'`src/quicklz.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-quicklz.o `test -f 'src/quicklz.c' || echo '$(srcdir)/'`src/quicklz.c
 
-beansdb-quicklz.obj: src/quicklz.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-quicklz.obj -MD -MP -MF $(DEPDIR)/beansdb-quicklz.Tpo -c -o beansdb-quicklz.obj `if test -f 'src/quicklz.c'; then $(CYGPATH_W) 'src/quicklz.c'; else $(CYGPATH_W) '$(srcdir)/src/quicklz.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-quicklz.Tpo $(DEPDIR)/beansdb-quicklz.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/quicklz.c' object='beansdb-quicklz.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-quicklz.obj: src/quicklz.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-quicklz.obj -MD -MP -MF src/$(DEPDIR)/beansdb-quicklz.Tpo -c -o src/beansdb-quicklz.obj `if test -f 'src/quicklz.c'; then $(CYGPATH_W) 'src/quicklz.c'; else $(CYGPATH_W) '$(srcdir)/src/quicklz.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-quicklz.Tpo src/$(DEPDIR)/beansdb-quicklz.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/quicklz.c' object='src/beansdb-quicklz.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-quicklz.obj `if test -f 'src/quicklz.c'; then $(CYGPATH_W) 'src/quicklz.c'; else $(CYGPATH_W) '$(srcdir)/src/quicklz.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-quicklz.obj `if test -f 'src/quicklz.c'; then $(CYGPATH_W) 'src/quicklz.c'; else $(CYGPATH_W) '$(srcdir)/src/quicklz.c'; fi`
 
-beansdb-diskmgr.o: src/diskmgr.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-diskmgr.o -MD -MP -MF $(DEPDIR)/beansdb-diskmgr.Tpo -c -o beansdb-diskmgr.o `test -f 'src/diskmgr.c' || echo '$(srcdir)/'`src/diskmgr.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-diskmgr.Tpo $(DEPDIR)/beansdb-diskmgr.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/diskmgr.c' object='beansdb-diskmgr.o' libtool=no @AMDEPBACKSLASH@
+src/beansdb-diskmgr.o: src/diskmgr.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-diskmgr.o -MD -MP -MF src/$(DEPDIR)/beansdb-diskmgr.Tpo -c -o src/beansdb-diskmgr.o `test -f 'src/diskmgr.c' || echo '$(srcdir)/'`src/diskmgr.c
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-diskmgr.Tpo src/$(DEPDIR)/beansdb-diskmgr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/diskmgr.c' object='src/beansdb-diskmgr.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-diskmgr.o `test -f 'src/diskmgr.c' || echo '$(srcdir)/'`src/diskmgr.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-diskmgr.o `test -f 'src/diskmgr.c' || echo '$(srcdir)/'`src/diskmgr.c
 
-beansdb-diskmgr.obj: src/diskmgr.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT beansdb-diskmgr.obj -MD -MP -MF $(DEPDIR)/beansdb-diskmgr.Tpo -c -o beansdb-diskmgr.obj `if test -f 'src/diskmgr.c'; then $(CYGPATH_W) 'src/diskmgr.c'; else $(CYGPATH_W) '$(srcdir)/src/diskmgr.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/beansdb-diskmgr.Tpo $(DEPDIR)/beansdb-diskmgr.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/diskmgr.c' object='beansdb-diskmgr.obj' libtool=no @AMDEPBACKSLASH@
+src/beansdb-diskmgr.obj: src/diskmgr.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/beansdb-diskmgr.obj -MD -MP -MF src/$(DEPDIR)/beansdb-diskmgr.Tpo -c -o src/beansdb-diskmgr.obj `if test -f 'src/diskmgr.c'; then $(CYGPATH_W) 'src/diskmgr.c'; else $(CYGPATH_W) '$(srcdir)/src/diskmgr.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) src/$(DEPDIR)/beansdb-diskmgr.Tpo src/$(DEPDIR)/beansdb-diskmgr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='src/diskmgr.c' object='src/beansdb-diskmgr.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o beansdb-diskmgr.obj `if test -f 'src/diskmgr.c'; then $(CYGPATH_W) 'src/diskmgr.c'; else $(CYGPATH_W) '$(srcdir)/src/diskmgr.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(beansdb_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/beansdb-diskmgr.obj `if test -f 'src/diskmgr.c'; then $(CYGPATH_W) 'src/diskmgr.c'; else $(CYGPATH_W) '$(srcdir)/src/diskmgr.c'; fi`
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run 'make' without going through this Makefile.
@@ -875,6 +907,8 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f src/$(DEPDIR)/$(am__dirstamp)
+	-rm -f src/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -885,7 +919,7 @@ clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ./$(DEPDIR)
+	-rm -rf src/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -933,7 +967,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ./$(DEPDIR)
+	-rm -rf src/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
