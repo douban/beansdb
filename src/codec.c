@@ -28,7 +28,7 @@ typedef struct {
     char fmt[7];
 } Fmt;
 
-inline int fmt_size(Fmt *fmt) {
+static inline int fmt_size(Fmt *fmt) {
     return sizeof(Fmt) + strlen(fmt->fmt) - 7 + 1;
 }
 
