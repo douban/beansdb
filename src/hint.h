@@ -18,7 +18,8 @@
 
 #include "htree.h"
 
-typedef struct {
+typedef struct
+{
     int fd;
     size_t size;
     char *addr;
@@ -31,7 +32,8 @@ void write_file(char *buf, int size, const char* path);
 #define PATH_MAX (256)
 #define NAME_IN_RECORD 2
 
-typedef struct hint_record {
+typedef struct hint_record
+{
     uint32_t ksize:8;
     uint32_t pos:24;
     int32_t version;
@@ -39,7 +41,8 @@ typedef struct hint_record {
     char key[NAME_IN_RECORD]; // allign
 } HintRecord;
 
-typedef struct {
+typedef struct
+{
     MFile *f;
     size_t size;
     char *buf;

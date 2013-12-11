@@ -23,7 +23,7 @@ void    hs_close(HStore *store);
 char*   hs_get(HStore *store, char *key, int *vlen, uint32_t *flag);
 bool    hs_set(HStore *store, char *key, char* value, int vlen, uint32_t flag, int version);
 bool    hs_append(HStore *store, char *key, char* value, int vlen);
-int64_t hs_incr(HStore *store, char *key, int64_t value); 
+int64_t hs_incr(HStore *store, char *key, int64_t value);
 bool    hs_delete(HStore *store, char *key);
 uint64_t hs_count(HStore *store, uint64_t *curr);
 void    hs_stat(HStore *store, uint64_t *total, uint64_t *avail);

@@ -5,29 +5,29 @@
 // Copyright (C) 2006-2010 Lasse Mikkel Reinhold
 // lar@quicklz.com
 //
-// QuickLZ can be used for free under the GPL-1, -2 or -3 license (where anything 
-// released into public must be open source) or under a commercial license if such 
-// has been acquired (see http://www.quicklz.com/order.html). The commercial license 
+// QuickLZ can be used for free under the GPL-1, -2 or -3 license (where anything
+// released into public must be open source) or under a commercial license if such
+// has been acquired (see http://www.quicklz.com/order.html). The commercial license
 // does not cover derived or ported versions created by third parties under GPL.
 
 // Version 1.4.1 final - april 2010
 
-// You can edit following user settings. Data must be decompressed with the same 
+// You can edit following user settings. Data must be decompressed with the same
 // setting of QLZ_COMPRESSION_LEVEL and QLZ_STREAMING_BUFFER as it was compressed
 // (see manual). If QLZ_STREAMING_BUFFER > 0, scratch buffers must be initially
-// zeroed out (see manual). First #ifndef makes it possible to define settings from 
+// zeroed out (see manual). First #ifndef makes it possible to define settings from
 // the outside like the compiler command line or from higher level code.
 
 #ifndef QLZ_COMPRESSION_LEVEL
-	//#define QLZ_COMPRESSION_LEVEL 1
-	//#define QLZ_COMPRESSION_LEVEL 2
-	#define QLZ_COMPRESSION_LEVEL 3
+//#define QLZ_COMPRESSION_LEVEL 1
+//#define QLZ_COMPRESSION_LEVEL 2
+#define QLZ_COMPRESSION_LEVEL 3
 
-	#define QLZ_STREAMING_BUFFER 0
-	//#define QLZ_STREAMING_BUFFER 100000
-	//#define QLZ_STREAMING_BUFFER 1000000
+#define QLZ_STREAMING_BUFFER 0
+//#define QLZ_STREAMING_BUFFER 100000
+//#define QLZ_STREAMING_BUFFER 1000000
 
-	//#define QLZ_MEMORY_SAFE
+//#define QLZ_MEMORY_SAFE
 #endif
 
 #define QLZ_VERSION_MAJOR 1
@@ -61,17 +61,17 @@ int qlz_get_setting(int setting);
 #define QLZ_HASH_VALUES 4096
 #endif
 
-typedef struct 
+typedef struct
 {
 #if QLZ_COMPRESSION_LEVEL == 1
-	unsigned int cache[QLZ_POINTERS];
+    unsigned int cache[QLZ_POINTERS];
 #endif
-	const unsigned char *offset[QLZ_POINTERS];
+    const unsigned char *offset[QLZ_POINTERS];
 } qlz_hash_compress;
 
-typedef struct 
+typedef struct
 {
-	const unsigned char *offset[QLZ_POINTERS];
+    const unsigned char *offset[QLZ_POINTERS];
 } qlz_hash_decompress;
 
 
@@ -81,9 +81,9 @@ typedef struct
 #define QLZ_SCRATCH_COMPRESS (QLZ_ALIGNMENT_PADD + QLZ_BUFFER_COUNTER + QLZ_STREAMING_BUFFER + sizeof(qlz_hash_compress[QLZ_HASH_VALUES]) + QLZ_HASH_VALUES)
 
 #if QLZ_COMPRESSION_LEVEL < 3
-	#define QLZ_SCRATCH_DECOMPRESS (QLZ_ALIGNMENT_PADD + QLZ_BUFFER_COUNTER + QLZ_STREAMING_BUFFER + sizeof(qlz_hash_decompress[QLZ_HASH_VALUES]) + QLZ_HASH_VALUES)
+#define QLZ_SCRATCH_DECOMPRESS (QLZ_ALIGNMENT_PADD + QLZ_BUFFER_COUNTER + QLZ_STREAMING_BUFFER + sizeof(qlz_hash_decompress[QLZ_HASH_VALUES]) + QLZ_HASH_VALUES)
 #else
-	#define QLZ_SCRATCH_DECOMPRESS (QLZ_ALIGNMENT_PADD + QLZ_BUFFER_COUNTER + QLZ_STREAMING_BUFFER)
+#define QLZ_SCRATCH_DECOMPRESS (QLZ_ALIGNMENT_PADD + QLZ_BUFFER_COUNTER + QLZ_STREAMING_BUFFER)
 #endif
 
 #endif

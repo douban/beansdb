@@ -4,7 +4,8 @@
 
 #include <string.h>
 
-typedef struct aeApiState {
+typedef struct aeApiState
+{
     int maxfd;
     fd_set rfds, wfds;
     /* We need to have a copy of the fd sets as it's not safe to reuse
@@ -12,7 +13,8 @@ typedef struct aeApiState {
     fd_set _rfds, _wfds;
 } aeApiState;
 
-static int aeApiCreate(EventLoop *eventLoop) {
+static int aeApiCreate(EventLoop *eventLoop)
+{
     aeApiState *state = malloc(sizeof(aeApiState));
 
     if (!state) return -1;
@@ -22,27 +24,32 @@ static int aeApiCreate(EventLoop *eventLoop) {
     return 0;
 }
 
-static void aeApiFree(EventLoop *eventLoop) {
+static void aeApiFree(EventLoop *eventLoop)
+{
     free(eventLoop->apidata);
 }
 
-static int aeApiAddEvent(EventLoop *eventLoop, int fd, int mask) {
+static int aeApiAddEvent(EventLoop *eventLoop, int fd, int mask)
+{
     aeApiState *state = eventLoop->apidata;
 
     if (mask & AE_READABLE) FD_SET(fd,&state->rfds);
     if (mask & AE_WRITABLE) FD_SET(fd,&state->wfds);
 
-    if (fd > state->maxfd) {
+    if (fd > state->maxfd)
+    {
         state->maxfd = fd;
     }
     return 0;
 }
 
-static int aeApiUpdateEvent(EventLoop *eventLoop, int fd, int mask) {
+static int aeApiUpdateEvent(EventLoop *eventLoop, int fd, int mask)
+{
     return aeApiAddEvent(eventLoop, fd, mask);
 }
 
-static int aeApiDelEvent(EventLoop *eventLoop, int fd) {
+static int aeApiDelEvent(EventLoop *eventLoop, int fd)
+{
     aeApiState *state = eventLoop->apidata;
 
     FD_CLR(fd,&state->rfds);
@@ -50,7 +57,8 @@ static int aeApiDelEvent(EventLoop *eventLoop, int fd) {
     return 0;
 }
 
-static int aeApiPoll(EventLoop *eventLoop, struct timeval *tvp) {
+static int aeApiPoll(EventLoop *eventLoop, struct timeval *tvp)
+{
     aeApiState *state = eventLoop->apidata;
     int retval, j, numevents = 0;
 
@@ -58,10 +66,13 @@ static int aeApiPoll(EventLoop *eventLoop, struct timeval *tvp) {
     memcpy(&state->_wfds,&state->wfds,sizeof(fd_set));
 
     retval = select(state->maxfd+1,
-                &state->_rfds,&state->_wfds,NULL,tvp);
-    if (retval > 0) {
-        for (j = 0; j <= state->maxfd; j++) {
-            if (FD_ISSET(j,&state->_rfds) || FD_ISSET(j,&state->_wfds)) {
+                    &state->_rfds,&state->_wfds,NULL,tvp);
+    if (retval > 0)
+    {
+        for (j = 0; j <= state->maxfd; j++)
+        {
+            if (FD_ISSET(j,&state->_rfds) || FD_ISSET(j,&state->_wfds))
+            {
                 eventLoop->fired[numevents] = j;
                 numevents++;
             }
@@ -70,6 +81,7 @@ static int aeApiPoll(EventLoop *eventLoop, struct timeval *tvp) {
     return numevents;
 }
 
-static char *aeApiName(void) {
+static char *aeApiName(void)
+{
     return "select";
 }

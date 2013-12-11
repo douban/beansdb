@@ -23,15 +23,16 @@ typedef unsigned int uint32_t;
 
 inline uint32_t fnv1a(const char *key, int key_len)
 {
-  uint32_t h = FNV_32_INIT;
-  int i;
+    uint32_t h = FNV_32_INIT;
+    int i;
 
-  for (i=0; i<key_len; i++) {
-      h ^= (uint32_t)key[i];
-      h *= FNV_32_PRIME;
-  }
+    for (i=0; i<key_len; i++)
+    {
+        h ^= (uint32_t)key[i];
+        h *= FNV_32_PRIME;
+    }
 
-  return h;
+    return h;
 }
 
 #endif
