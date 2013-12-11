@@ -21,3 +21,6 @@ config.*
 doc/Makefile
 autom4te.cache/
 stamp-h1
+Makefile.in
+configure
+doc/Makefile.in
