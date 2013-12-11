@@ -5,12 +5,14 @@
 #include <sys/epoll.h>
 #include <errno.h>
 
-typedef struct aeApiState {
+typedef struct aeApiState
+{
     int epfd;
     struct epoll_event events[AE_SETSIZE];
 } aeApiState;
 
-static int aeApiCreate(EventLoop *eventLoop) {
+static int aeApiCreate(EventLoop *eventLoop)
+{
     aeApiState *state = malloc(sizeof(aeApiState));
 
     if (!state) return -1;
@@ -20,14 +22,16 @@ static int aeApiCreate(EventLoop *eventLoop) {
     return 0;
 }
 
-static void aeApiFree(EventLoop *eventLoop) {
+static void aeApiFree(EventLoop *eventLoop)
+{
     aeApiState *state = eventLoop->apidata;
 
     close(state->epfd);
     free(state);
 }
 
-static int aeApiAddEvent(EventLoop *eventLoop, int fd, int mask) {
+static int aeApiAddEvent(EventLoop *eventLoop, int fd, int mask)
+{
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee;
     ee.events = EPOLLONESHOT;
@@ -35,14 +39,16 @@ static int aeApiAddEvent(EventLoop *eventLoop, int fd, int mask) {
     if (mask & AE_WRITABLE) ee.events |= EPOLLOUT;
     ee.data.u64 = 0; /* avoid valgrind warning */
     ee.data.fd = fd;
-    if (epoll_ctl(state->epfd, EPOLL_CTL_ADD,fd,&ee) == -1 && errno != EEXIST) {
+    if (epoll_ctl(state->epfd, EPOLL_CTL_ADD,fd,&ee) == -1 && errno != EEXIST)
+    {
         fprintf(stderr, "epoll_ctl(%d,%d) failed: %d\n", EPOLL_CTL_ADD,fd,errno);
         return -1;
     }
     return 0;
 }
 
-static int aeApiUpdateEvent(EventLoop *eventLoop, int fd, int mask) {
+static int aeApiUpdateEvent(EventLoop *eventLoop, int fd, int mask)
+{
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee;
     ee.events = EPOLLONESHOT;
@@ -50,14 +56,16 @@ static int aeApiUpdateEvent(EventLoop *eventLoop, int fd, int mask) {
     if (mask & AE_WRITABLE) ee.events |= EPOLLOUT;
     ee.data.u64 = 0; /* avoid valgrind warning */
     ee.data.fd = fd;
-    if (epoll_ctl(state->epfd, EPOLL_CTL_MOD,fd,&ee) == -1) {
+    if (epoll_ctl(state->epfd, EPOLL_CTL_MOD,fd,&ee) == -1)
+    {
         fprintf(stderr, "epoll_ctl(%d,%d) failed: %d\n", EPOLL_CTL_ADD,fd,errno);
         return -1;
     }
     return 0;
 }
 
-static int aeApiDelEvent(EventLoop *eventLoop, int fd) {
+static int aeApiDelEvent(EventLoop *eventLoop, int fd)
+{
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee;
 
@@ -66,25 +74,29 @@ static int aeApiDelEvent(EventLoop *eventLoop, int fd) {
     ee.data.fd = fd;
     /* Note, Kernel < 2.6.9 requires a non null event pointer even for
      * EPOLL_CTL_DEL. */
-    if ( epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee) == -1 
-            && errno != ENOENT && errno != EBADF) {
+    if ( epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee) == -1
+            && errno != ENOENT && errno != EBADF)
+    {
         fprintf(stderr, "epoll_ctl(%d,%d) failed: %d\n", EPOLL_CTL_DEL,fd,errno);
         return -1;
     }
     return 0;
 }
 
-int aeApiPoll(EventLoop *eventLoop, struct timeval *tvp) {
+int aeApiPoll(EventLoop *eventLoop, struct timeval *tvp)
+{
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;
 
     retval = epoll_wait(state->epfd,state->events,AE_SETSIZE,
-            tvp ? (tvp->tv_sec*1000 + tvp->tv_usec/1000) : -1);
-    if (retval > 0) {
+                        tvp ? (tvp->tv_sec*1000 + tvp->tv_usec/1000) : -1);
+    if (retval > 0)
+    {
         int j;
 
         numevents = retval;
-        for (j = 0; j < numevents; j++) {
+        for (j = 0; j < numevents; j++)
+        {
             int mask = 0;
             struct epoll_event *e = state->events+j;
 
@@ -96,6 +108,7 @@ int aeApiPoll(EventLoop *eventLoop, struct timeval *tvp) {
     return numevents;
 }
 
-static char *aeApiName(void) {
+static char *aeApiName(void)
+{
     return "epoll";
 }

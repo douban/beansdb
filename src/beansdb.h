@@ -12,7 +12,7 @@
  *      Davies Liu <davies.liu@gmail.com>
  *
  */
- 
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -57,13 +57,13 @@
 #if HAVE_STDBOOL_H
 # include <stdbool.h>
 #else
-  typedef enum {false = 0, true = 1} bool;
+typedef enum {false = 0, true = 1} bool;
 #endif
 
 #if HAVE_STDINT_H
 # include <stdint.h>
 #else
- typedef unsigned char             uint8_t;
+typedef unsigned char             uint8_t;
 #endif
 
 /* unistd.h is here */
@@ -99,7 +99,8 @@
 #define PRIXS __PRIS_PREFIX "X"
 #define PRIoS __PRIS_PREFIX "o"
 
-struct stats {
+struct stats
+{
     uint32_t      curr_conns;
     uint32_t      total_conns;
     uint32_t      conn_structs;
@@ -116,7 +117,8 @@ struct stats {
 
 #define MAX_VERBOSITY_LEVEL 2
 
-struct settings {
+struct settings
+{
     size_t item_buf_size;
     int maxconns;
     int port;
@@ -131,7 +133,8 @@ struct settings {
 extern struct stats stats;
 extern struct settings settings;
 
-typedef struct _stritem {
+typedef struct _stritem
+{
     int             ver;        /* version of item */
     uint32_t        flag;        /* flag of item */
     int             nbytes;     /* size of data */
@@ -150,7 +153,8 @@ typedef struct _stritem {
 #define ITEM_data(item) ((char*) &((item)->end[0]) + (item)->nkey + 1 + (item)->nsuffix)
 #define ITEM_ntotal(item) (sizeof(struct _stritem) + (item)->nkey + 1 + (item)->nsuffix + (item)->nbytes)
 
-enum conn_states {
+enum conn_states
+{
     conn_listening,  /** the socket which listens for connections */
     conn_read,       /** reading in a command line */
     conn_write,      /** writing out a simple response */
@@ -167,7 +171,8 @@ enum conn_states {
 #define NREAD_PREPEND 5
 
 typedef struct conn conn;
-struct conn {
+struct conn
+{
     int    sfd;
     int    state;
     short  ev_flags;
