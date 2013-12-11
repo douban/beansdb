@@ -1,0 +1,23 @@
+# Compiled Object files
+*.o
+*.lo
+*.slo
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# configure auto generated files
+
+aclocal.m4
+.deps/
+Makefile
+config.*
+doc/Makefile
+autom4te.cache/
+stamp-h1
