@@ -6,6 +6,8 @@
 #include <sys/event.h>
 #include <sys/time.h>
 
+#include "beansdb.h"
+
 typedef struct aeApiState
 {
     int kqfd;
