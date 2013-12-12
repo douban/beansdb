@@ -41,13 +41,6 @@
 #include <inttypes.h>
 #include <unistd.h>
 
-#ifdef HAVE_MALLOC_H
-/* OpenBSD has a malloc.h, but warns to use stdlib.h instead */
-#ifndef __OpenBSD__
-#include <malloc.h>
-#endif
-#endif
-
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
 #if defined(__FreeBSD__) || defined(__APPLE__)

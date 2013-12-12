@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "codec.h"
+#include "fnv1a.h"
 
 #define min(a,b) ((a)<(b)?(a):(b))
 

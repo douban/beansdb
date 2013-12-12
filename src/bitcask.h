@@ -16,11 +16,11 @@
 #ifndef __BITCASK_H__
 #define __BITCASK_H__
 
-#include <stdbool.h>
 #include <stdint.h>
 
 #include "record.h"
 #include "diskmgr.h"
+#include "beansdb.h"
 
 typedef struct bitcask_t Bitcask;
 

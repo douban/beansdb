@@ -10,8 +10,12 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
+
+#ifndef __BEANSDB_H__
+#define __BEANSDB_H__
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -52,6 +56,14 @@
 
 
 #define RGET_MAX_ITEMS 100
+
+#ifdef HAVE_MALLOC_H
+/* OpenBSD has a malloc.h, but warns to use stdlib.h instead */
+#ifndef __OpenBSD__
+#include <malloc.h>
+#endif
+#endif
+
 
 /* Get a consistent bool type */
 #if HAVE_STDBOOL_H
@@ -269,3 +281,4 @@ void  mt_stats_unlock(void);
 # define STATS_UNLOCK()              mt_stats_unlock()
 
 extern int daemon_quit;
+#endif

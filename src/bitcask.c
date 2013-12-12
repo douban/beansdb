@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
@@ -31,6 +32,7 @@
 #include "htree.h"
 #include "record.h"
 #include "diskmgr.h"
+#include "hint.h"
 
 #define MAX_BUCKET_COUNT 256
 
@@ -248,7 +250,6 @@ void bc_scan(Bitcask* bc)
  * */
 void bc_close(Bitcask *bc)
 {
-    int i=0;
     char datapath[255], hintpath[255];
 
     if (bc->optimize_flag > 0)
