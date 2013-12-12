@@ -25,3 +25,6 @@ Makefile.in
 configure
 doc/Makefile.in
 src/.dirstamp
+src/cscope.*
+src/tags
+
