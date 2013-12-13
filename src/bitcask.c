@@ -95,7 +95,7 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     bc->last_snapshot = -1;
     bc->curr_tree = ht_new(depth, pos);
     bc->wbuf_size = 1024 * 4;
-    bc->write_buffer = malloc(bc->wbuf_size);
+    bc->write_buffer = (char*)malloc(bc->wbuf_size);
     bc->last_flush_time = time(NULL);
     pthread_mutex_init(&bc->buffer_lock, NULL);
     pthread_mutex_init(&bc->write_lock, NULL);
@@ -639,13 +639,13 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
             {
                 bc->wbuf_size *= 2;
                 free(bc->write_buffer);
-                bc->write_buffer = malloc(bc->wbuf_size);
+                bc->write_buffer = (char*)malloc(bc->wbuf_size);
             }
             else if (bc->wbuf_size > WRITE_BUFFER_SIZE * 2)
             {
                 bc->wbuf_size = WRITE_BUFFER_SIZE;
                 free(bc->write_buffer);
-                bc->write_buffer = malloc(bc->wbuf_size);
+                bc->write_buffer = (char*)malloc(bc->wbuf_size);
             }
         }
 
@@ -728,7 +728,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int v
     }
 
     int klen = strlen(key);
-    DataRecord *r = malloc(sizeof(DataRecord) + klen);
+    DataRecord *r = (DataRecord*)malloc(sizeof(DataRecord) + klen);
     r->ksz = klen;
     memcpy(r->key, key, klen);
     r->vsz = vlen;
@@ -759,7 +759,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int v
         {
             bc->wbuf_size *= 2;
             free(bc->write_buffer);
-            bc->write_buffer = malloc(bc->wbuf_size);
+            bc->write_buffer = (char*)malloc(bc->wbuf_size);
         }
         if (bc->wbuf_start_pos + bc->wbuf_size > MAX_BUCKET_SIZE)
         {

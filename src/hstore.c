@@ -106,7 +106,7 @@ static void parallelize(HStore *store, BC_FUNC func)
     pthread_attr_init(&attr);
 
     int i, ret;
-    pthread_t *thread_ids = malloc(sizeof(pthread_t) * store->scan_threads);
+    pthread_t *thread_ids = (pthread_t*)malloc(sizeof(pthread_t) * store->scan_threads);
     struct scan_args *args = (struct scan_args *) malloc(sizeof(struct scan_args) * store->scan_threads);
     for (i=0; i<store->scan_threads; i++)
     {
@@ -207,7 +207,7 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     char *buf[20] = {0};
     for (i=0; i<npath; i++)
     {
-        buf[i] = malloc(255);
+        buf[i] = (char*)malloc(255);
     }
     for (i=0; i<count; i++)
     {
@@ -339,7 +339,7 @@ static char* hs_list(HStore *store, char *key)
     else
     {
         int i, bsize = 1024, used = 0;
-        char *buf = malloc(bsize);
+        char *buf = (char*)malloc(bsize);
         if (!buf) return NULL;
         for (i=0; i < 16; i++)
         {
@@ -382,7 +382,7 @@ char *hs_get(HStore *store, char *key, int *vlen, uint32_t *flag)
     char *res = NULL;
     if (info)
     {
-        res = malloc(256);
+        res = (char*)malloc(256);
         if (!res)
         {
             free_record(r);
@@ -433,7 +433,7 @@ bool hs_append(HStore *store, char *key, char* value, int vlen)
         fprintf(stderr, "try to append %s with flag=%x\n", key, flag);
         goto APPEND_END;
     }
-    body = realloc(body, rlen + vlen);
+    body = (char*)realloc(body, rlen + vlen);
     memcpy(body + rlen, value, vlen);
     suc = hs_set(store, key, body, rlen + vlen, flag, 0); // TODO: use timestamp
 

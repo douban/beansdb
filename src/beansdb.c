@@ -151,7 +151,7 @@ static int add_msghdr(conn *c)
 
     if (c->msgsize == c->msgused)
     {
-        msg = realloc(c->msglist, c->msgsize * 2 * sizeof(struct msghdr));
+        msg = (struct msghdr *)realloc(c->msglist, c->msgsize * 2 * sizeof(struct msghdr));
         if (! msg)
             return -1;
         c->msglist = msg;
@@ -227,7 +227,7 @@ bool do_conn_add_to_freelist(conn *c)
     else
     {
         /* try to enlarge free connections array */
-        conn **new_freeconns = realloc(freeconns, sizeof(conn *) * freetotal * 2);
+        conn **new_freeconns = (conn**)realloc(freeconns, sizeof(conn *) * freetotal * 2);
         if (new_freeconns)
         {
             freetotal *= 2;
@@ -922,7 +922,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens)
             {
                 if (i >= c->isize)
                 {
-                    item **new_list = realloc(c->ilist, sizeof(item *) * c->isize * 2);
+                    item **new_list = (item**)realloc(c->ilist, sizeof(item *) * c->isize * 2);
                     if (new_list)
                     {
                         c->isize *= 2;
@@ -1372,7 +1372,7 @@ static int try_read_network(conn *c)
     {
         if (c->rbytes >= c->rsize)
         {
-            char *new_rbuf = realloc(c->rbuf, c->rsize * 2);
+            char *new_rbuf = (char*)realloc(c->rbuf, c->rsize * 2);
             if (!new_rbuf)
             {
                 if (settings.verbose > 0)
