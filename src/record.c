@@ -66,7 +66,7 @@ char* record_value(DataRecord *r)
     if (res == r->key + r->ksz + 1)
     {
         // value was alloced in record
-        res = malloc(r->vsz);
+        res = (char*)malloc(r->vsz);
         memcpy(res, r->value, r->vsz);
     }
     return res;
@@ -86,8 +86,8 @@ void compress_record(DataRecord *r)
     int n = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (n > PADDING && (r->flag & (COMPRESS_FLAG|CLIENT_COMPRESS_FLAG)) == 0)
     {
-        char *wbuf = malloc(QLZ_SCRATCH_COMPRESS);
-        char *v = malloc(vsz + 400);
+        char *wbuf = (char*)malloc(QLZ_SCRATCH_COMPRESS);
+        char *v = (char*)malloc(vsz + 400);
         if (wbuf == NULL || v == NULL) return ;
         int try_size = vsz > TRY_COMPRESS_SIZE ? TRY_COMPRESS_SIZE : vsz;
         int vsize = qlz_compress(r->value, v, try_size, wbuf);
@@ -127,7 +127,7 @@ DataRecord* decompress_record(DataRecord *r)
             goto DECOMP_END;
         }
         int size = qlz_size_decompressed(r->value);
-        char *v = malloc(size);
+        char *v = (char*)malloc(size);
         if (v == NULL)
         {
             fprintf(stderr, "malloc(%d)\n", size);
@@ -220,7 +220,7 @@ DataRecord* read_record(FILE *f, bool decomp)
     }
     else
     {
-        r->value = malloc(vsz);
+        r->value = (char*)malloc(vsz);
         r->free_value = true;
         memcpy(r->value, r->key + ksz, read_size);
         int need = vsz - read_size;
@@ -282,7 +282,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
     }
     else
     {
-        r->value = malloc(vsz);
+        r->value = (char*)malloc(vsz);
         r->free_value = true;
         memcpy(r->value, r->key + ksz, read_size);
         int need = vsz - read_size;
@@ -329,7 +329,7 @@ char* encode_record(DataRecord *r, int *size)
         m += PADDING - (n % PADDING);
     }
 
-    char *buf = malloc(m);
+    char *buf = (char*)malloc(m);
 
     DataRecord *data = (DataRecord*)(buf - hs);
     memcpy(&data->crc, &r->crc, sizeof(DataRecord)-hs);
@@ -519,7 +519,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             }
             hint_size = hint->size * 2;
             if (hint_size < 4096) hint_size = 4096;
-            hintdata = malloc(hint_size);
+            hintdata = (char*)malloc(hint_size);
             memcpy(hintdata, hint->buf, hint->size);
             hint_used = hint->size;
             close_hint(hint);
@@ -527,7 +527,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         else
         {
             hint_size = 4096;
-            hintdata = malloc(hint_size);
+            hintdata = (char*)malloc(hint_size);
             hint_used = 0;
         }
     }
@@ -535,7 +535,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     {
         sprintf(tmp, "%s.tmp", path);
         new_df = fopen(tmp, "wb");
-        hintdata = malloc(1<<20);
+        hintdata = (char*)malloc(1<<20);
         hint_size = 1<<20;
     }
     if (new_df == NULL)
@@ -587,7 +587,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             if (hint_used + hsize > hint_size)
             {
                 hint_size *= 2;
-                hintdata = realloc(hintdata, hint_size);
+                hintdata = (char*)realloc(hintdata, hint_size);
             }
             HintRecord *hr = (HintRecord*)(hintdata + hint_used);
             hr->ksize = r->ksz;
