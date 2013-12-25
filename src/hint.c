@@ -69,8 +69,8 @@ void write_hint_file(char *buf, int size, const char* path)
     char *dst = buf;
     if (strcmp(path + strlen(path) - 4, ".qlz") == 0)
     {
-        char* wbuf = malloc(QLZ_SCRATCH_COMPRESS);
-        dst = malloc(size + 400);
+        char* wbuf = (char*)malloc(QLZ_SCRATCH_COMPRESS);
+        dst = (char*)malloc(size + 400);
         size = qlz_compress(buf, dst, size, wbuf);
         free(wbuf);
     }
@@ -103,7 +103,7 @@ void build_hint(HTree* tree, const char* hintpath)
     struct param p;
     p.size = 1024 * 1024;
     p.curr = 0;
-    p.buf = malloc(p.size);
+    p.buf = (char*)malloc(p.size);
 
     ht_visit(tree, collect_items, &p);
     ht_destroy(tree);
@@ -207,7 +207,7 @@ HintFile *open_hint(const char* path, const char* new_path)
     {
         char wbuf[QLZ_SCRATCH_DECOMPRESS];
         int size = qlz_size_decompressed(hint->buf);
-        char* buf = malloc(size);
+        char* buf = (char*)malloc(size);
         int vsize = qlz_decompress(hint->buf, buf, wbuf);
         if (vsize != size)
         {

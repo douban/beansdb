@@ -735,7 +735,7 @@ int ht_save(HTree *tree, const char *path)
     }
 
     int s = dc_size(tree->dc);
-    char *buf = malloc(s + sizeof(int));
+    char *buf = (char*)malloc(s + sizeof(int));
     *(int*)buf = s;
     if (dc_dump(tree->dc, buf + sizeof(int), s) != s)
     {
