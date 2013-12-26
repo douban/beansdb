@@ -217,7 +217,7 @@ void bc_scan(Bitcask* bc)
         else
         {
             if (0 == stat(hintpath, &st) &&
-                    (st.st_mtime < bc->before || 0 == stat(datapath, &st) && st.st_mtime < bc->before))
+                    (st.st_mtime < bc->before || (0 == stat(datapath, &st) && st.st_mtime < bc->before)))
             {
                 scanHintFile(bc->tree, i, hintpath, NULL);
             }
@@ -316,7 +316,7 @@ struct update_args
 
 static void update_item_pos(Item *it, void *_args)
 {
-    struct update_args *args = _args;
+    struct update_args *args = (struct update_args*)_args;
     HTree *tree = (HTree*) args->tree;
     Item *p = ht_get(tree, it->key);
     if (p)
@@ -434,7 +434,6 @@ void bc_optimize(Bitcask *bc, int limit)
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath,
                                         skipped, MAX_BUCKET_SIZE, last, NULL, NULL);
         }
-        if (recoverd < 0) break; // failed
 
         pthread_mutex_lock(&bc->buffer_lock);
         bc->bytes -= recoverd;
@@ -577,7 +576,7 @@ void bc_rotate(Bitcask *bc)
     bc->wbuf_start_pos = 0;
 }
 
-void bc_flush(Bitcask *bc, int limit, int flush_period)
+void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
 {
     if (bc->curr >= MAX_BUCKET_COUNT)
     {
@@ -590,7 +589,7 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
 
     time_t now = time(NULL);
     if (bc->wbuf_curr_pos > limit * 1024 ||
-            now > bc->last_flush_time + flush_period && bc->wbuf_curr_pos > 0)
+            (now > bc->last_flush_time + flush_period && bc->wbuf_curr_pos > 0))
     {
         uint32_t size = bc->wbuf_curr_pos;
         char * tmp = (char*) malloc(size);
@@ -614,10 +613,10 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
             exit(1);
         }
 
-        int n = fwrite(tmp, 1, size, f);
+        size_t n = fwrite(tmp, 1, size, f);
         if (n < size)
         {
-            fprintf(stderr, "write failed: return %d\n", n);
+            fprintf(stderr, "write failed: return %zu\n", n);
             exit(1);
         }
         free(tmp);
@@ -659,9 +658,9 @@ void bc_flush(Bitcask *bc, int limit, int flush_period)
     pthread_mutex_unlock(&bc->flush_lock);
 }
 
-bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int version)
+bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, int version)
 {
-    if (version < 0 && vlen > 0 || vlen > MAX_RECORD_SIZE)
+    if (version < 0  || vlen > MAX_RECORD_SIZE)
     {
         fprintf(stderr, "invalid set cmd \n");
         return false;
@@ -714,7 +713,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int v
             if (version != 0)
             {
                 // update version
-                if (it->pos & 0xff == bc->curr)
+                if ((it->pos & 0xff) == bc->curr)
                 {
                     ht_add(bc->curr_tree, key, it->pos, it->hash, ver);
                 }
@@ -738,7 +737,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, int vlen, int flag, int v
     r->version = ver;
     r->tstamp = time(NULL);
 
-    int rlen;
+    unsigned int rlen;
     char *rbuf = encode_record(r, &rlen);
     if (rbuf == NULL || (rlen & 0xff) != 0)
     {
@@ -788,7 +787,7 @@ bool bc_delete(Bitcask *bc, const char* key)
     return bc_set(bc, key, "", 0, 0, -1);
 }
 
-uint16_t bc_get_hash(Bitcask *bc, const char * pos, int *count)
+uint16_t bc_get_hash(Bitcask *bc, const char * pos, unsigned int *count)
 {
     return ht_get_hash(bc->tree, pos, count);
 }

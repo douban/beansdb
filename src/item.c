@@ -214,7 +214,7 @@ int item_free(item *it)
 item *item_get(char *key, size_t nkey)
 {
     item *it = NULL;
-    int vlen;
+    size_t vlen;
     uint32_t flag;
     char *value = hs_get(store, key, &vlen, &flag);
     if (value)

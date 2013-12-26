@@ -21,6 +21,7 @@
 #include <signal.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
+#include <pthread.h>
 
 /* need this to get IOV_MAX on some platforms. */
 #ifndef __need_IOV_MAX
@@ -40,6 +41,7 @@
 #include <limits.h>
 #include <inttypes.h>
 #include <unistd.h>
+#include <ctype.h>
 
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
@@ -658,12 +660,11 @@ static void complete_nread(conn *c)
 int store_item(item *it, int comm)
 {
     char *key = ITEM_key(it);
-    int ret;
 
     switch (comm)
     {
     case NREAD_SET:
-        return hs_set(store, key, ITEM_data(it), it->nbytes - 2, it->flag, it->ver);
+        return hs_set(store, key, ITEM_data(it), (size_t)(it->nbytes - 2), it->flag, it->ver);
     case NREAD_APPEND:
         return hs_append(store, key, ITEM_data(it), it->nbytes - 2);
     }
@@ -1207,9 +1208,9 @@ static void process_command(conn *c, char *command)
         process_get_command(c, tokens, ntokens);
 
     }
-    else if ((ntokens == 6 || ntokens == 7) &&
-             (strcmp(tokens[COMMAND_TOKEN].value, "set") == 0 && (comm = NREAD_SET) ||
-              strcmp(tokens[COMMAND_TOKEN].value, "append") == 0 && (comm = NREAD_APPEND)) )
+    else if (((ntokens == 6 || ntokens == 7) &&
+             strcmp(tokens[COMMAND_TOKEN].value, "set") == 0 && (comm = NREAD_SET)) ||
+              (strcmp(tokens[COMMAND_TOKEN].value, "append") == 0 && (comm = NREAD_APPEND)) )
     {
 
         process_update_command(c, tokens, ntokens, comm);
@@ -1301,7 +1302,7 @@ static void process_command(conn *c, char *command)
         time_t t = time(NULL);
         strftime(now, 200, "%Y-%m-%d %H:%M:%S", localtime(&t));
         struct sockaddr_storage addr;
-        int addrlen = sizeof(addr);
+        unsigned int addrlen = sizeof(addr);
         getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen);
         char host[NI_MAXHOST], serv[NI_MAXSERV];
         getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host), serv, sizeof(serv),
@@ -2004,7 +2005,7 @@ void* do_flush(void *args)
 {
     while (!daemon_quit)
     {
-        hs_flush(store, settings.flush_limit, settings.flush_period);
+        hs_flush(store, (unsigned int)settings.flush_limit, settings.flush_period);
         sleep(1);
     }
     fprintf(stderr, "flush thread exit.\n");

@@ -21,11 +21,11 @@
 typedef struct t_hstore HStore;
 
 HStore* hs_open(char *path, int height, time_t before, int scan_threads);
-void    hs_flush(HStore *store, int limit, int period);
+void    hs_flush(HStore *store, unsigned int limit, int period);
 void    hs_close(HStore *store);
-char*   hs_get(HStore *store, char *key, int *vlen, uint32_t *flag);
-bool    hs_set(HStore *store, char *key, char* value, int vlen, uint32_t flag, int version);
-bool    hs_append(HStore *store, char *key, char* value, int vlen);
+char*   hs_get(HStore *store, char *key, size_t *vlen, uint32_t *flag);
+bool    hs_set(HStore *store, char *key, char* value, size_t vlen, uint32_t flag, int version);
+bool    hs_append(HStore *store, char *key, char* value, size_t vlen);
 int64_t hs_incr(HStore *store, char *key, int64_t value);
 bool    hs_delete(HStore *store, char *key);
 uint64_t hs_count(HStore *store, uint64_t *curr);

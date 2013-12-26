@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  */
 
 #include <stdio.h>
@@ -19,6 +20,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #include "fnv1a.h"
 #include "htree.h"
@@ -136,7 +138,7 @@ static void enlarge_pool(HTree *tree)
     tree->height ++;
 }
 
-static void clear(HTree *tree, Node *node)
+static void clear(Node *node)
 {
     Data* data = (Data*) malloc(64);
     data->size = 64;
@@ -218,7 +220,7 @@ static void split_node(HTree *tree, Node *node)
     int i;
     for (i=0; i<BUCKET_SIZE; i++)
     {
-        clear(tree, child+i);
+        clear(child+i);
     }
 
     Data *data = get_data(node);
@@ -268,7 +270,7 @@ static void remove_item(HTree *tree, Node *node, Item *it, uint32_t keyhash)
 
 static void merge_node(HTree *tree, Node *node)
 {
-    clear(tree, node);
+    clear(node);
 
     Node* child = get_child(tree, node, 0);
     int i, j;
@@ -285,7 +287,7 @@ static void merge_node(HTree *tree, Node *node)
             } // drop deleted items, ver < 0
             it = (Item*)((char*)it + it->length);
         }
-        clear(tree, child + i);
+        clear(child + i);
     }
 }
 
@@ -358,7 +360,7 @@ static inline int hex2int(char b)
 }
 
 static uint16_t get_node_hash(HTree* tree, Node* node, const char* dir,
-                              int *count)
+                              unsigned int *count)
 {
     if (node->is_node && strlen(dir) > 0)
     {
@@ -399,13 +401,13 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
     int bsize = 4096;
     char *buf = (char*) malloc(bsize);
     memset(buf, 0, bsize);
-    int n = 0, i, j;
+    int n = 0, i;
     if (node->is_node)
     {
         update_node(tree, node);
 
         Node *child = get_child(tree, node, 0);
-        if (node->count > 100000 || prefix==NULL && node->count > SPLIT_LIMIT * 4)
+        if (node->count > 100000 || (prefix==NULL && node->count > SPLIT_LIMIT * 4))
         {
             for (i=0; i<BUCKET_SIZE; i++)
             {
@@ -448,7 +450,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
                 }
             }
             int l = dc_decode(tree->dc, key, it->key, KEYLENGTH(it));
-            if (prefix == NULL || l >= prefix_len && strncmp(key, prefix, prefix_len) == 0)
+            if (prefix == NULL || (l >= prefix_len && strncmp(key, prefix, prefix_len) == 0))
             {
                 n += snprintf(buf+n, bsize-n-1, "%s %u %d\n", key, it->hash, it->ver);
                 if (bsize - n < 200)
@@ -522,7 +524,7 @@ HTree* ht_new(int depth, int pos)
     }
 
     tree->root = root;
-    clear(tree, tree->root);
+    clear(tree->root);
 
     tree->dc = dc_new();
     pthread_mutex_init(&tree->lock, NULL);
@@ -817,7 +819,7 @@ bool check_key(HTree *tree, const char* key, int len)
     }
 
     uint32_t h = keyhash(key, len);
-    if (tree->depth > 0 && h >> ((8-tree->depth)*4) != tree->pos)
+    if (tree->depth > 0 && h >> ((8-tree->depth)*4) != (unsigned int)(tree->pos))
     {
         fprintf(stderr, "key %s (#%x) should not in this tree (%d:%0x)\n", key, h >> ((8-tree->depth)*4), tree->depth, tree->pos);
         return false;
@@ -878,7 +880,7 @@ Item* ht_get(HTree* tree, const char* key)
     return ht_get2(tree, key, strlen(key));
 }
 
-uint32_t ht_get_hash(HTree* tree, const char* key, int* count)
+uint32_t ht_get_hash(HTree* tree, const char* key, unsigned int* count)
 {
     if (!tree || !key || key[0] != '@')
     {

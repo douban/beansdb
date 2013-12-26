@@ -25,9 +25,9 @@
 #include <errno.h>
 #include <time.h>
 
+#include "bitcask.h"
 #include "htree.h"
 #include "hstore.h"
-#include "bitcask.h"
 #include "diskmgr.h"
 
 #define NUM_OF_MUTEX 37
@@ -76,7 +76,7 @@ struct scan_args
 
 static void* scan_thread(void *_args)
 {
-    struct scan_args *args = _args;
+    struct scan_args *args = (struct scan_args*)_args;
     HStore *store = args->store;
     int i, index = args->index;
     for (i=0; i<store->count; i++)
@@ -254,7 +254,7 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     return store;
 }
 
-void hs_flush(HStore *store, int limit, int period)
+void hs_flush(HStore *store, unsigned int limit, int period)
 {
     if (!store) return;
     if (store->before > 0) return;
@@ -289,7 +289,7 @@ void hs_close(HStore *store)
 
 static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)
 {
-    if (strlen(pos) >= store->height)
+    if (strlen(pos) >= (unsigned int)(store->height))
     {
         pos[store->height] = 0;
         int index = strtol(pos, NULL, 16);
@@ -302,7 +302,9 @@ static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)
         char pos_buf[255];
         for (i=0; i<16; i++)
         {
-            int h,c;
+            /*int h,c;*/
+            uint16_t h;
+            uint32_t c;
             sprintf(pos_buf, "%s%x", pos, i);
             h = hs_get_hash(store, pos_buf, &c);
             hash *= 97;
@@ -354,7 +356,7 @@ static char* hs_list(HStore *store, char *key)
     }
 }
 
-char *hs_get(HStore *store, char *key, int *vlen, uint32_t *flag)
+char *hs_get(HStore *store, char *key, size_t *vlen, uint32_t *flag)
 {
     if (!key || !store) return NULL;
 
@@ -393,7 +395,7 @@ char *hs_get(HStore *store, char *key, int *vlen, uint32_t *flag)
         {
             hash = gen_hash(r->value, r->vsz);
         }
-        *vlen = snprintf(res, 255, "%d %u %u %u %u", r->version,
+        *vlen = (size_t)snprintf(res, 255, "%d %u %u %u %u", r->version,
                          hash, r->flag, r->vsz, r->tstamp);
         *flag = 0;
     }
@@ -408,7 +410,7 @@ char *hs_get(HStore *store, char *key, int *vlen, uint32_t *flag)
     return res;
 }
 
-bool hs_set(HStore *store, char *key, char* value, int vlen, uint32_t flag, int ver)
+bool hs_set(HStore *store, char *key, char* value, size_t vlen, uint32_t flag, int ver)
 {
     if (!store || !key || key[0] == '@') return false;
     if (store->before > 0) return false;
@@ -417,7 +419,7 @@ bool hs_set(HStore *store, char *key, char* value, int vlen, uint32_t flag, int 
     return bc_set(store->bitcasks[index], key, value, vlen, flag, ver);
 }
 
-bool hs_append(HStore *store, char *key, char* value, int vlen)
+bool hs_append(HStore *store, char *key, char* value, size_t vlen)
 {
     if (!store || !key || key[0] == '@') return false;
     if (store->before > 0) return false;
@@ -426,7 +428,8 @@ bool hs_append(HStore *store, char *key, char* value, int vlen)
     pthread_mutex_lock(lock);
 
     int suc = false;
-    int rlen = 0, flag = APPEND_FLAG;
+    size_t rlen = 0;
+    uint32_t flag = (uint32_t)APPEND_FLAG;
     char *body = hs_get(store, key, &rlen, &flag);
     if (body != NULL && flag != APPEND_FLAG)
     {
@@ -452,7 +455,8 @@ int64_t hs_incr(HStore *store, char *key, int64_t value)
     pthread_mutex_lock(lock);
 
     int64_t result = 0;
-    int rlen = 0, flag = INCR_FLAG;
+    size_t rlen = 0;
+    uint32_t flag = (uint32_t)INCR_FLAG;
     char buf[25];
     char *body = hs_get(store, key, &rlen, &flag);
 
@@ -460,7 +464,7 @@ int64_t hs_incr(HStore *store, char *key, int64_t value)
     {
         if (flag != INCR_FLAG || rlen > 22)
         {
-            fprintf(stderr, "try to incr %s but flag=0x%x, len=%d", key, flag, rlen);
+            fprintf(stderr, "try to incr %s but flag=0x%x, len=%zu", key, flag, rlen);
             goto INCR_END;
         }
         result = strtoll(body, NULL, 10);
