@@ -1208,9 +1208,10 @@ static void process_command(conn *c, char *command)
         process_get_command(c, tokens, ntokens);
 
     }
-    else if (((ntokens == 6 || ntokens == 7) &&
-             strcmp(tokens[COMMAND_TOKEN].value, "set") == 0 && (comm = NREAD_SET)) ||
-              (strcmp(tokens[COMMAND_TOKEN].value, "append") == 0 && (comm = NREAD_APPEND)) )
+    else if ((ntokens == 6 || ntokens == 7) &&
+             ((strcmp(tokens[COMMAND_TOKEN].value, "set") == 0 && (comm = NREAD_SET)) ||
+              (strcmp(tokens[COMMAND_TOKEN].value, "append") == 0 && (comm = NREAD_APPEND))))
+
     {
 
         process_update_command(c, tokens, ntokens, comm);

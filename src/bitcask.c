@@ -660,7 +660,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
 
 bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, int version)
 {
-    if (version < 0  || vlen > MAX_RECORD_SIZE)
+    if ((version < 0 && vlen > 0) || vlen > MAX_RECORD_SIZE)
     {
         fprintf(stderr, "invalid set cmd \n");
         return false;
