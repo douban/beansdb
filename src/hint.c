@@ -27,7 +27,7 @@
 #include "hint.h"
 #include "quicklz.h"
 #include "diskmgr.h"
-//#include "fnv1a.h"
+#include "fnv1a.h"
 
 const  int MAX_MMAP_SIZE = 1<<12; // 4G
 static int curr_mmap_size = 0;
