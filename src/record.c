@@ -27,7 +27,7 @@
 #include "crc32.c"
 #include "diskmgr.h"
 #include "quicklz.h"
-//#include "fnv1a.h"
+#include "fnv1a.h"
 
 const int PADDING = 256;
 const int32_t COMPRESS_FLAG = 0x00010000;
