@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  */
 #ifndef __HTREE_H__
 #define __HTREE_H__
@@ -42,7 +43,7 @@ void     ht_add(HTree *tree, const char* key, uint32_t pos, uint16_t hash, int32
 void     ht_remove(HTree *tree, const char *key);
 Item*    ht_get(HTree *tree, const char *key);
 Item*    ht_get2(HTree *tree, const char *key, int ksz);
-uint32_t ht_get_hash(HTree *tree, const char *key, int *count);
+uint32_t ht_get_hash(HTree *tree, const char *key, unsigned int *count);
 char*    ht_list(HTree *tree, const char *dir, const char *prefix);
 void     ht_visit(HTree *tree, fun_visitor visitor, void *param);
 

@@ -10,12 +10,13 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <unistd.h>
+/*#include <unistd.h>*/
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -121,20 +122,20 @@ DataRecord* decompress_record(DataRecord *r)
     if (r->flag & COMPRESS_FLAG)
     {
         char scratch[QLZ_SCRATCH_DECOMPRESS];
-        int csize = qlz_size_compressed(r->value);
+        unsigned int csize = qlz_size_compressed(r->value);
         if (csize != r->vsz)
         {
             fprintf(stderr, "broken compressed data: %d != %d, flag=%x\n", csize, r->vsz, r->flag);
             goto DECOMP_END;
         }
-        int size = qlz_size_decompressed(r->value);
+        unsigned int size = qlz_size_decompressed(r->value);
         char *v = (char*)malloc(size);
         if (v == NULL)
         {
             fprintf(stderr, "malloc(%d)\n", size);
             goto DECOMP_END;
         }
-        int ret = qlz_decompress(r->value, v, scratch);
+        unsigned int ret = qlz_decompress(r->value, v, scratch);
         if (ret != size)
         {
             fprintf(stderr, "decompress %s failed: %d != %d\n", r->key, ret, size);
@@ -165,13 +166,13 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
         //fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
         return NULL;
     }
-    int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
+    unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
     {
         fprintf(stderr, "not enough data in buffer: %d < %d\n", size, need);
         return NULL;
     }
-    uint32_t crc = crc32(0, buf + sizeof(uint32_t),  need - sizeof(uint32_t));
+    uint32_t crc = crc32(0, (unsigned char*)buf + sizeof(uint32_t),  need - sizeof(uint32_t));
     if (r->crc != crc)
     {
         fprintf(stderr, "CRC checksum failed\n");
@@ -235,9 +236,9 @@ DataRecord* read_record(FILE *f, bool decomp)
     }
     r->key[ksz] = 0; // c str
 
-    uint32_t crc = crc32(0, (char*)(&r->tstamp),
+    uint32_t crc = crc32(0, (unsigned char*)(&r->tstamp),
                          sizeof(DataRecord) - sizeof(char*) - sizeof(uint32_t) + ksz);
-    crc = crc32(crc, r->value, vsz);
+    crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
         fprintf(stderr, "%s @%lld crc32 check failed %d != %d\n", r->key, ftello(f), crc, r->crc);
@@ -297,9 +298,9 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
     }
     r->key[ksz] = 0; // c str
 
-    uint32_t crc = crc32(0, (char*)(&r->tstamp),
+    uint32_t crc = crc32(0, (unsigned char*)(&r->tstamp),
                          sizeof(DataRecord) - sizeof(char*) - sizeof(uint32_t) + ksz);
-    crc = crc32(crc, r->value, vsz);
+    crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
         fprintf(stderr, "%s @%lld crc32 check failed %d != %d\n", r->key, offset, crc, r->crc);
@@ -317,11 +318,11 @@ READ_END:
     return NULL;
 }
 
-char* encode_record(DataRecord *r, int *size)
+char* encode_record(DataRecord *r, unsigned int *size)
 {
     compress_record(r);
 
-    int m, n;
+    unsigned int m, n;
     int ksz = r->ksz, vsz = r->vsz;
     int hs = sizeof(char*); // over header
     m = n = sizeof(DataRecord) - hs + ksz + vsz;
@@ -336,7 +337,7 @@ char* encode_record(DataRecord *r, int *size)
     memcpy(&data->crc, &r->crc, sizeof(DataRecord)-hs);
     memcpy(data->key, r->key, ksz);
     memcpy(data->key + ksz, r->value, vsz);
-    data->crc = crc32(0, (char*)&data->tstamp, n - sizeof(uint32_t));
+    data->crc = crc32(0, (unsigned char*)&data->tstamp, n - sizeof(uint32_t));
 
     *size = m;
     return buf;
@@ -344,7 +345,7 @@ char* encode_record(DataRecord *r, int *size)
 
 int write_record(FILE *f, DataRecord *r)
 {
-    int size;
+    unsigned int size;
     char *data = encode_record(r, &size);
     if (fwrite(data, 1, size, f) < size)
     {
@@ -433,7 +434,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             uint32_t pos = p - f->addr;
             p += record_length(r);
             r = decompress_record(r);
-            uint16_t hash = gen_hash(r->value, r->vsz);
+            /*uint16_t hash = gen_hash(r->value, r->vsz);*/
             if (r->version > 0)
             {
                 uint16_t hash = gen_hash(r->value, r->vsz);

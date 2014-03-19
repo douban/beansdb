@@ -43,7 +43,7 @@ uint32_t gen_hash(char* buf, int size);
 char* record_value(DataRecord *r);
 void free_record(DataRecord *r);
 DataRecord* decode_record(char* buf, uint32_t size, bool decomp);
-char* encode_record(DataRecord* r, int* size);
+char* encode_record(DataRecord* r, unsigned int* size);
 DataRecord* read_record(FILE *f, bool decomp);
 DataRecord* fast_read_record(int fd, off_t offset, bool decomp);
 

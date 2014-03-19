@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
@@ -20,7 +21,7 @@
 #include <string.h>
 
 #include "codec.h"
-#include "fnv1a.h"
+/*#include "fnv1a.h"*/
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
@@ -80,11 +81,11 @@ int dc_dump(Codec *dc, char *buf, int size)
 {
     char *orig = buf;
     int i=0;
-    if (size < sizeof(int)) return -1;
+    if (size < (int)sizeof(int)) return -1;
     *(int*)buf = dc->dict_used;
     buf += sizeof(int);
 
-    for (i=1; i<dc->dict_used; i++)
+    for (i = 1; i < dc->dict_used; i++)
     {
         unsigned char s = fmt_size(dc->dict[i]);
         if (buf + s + 1 - orig > size) return -1;
@@ -136,7 +137,7 @@ int dc_load(Codec *dc, const char *buf, int size)
         fprintf(stderr, "number of formats overflow: %d > %d\n", used, MAX_DICT_SIZE);
         return -1;
     }
-    int dict_size = min(used * 2, MAX_DICT_SIZE);
+    unsigned int dict_size = min(used * 2, MAX_DICT_SIZE);
     if (dc->dict_size < dict_size)
     {
         dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dict_size);
@@ -182,7 +183,7 @@ void dc_destroy(Codec *dc)
 
 int dc_encode(Codec* dc, char* buf, const char* src, int len)
 {
-    if (dc != NULL && len > 6 && len < 100 && src[0] > 0)
+    if (dc && len > 6 && len < 100 && src[0] > 0)
     {
         int m=0;
         char fmt[255];
@@ -197,15 +198,15 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
             {
                 goto RET;
             }
-            if (*p >= '1' && *p <= '9' || *p >= 'a' && *p <= 'f')
+            if ((*p >= '1' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
             {
                 char *nd = num[m];
                 hex[m] = false;
-                while(p < q && (*p >= '0' && *p <= '9' || *p >= 'a' && *p <= 'f'))
+                while(p < q && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')))
                 {
                     if (*p >= 'a' && *p <= 'f') hex[m] = true;
                     *nd ++ = *p ++;
-                    if (hex[m] && nd-num[m] >= 8 || !hex[m] && nd-num[m] >=9)
+                    if ((hex[m] && nd-num[m] >= 8) || (!hex[m] && nd-num[m] >= 9))
                     {
                         break;
                     }
@@ -258,14 +259,14 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
             int rh = dc->rdict[h];
             if (rh == 0)
             {
-                if (dc->dict_used < dc->dict_size)
+                if ((unsigned int)(dc->dict_used) < dc->dict_size)
                 {
                     dict[dc->dict_used] = (Fmt*) malloc(sizeof(Fmt) + flen - 7 + 1);
                     dict[dc->dict_used]->nargs = m;
                     memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
                     // fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);
                     dc->rdict[h] = rh = dc->dict_used ++;
-                    if (dc->dict_used == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
+                    if ((unsigned int)(dc->dict_used) == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
                     {
                         dc_enlarge(dc);
                     }
@@ -330,7 +331,6 @@ int dc_decode(Codec* dc, char* buf, const char* src, int len)
             return 0;
         }
         int rlen = 0;
-        int flen = strlen(f->fmt);
         switch(f->nargs)
         {
         case 1:
@@ -347,7 +347,6 @@ int dc_decode(Codec* dc, char* buf, const char* src, int len)
         }
         return rlen;
     }
-COPY:
     memcpy(buf, src, len);
     buf[len] = 0;
     return len;

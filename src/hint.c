@@ -284,7 +284,7 @@ int count_deleted_record(HTree* tree, int bucket, const char* path, int *total)
         }
         (*total) ++;
         Item *it = ht_get2(tree, r->key, r->ksize);
-        if (it == NULL || it->pos != ((r->pos << 8) | bucket) || it->ver <= 0)
+        if (it == NULL || it->pos != ((r->pos << 8) | (unsigned int)bucket) || it->ver <= 0)
         {
             deleted ++;
         }

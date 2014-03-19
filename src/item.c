@@ -211,10 +211,10 @@ int item_free(item *it)
 }
 
 /* if return item is not NULL, free by caller */
-item *item_get(char *key, size_t nkey)
+item *item_get(char *key, unsigned int nkey)
 {
     item *it = NULL;
-    int vlen;
+    unsigned int vlen;
     uint32_t flag;
     char *value = hs_get(store, key, &vlen, &flag);
     if (value)
