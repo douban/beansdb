@@ -356,7 +356,7 @@ static char* hs_list(HStore *store, char *key)
     }
 }
 
-char *hs_get(HStore *store, char *key, size_t *vlen, uint32_t *flag)
+char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
 {
     if (!key || !store) return NULL;
 
@@ -410,7 +410,7 @@ char *hs_get(HStore *store, char *key, size_t *vlen, uint32_t *flag)
     return res;
 }
 
-bool hs_set(HStore *store, char *key, char* value, size_t vlen, uint32_t flag, int ver)
+bool hs_set(HStore *store, char *key, char* value, unsigned int vlen, uint32_t flag, int ver)
 {
     if (!store || !key || key[0] == '@') return false;
     if (store->before > 0) return false;
@@ -419,7 +419,7 @@ bool hs_set(HStore *store, char *key, char* value, size_t vlen, uint32_t flag, i
     return bc_set(store->bitcasks[index], key, value, vlen, flag, ver);
 }
 
-bool hs_append(HStore *store, char *key, char* value, size_t vlen)
+bool hs_append(HStore *store, char *key, char* value, unsigned int vlen)
 {
     if (!store || !key || key[0] == '@') return false;
     if (store->before > 0) return false;
@@ -428,7 +428,7 @@ bool hs_append(HStore *store, char *key, char* value, size_t vlen)
     pthread_mutex_lock(lock);
 
     int suc = false;
-    size_t rlen = 0;
+    unsigned int rlen = 0;
     uint32_t flag = (uint32_t)APPEND_FLAG;
     char *body = hs_get(store, key, &rlen, &flag);
     if (body != NULL && flag != APPEND_FLAG)
@@ -455,7 +455,7 @@ int64_t hs_incr(HStore *store, char *key, int64_t value)
     pthread_mutex_lock(lock);
 
     int64_t result = 0;
-    size_t rlen = 0;
+    unsigned int rlen = 0;
     uint32_t flag = (uint32_t)INCR_FLAG;
     char buf[25];
     char *body = hs_get(store, key, &rlen, &flag);
@@ -464,7 +464,7 @@ int64_t hs_incr(HStore *store, char *key, int64_t value)
     {
         if (flag != INCR_FLAG || rlen > 22)
         {
-            fprintf(stderr, "try to incr %s but flag=0x%x, len=%zu", key, flag, rlen);
+            fprintf(stderr, "try to incr %s but flag=0x%x, len=%u", key, flag, rlen);
             goto INCR_END;
         }
         result = strtoll(body, NULL, 10);

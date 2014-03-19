@@ -1303,7 +1303,7 @@ static void process_command(conn *c, char *command)
         time_t t = time(NULL);
         strftime(now, 200, "%Y-%m-%d %H:%M:%S", localtime(&t));
         struct sockaddr_storage addr;
-        unsigned int addrlen = sizeof(addr);
+        socklen_t addrlen = (socklen_t)sizeof(addr);
         getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen);
         char host[NI_MAXHOST], serv[NI_MAXSERV];
         getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host), serv, sizeof(serv),

@@ -248,7 +248,7 @@ item *do_item_from_freelist(void);
 int do_item_add_to_freelist(item *it);
 item *item_alloc1(char *key, const size_t nkey, const int flags, const int nbytes);
 int item_free(item *it);
-item *item_get(char *key, size_t nkey);
+item *item_get(char *key, unsigned int nkey);
 
 /* conn management */
 conn *do_conn_from_freelist();
