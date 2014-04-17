@@ -18,12 +18,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <libgen.h>
 
 #include "diskmgr.h"
 
+#include <unistd.h>
 struct disk_mgr
 {
     char **disks;
@@ -33,9 +33,9 @@ struct disk_mgr
 Mgr* mgr_create(const char **disks, int ndisks)
 {
     char *cwd = getcwd(NULL, 0);
-    Mgr *mgr = (Mgr*) malloc(sizeof(Mgr));
+    Mgr *mgr = (Mgr*) safe_malloc(sizeof(Mgr));
     mgr->ndisks = ndisks;
-    mgr->disks = (char**)malloc(sizeof(char*) * ndisks);
+    mgr->disks = (char**)safe_malloc(sizeof(char*) * ndisks);
     int i=0;
     for (i=0; i<ndisks; i++)
     {

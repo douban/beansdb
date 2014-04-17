@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
@@ -17,6 +18,7 @@
 #define __HINT_H__
 
 #include "htree.h"
+#include "util.h"
 
 typedef struct
 {

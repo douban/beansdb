@@ -16,7 +16,6 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
-/*#include <unistd.h>*/
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +28,7 @@
 #include "diskmgr.h"
 #include "quicklz.h"
 #include "fnv1a.h"
+
 
 const int PADDING = 256;
 const int32_t COMPRESS_FLAG = 0x00010000;
@@ -68,7 +68,7 @@ char* record_value(DataRecord *r)
     if (res == r->key + r->ksz + 1)
     {
         // value was alloced in record
-        res = (char*)malloc(r->vsz);
+        res = (char*)safe_malloc(r->vsz);
         memcpy(res, r->value, r->vsz);
     }
     return res;
@@ -88,8 +88,8 @@ void compress_record(DataRecord *r)
     int n = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (n > PADDING && (r->flag & (COMPRESS_FLAG|CLIENT_COMPRESS_FLAG)) == 0)
     {
-        char *wbuf = (char*)malloc(QLZ_SCRATCH_COMPRESS);
-        char *v = (char*)malloc(vsz + 400);
+        char *wbuf = (char*)try_malloc(QLZ_SCRATCH_COMPRESS);
+        char *v = (char*)try_malloc(vsz + 400);
         if (wbuf == NULL || v == NULL) return ;
         int try_size = vsz > TRY_COMPRESS_SIZE ? TRY_COMPRESS_SIZE : vsz;
         int vsize = qlz_compress(r->value, v, try_size, wbuf);
@@ -129,12 +129,14 @@ DataRecord* decompress_record(DataRecord *r)
             goto DECOMP_END;
         }
         unsigned int size = qlz_size_decompressed(r->value);
-        char *v = (char*)malloc(size);
+        char *v = (char*)safe_malloc(size);
+        /*
         if (v == NULL)
         {
-            fprintf(stderr, "malloc(%d)\n", size);
+            fprintf(stderr, "_malloc(%d)\n", size);
             goto DECOMP_END;
         }
+        */
         unsigned int ret = qlz_decompress(r->value, v, scratch);
         if (ret != size)
         {
@@ -179,7 +181,7 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
         return NULL;
     }
 
-    DataRecord *r2 = (DataRecord *) malloc(need + 1 + sizeof(char*));
+    DataRecord *r2 = (DataRecord *) safe_malloc(need + 1 + sizeof(char*));
     memcpy(&r2->crc, &r->crc, sizeof(DataRecord) - sizeof(char*) + ksz);
     r2->key[ksz] = 0; // c str
     r2->free_value = false;
@@ -196,7 +198,7 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
 
 DataRecord* read_record(FILE *f, bool decomp)
 {
-    DataRecord *r = (DataRecord*) malloc(PADDING + sizeof(char*));
+    DataRecord *r = (DataRecord*) safe_malloc(PADDING + sizeof(char*));
     r->value = NULL;
 
     if (fread(&r->crc, 1, PADDING, f) != PADDING)
@@ -222,7 +224,7 @@ DataRecord* read_record(FILE *f, bool decomp)
     }
     else
     {
-        r->value = (char*)malloc(vsz);
+        r->value = (char*)safe_malloc(vsz);
         r->free_value = true;
         memcpy(r->value, r->key + ksz, read_size);
         int need = vsz - read_size;
@@ -258,7 +260,7 @@ READ_END:
 
 DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
 {
-    DataRecord *r = (DataRecord*) malloc(PADDING + sizeof(char*));
+    DataRecord *r = (DataRecord*) safe_malloc(PADDING + sizeof(char*));
     r->value = NULL;
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
@@ -284,7 +286,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
     }
     else
     {
-        r->value = (char*)malloc(vsz);
+        r->value = (char*)safe_malloc(vsz);
         r->free_value = true;
         memcpy(r->value, r->key + ksz, read_size);
         int need = vsz - read_size;
@@ -331,7 +333,7 @@ char* encode_record(DataRecord *r, unsigned int *size)
         m += PADDING - (n % PADDING);
     }
 
-    char *buf = (char*)malloc(m);
+    char *buf = (char*)safe_malloc(m);
 
     DataRecord *data = (DataRecord*)(buf - hs);
     memcpy(&data->crc, &r->crc, sizeof(DataRecord)-hs);
@@ -521,7 +523,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             }
             hint_size = hint->size * 2;
             if (hint_size < 4096) hint_size = 4096;
-            hintdata = (char*)malloc(hint_size);
+            hintdata = (char*)safe_malloc(hint_size);
             memcpy(hintdata, hint->buf, hint->size);
             hint_used = hint->size;
             close_hint(hint);
@@ -529,7 +531,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         else
         {
             hint_size = 4096;
-            hintdata = (char*)malloc(hint_size);
+            hintdata = (char*)safe_malloc(hint_size);
             hint_used = 0;
         }
     }
@@ -537,7 +539,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     {
         sprintf(tmp, "%s.tmp", path);
         new_df = fopen(tmp, "wb");
-        hintdata = (char*)malloc(1<<20);
+        hintdata = (char*)safe_malloc(1<<20);
         hint_size = 1<<20;
     }
     if (new_df == NULL)

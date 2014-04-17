@@ -22,6 +22,8 @@
 #include "diskmgr.h"
 #include "beansdb.h"
 
+#include "util.h"
+
 typedef struct bitcask_t Bitcask;
 
 Bitcask*   bc_open(const char *path, int depth, int pos, time_t before);

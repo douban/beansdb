@@ -21,7 +21,7 @@
 #include <string.h>
 
 #include "codec.h"
-/*#include "fnv1a.h"*/
+#include "fnv1a.h"
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
@@ -52,14 +52,14 @@ struct t_codec
 
 Codec* dc_new()
 {
-    Codec *dc = (Codec*) malloc(sizeof(struct t_codec));
+    Codec *dc = (Codec*) safe_malloc(sizeof(struct t_codec));
 
     dc->dict_size = DEFAULT_DICT_SIZE;
-    dc->dict = (Fmt**)malloc(sizeof(Fmt*) * dc->dict_size);
+    dc->dict = (Fmt**) safe_malloc(sizeof(Fmt*) * dc->dict_size);
     memset(dc->dict, 0, sizeof(Fmt*) * dc->dict_size);
 
     dc->rdict_size = RDICT_SIZE(dc->dict_size);
-    dc->rdict = (short*)malloc(sizeof(short) * dc->rdict_size);
+    dc->rdict = (short*) safe_malloc(sizeof(short) * dc->rdict_size);
     memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
 
     dc->dict_used = 1;
@@ -102,7 +102,7 @@ void dc_rebuild(Codec *dc)
     int i;
     dc->rdict_size = RDICT_SIZE(dc->dict_size);
     free(dc->rdict);
-    dc->rdict = (short*) malloc(sizeof(short) * dc->rdict_size);
+    dc->rdict = (short*) safe_malloc(sizeof(short) * dc->rdict_size);
     memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
 
     for (i=1; i<dc->dict_used; i++)
@@ -127,7 +127,7 @@ void dc_enlarge(Codec *dc)
 
 int dc_load(Codec *dc, const char *buf, int size)
 {
-    const char *orig = buf;
+    //const char *orig = buf;
     int i;
     if (dc == NULL) return -1;
     int used = *(int*)buf;
@@ -153,10 +153,10 @@ int dc_load(Codec *dc, const char *buf, int size)
     for (i=1; i<used; i++)
     {
         int s = *(unsigned char*) buf++;
-        dc->dict[i] = (Fmt*)malloc(s);
+        dc->dict[i] = (Fmt*)try_malloc(s);
         if (dc->dict[i] == NULL)
         {
-            fprintf(stderr, "malloc failed: %d\n", s);
+            fprintf(stderr, "try_malloc failed: %d\n", s);
             return -1;
         }
         dc->dict_used ++;
@@ -261,7 +261,7 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
             {
                 if ((unsigned int)(dc->dict_used) < dc->dict_size)
                 {
-                    dict[dc->dict_used] = (Fmt*) malloc(sizeof(Fmt) + flen - 7 + 1);
+                    dict[dc->dict_used] = (Fmt*) safe_malloc(sizeof(Fmt) + flen - 7 + 1);
                     dict[dc->dict_used]->nargs = m;
                     memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
                     // fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);

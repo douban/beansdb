@@ -10,12 +10,12 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +28,11 @@
 #include "quicklz.h"
 #include "diskmgr.h"
 #include "fnv1a.h"
+
+/* unistd.h is here */
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 const  int MAX_MMAP_SIZE = 1<<12; // 4G
 static int curr_mmap_size = 0;
@@ -69,8 +74,8 @@ void write_hint_file(char *buf, int size, const char* path)
     char *dst = buf;
     if (strcmp(path + strlen(path) - 4, ".qlz") == 0)
     {
-        char* wbuf = (char*)malloc(QLZ_SCRATCH_COMPRESS);
-        dst = (char*)malloc(size + 400);
+        char* wbuf = (char*)safe_malloc(QLZ_SCRATCH_COMPRESS);
+        dst = (char*)safe_malloc(size + 400);
         size = qlz_compress(buf, dst, size, wbuf);
         free(wbuf);
     }
@@ -103,7 +108,7 @@ void build_hint(HTree* tree, const char* hintpath)
     struct param p;
     p.size = 1024 * 1024;
     p.curr = 0;
-    p.buf = (char*)malloc(p.size);
+    p.buf = (char*)safe_malloc(p.size);
 
     ht_visit(tree, collect_items, &p);
     ht_destroy(tree);
@@ -142,7 +147,7 @@ MFile* open_mfile(const char* path)
     curr_mmap_size += mb;
     pthread_mutex_unlock(&mmap_lock);
 
-    MFile *f = (MFile*) malloc(sizeof(MFile));
+    MFile *f = (MFile*) safe_malloc(sizeof(MFile));
     f->fd = fd;
     f->size = sb.st_size;
 
@@ -198,7 +203,7 @@ HintFile *open_hint(const char* path, const char* new_path)
         return NULL;
     }
 
-    HintFile *hint = (HintFile*) malloc(sizeof(HintFile));
+    HintFile *hint = (HintFile*) safe_malloc(sizeof(HintFile));
     hint->f = f;
     hint->buf = f->addr;
     hint->size = f->size;
@@ -207,7 +212,7 @@ HintFile *open_hint(const char* path, const char* new_path)
     {
         char wbuf[QLZ_SCRATCH_DECOMPRESS];
         int size = qlz_size_decompressed(hint->buf);
-        char* buf = (char*)malloc(size);
+        char* buf = (char*)safe_malloc(size);
         int vsize = qlz_decompress(hint->buf, buf, wbuf);
         if (vsize != size)
         {

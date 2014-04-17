@@ -40,8 +40,12 @@
 #include <assert.h>
 #include <limits.h>
 #include <inttypes.h>
-#include <unistd.h>
 #include <ctype.h>
+
+/* unistd.h is here */
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
@@ -188,9 +192,9 @@ static void conn_init(void)
 {
     freetotal = 200;
     freecurr = 0;
-    if ((freeconns = (conn **)malloc(sizeof(conn *) * freetotal)) == NULL)
+    if ((freeconns = (conn **)safe_malloc(sizeof(conn *) * freetotal)) == NULL)
     {
-        fprintf(stderr, "malloc()\n");
+        fprintf(stderr, "_malloc()\n");
     }
     return;
 }
@@ -263,17 +267,17 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
         c->iovsize = IOV_LIST_INITIAL;
         c->msgsize = MSG_LIST_INITIAL;
 
-        c->rbuf = (char *)malloc((size_t)c->rsize);
-        c->wbuf = (char *)malloc((size_t)c->wsize);
-        c->ilist = (item **)malloc(sizeof(item *) * c->isize);
-        c->iov = (struct iovec *)malloc(sizeof(struct iovec) * c->iovsize);
-        c->msglist = (struct msghdr *)malloc(sizeof(struct msghdr) * c->msgsize);
+        c->rbuf = (char *)safe_malloc((size_t)c->rsize);
+        c->wbuf = (char *)safe_malloc((size_t)c->wsize);
+        c->ilist = (item **)safe_malloc(sizeof(item *) * c->isize);
+        c->iov = (struct iovec *)safe_malloc(sizeof(struct iovec) * c->iovsize);
+        c->msglist = (struct msghdr *)safe_malloc(sizeof(struct msghdr) * c->msgsize);
 
         if (c->rbuf == 0 || c->wbuf == 0 || c->ilist == 0 || c->iov == 0 ||
                 c->msglist == 0)
         {
             conn_free(c);
-            fprintf(stderr, "malloc()\n");
+            fprintf(stderr, "_malloc()\n");
             return NULL;
         }
 

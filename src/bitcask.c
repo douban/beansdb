@@ -23,7 +23,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <math.h>
 #include <time.h>
 #include <inttypes.h>
@@ -33,6 +32,11 @@
 #include "record.h"
 #include "diskmgr.h"
 #include "hint.h"
+
+/* unistd.h is here */
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #define MAX_BUCKET_COUNT 256
 
@@ -81,8 +85,8 @@ Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
 
 Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
 {
-    Bitcask* bc = (Bitcask*)malloc(sizeof(Bitcask));
-    if (bc == NULL) return NULL;
+    Bitcask* bc = (Bitcask*)safe_malloc(sizeof(Bitcask));
+    /*if (bc == NULL) return NULL;*/
 
     memset(bc, 0, sizeof(Bitcask));
     bc->mgr = mgr;
@@ -95,7 +99,7 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     bc->last_snapshot = -1;
     bc->curr_tree = ht_new(depth, pos);
     bc->wbuf_size = 1024 * 4;
-    bc->write_buffer = (char*)malloc(bc->wbuf_size);
+    bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
     bc->last_flush_time = time(NULL);
     pthread_mutex_init(&bc->buffer_lock, NULL);
     pthread_mutex_init(&bc->write_lock, NULL);
@@ -564,7 +568,7 @@ void bc_rotate(Bitcask *bc)
     // build in new thread
     char hintpath[255];
     new_path(hintpath, bc->mgr, HINT_FILE, bc->curr);
-    struct build_thread_args *args = (struct build_thread_args*)malloc(
+    struct build_thread_args *args = (struct build_thread_args*)safe_malloc(
                                          sizeof(struct build_thread_args));
     args->tree = bc->curr_tree;
     args->path = strdup(hintpath);
@@ -592,7 +596,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
             (now > bc->last_flush_time + flush_period && bc->wbuf_curr_pos > 0))
     {
         uint32_t size = bc->wbuf_curr_pos;
-        char * tmp = (char*) malloc(size);
+        char * tmp = (char*)safe_malloc(size);
         memcpy(tmp, bc->write_buffer, size);
         pthread_mutex_unlock(&bc->buffer_lock);
 
@@ -638,13 +642,13 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
             {
                 bc->wbuf_size *= 2;
                 free(bc->write_buffer);
-                bc->write_buffer = (char*)malloc(bc->wbuf_size);
+                bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
             }
             else if (bc->wbuf_size > WRITE_BUFFER_SIZE * 2)
             {
                 bc->wbuf_size = WRITE_BUFFER_SIZE;
                 free(bc->write_buffer);
-                bc->write_buffer = (char*)malloc(bc->wbuf_size);
+                bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
             }
         }
 
@@ -727,7 +731,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
     }
 
     int klen = strlen(key);
-    DataRecord *r = (DataRecord*)malloc(sizeof(DataRecord) + klen);
+    DataRecord *r = (DataRecord*)safe_malloc(sizeof(DataRecord) + klen);
     r->ksz = klen;
     memcpy(r->key, key, klen);
     r->vsz = vlen;
@@ -758,7 +762,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
         {
             bc->wbuf_size *= 2;
             free(bc->write_buffer);
-            bc->write_buffer = (char*)malloc(bc->wbuf_size);
+            bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
         }
         if (bc->wbuf_start_pos + bc->wbuf_size > MAX_BUCKET_SIZE)
         {
