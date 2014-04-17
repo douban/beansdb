@@ -140,7 +140,7 @@ static void enlarge_pool(HTree *tree)
 
 static void clear(Node *node)
 {
-    Data* data = (Data*) malloc(64);
+    Data* data = (Data*)safe_malloc(64);
     data->size = 64;
     data->used = sizeof(Data);
     data->count = 0;
@@ -181,7 +181,7 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     {
         int size = max(data->used + it->length, data->size + 64);
         int pos = (char*)p-(char*)data;
-        Data *new_data = (Data*) malloc(size);
+        Data *new_data = (Data*) safe_malloc(size);
         memcpy(new_data, data, data->used);
         data = new_data;
         set_data(node, data);
@@ -399,7 +399,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
     }
 
     int bsize = 4096;
-    char *buf = (char*) malloc(bsize);
+    char *buf = (char*)safe_malloc(bsize);
     memset(buf, 0, bsize);
     int n = 0, i;
     if (node->is_node)
@@ -497,20 +497,24 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
 
 HTree* ht_new(int depth, int pos)
 {
-    HTree *tree = (HTree*)malloc(sizeof(HTree));
-    if (!tree) return NULL;
+    HTree *tree = (HTree*)safe_malloc(sizeof(HTree));
+    /*if (!tree) return NULL;*/
     memset(tree, 0, sizeof(HTree));
     tree->depth = depth;
     tree->pos = pos;
     tree->height = 1;
 
     int pool_size = g_index[tree->height];
-    Node *root = (Node*)malloc(sizeof(Node) * pool_size);
-    if (!root)
-    {
-        free(tree);
-        return NULL;
-    }
+    Node *root = (Node*)safe_malloc(sizeof(Node) * pool_size);
+/*
+ *
+ *    if (!root)
+ *    {
+ *        free(tree);
+ *        return NULL;
+ *    }
+ *
+ */
     memset(root, 0, sizeof(Node) * pool_size);
 
     // init depth
@@ -571,12 +575,16 @@ HTree* ht_open(int depth, int pos, const char *path)
     }
 #endif
 
-    tree = (HTree*)malloc(sizeof(HTree));
-    if (!tree)
-    {
-        fclose(f);
-        return NULL;
-    }
+    tree = (HTree*)safe_malloc(sizeof(HTree));
+/*
+ *
+ *    if (!tree)
+ *    {
+ *        fclose(f);
+ *        return NULL;
+ *    }
+ *
+ */
     memset(tree, 0, sizeof(HTree));
     tree->depth = depth;
     tree->pos = pos;
@@ -590,11 +598,15 @@ HTree* ht_open(int depth, int pos, const char *path)
 
     int pool_size = g_index[tree->height];
     int psize = sizeof(Node) * pool_size;
-    root = (Node*)malloc(psize);
-    if (!root)
-    {
-        goto FAIL;
-    }
+    root = (Node*)safe_malloc(psize);
+/*
+ *
+ *    if (!root)
+ *    {
+ *        goto FAIL;
+ *    }
+ *
+ */
     if (fread(root, psize, 1, f) != 1)
     {
         goto FAIL;
@@ -612,7 +624,7 @@ HTree* ht_open(int depth, int pos, const char *path)
         }
         if (size > 0)
         {
-            data = (Data*) malloc(size);
+            data = (Data*)safe_malloc(size);
             if (fread(data, size, 1, f) != 1)
             {
                 goto FAIL;
@@ -644,8 +656,8 @@ HTree* ht_open(int depth, int pos, const char *path)
         fprintf(stderr, "bad codec size: %d\n", size);
         goto FAIL;
     }
-    buf = (char*)malloc(size);
-    if (buf == NULL || fread(buf, size, 1, f) != 1)
+    buf = (char*)safe_malloc(size);
+    if (fread(buf, size, 1, f) != 1)
     {
         fprintf(stderr, "read codec failed\n");
         goto FAIL;
@@ -737,7 +749,7 @@ int ht_save(HTree *tree, const char *path)
     }
 
     int s = dc_size(tree->dc);
-    char *buf = (char*)malloc(s + sizeof(int));
+    char *buf = (char*)safe_malloc(s + sizeof(int));
     *(int*)buf = s;
     if (dc_dump(tree->dc, buf + sizeof(int), s) != s)
     {
@@ -865,7 +877,7 @@ Item* ht_get2(HTree* tree, const char* key, int len)
     Item *r = get_item_hash(tree, tree->root, it, keyhash(key, len));
     if (r != NULL)
     {
-        Item *rr = (Item*)malloc(sizeof(Item) + len);
+        Item *rr = (Item*)safe_malloc(sizeof(Item) + len);
         memcpy(rr, r, sizeof(Item));
         memcpy(rr->key, key, len);
         rr->key[len] = 0; // c-str

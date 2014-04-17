@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include "util.h"
+
 typedef struct t_item Item;
 struct t_item
 {

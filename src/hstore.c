@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <math.h>
 #include <errno.h>
 #include <time.h>
@@ -29,6 +28,11 @@
 #include "htree.h"
 #include "hstore.h"
 #include "diskmgr.h"
+
+/* unistd.h is here */
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #define NUM_OF_MUTEX 37
 #define MAX_PATHS 20
@@ -106,8 +110,8 @@ static void parallelize(HStore *store, BC_FUNC func)
     pthread_attr_init(&attr);
 
     int i, ret;
-    pthread_t *thread_ids = (pthread_t*)malloc(sizeof(pthread_t) * store->scan_threads);
-    struct scan_args *args = (struct scan_args *) malloc(sizeof(struct scan_args) * store->scan_threads);
+    pthread_t *thread_ids = (pthread_t*)safe_malloc(sizeof(pthread_t) * store->scan_threads);
+    struct scan_args *args = (struct scan_args *) safe_malloc(sizeof(struct scan_args) * store->scan_threads);
     for (i=0; i<store->scan_threads; i++)
     {
         args[i].store = store;
@@ -179,11 +183,11 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
             hs_close(s);
         }
 
-        npath ++;
+        ++npath;
     }
 
     int i, j, count = 1 << (height * 4);
-    HStore *store = (HStore*) malloc(sizeof(HStore) + sizeof(Bitcask*) * count);
+    HStore *store = (HStore*) safe_malloc(sizeof(HStore) + sizeof(Bitcask*) * count);
     if (!store) return NULL;
     memset(store, 0, sizeof(HStore) + sizeof(Bitcask*) * count);
     store->height = height;
@@ -207,7 +211,7 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     char *buf[20] = {0};
     for (i=0; i<npath; i++)
     {
-        buf[i] = (char*)malloc(255);
+        buf[i] = (char*)safe_malloc(255);
     }
     for (i=0; i<count; i++)
     {
@@ -341,8 +345,8 @@ static char* hs_list(HStore *store, char *key)
     else
     {
         int i, bsize = 1024, used = 0;
-        char *buf = (char*)malloc(bsize);
-        if (!buf) return NULL;
+        char *buf = (char*)safe_malloc(bsize);
+        /*if (!buf) return NULL;*/
         for (i=0; i < 16; i++)
         {
             char pos_buf[255];
@@ -384,12 +388,16 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
     char *res = NULL;
     if (info)
     {
-        res = (char*)malloc(256);
-        if (!res)
-        {
-            free_record(r);
-            return NULL;
-        }
+        res = (char*)safe_malloc(256);
+/*
+ *
+ *        if (!res)
+ *        {
+ *            free_record(r);
+ *            return NULL;
+ *        }
+ *
+ */
         uint16_t hash = 0;
         if (r->version > 0)
         {

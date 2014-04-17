@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
@@ -19,16 +20,12 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <assert.h>
-
-#ifdef HAVE_MALLOC_H
-#include <malloc.h>
-#endif
-
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
 
 #include <pthread.h>
+#include "util.h"
 
 typedef struct EventLoop
 {
@@ -226,7 +223,7 @@ void loop_run(int nthread)
     int i, ret;
     pthread_attr_t  attr;
     pthread_attr_init(&attr);
-    pthread_t* tids = (pthread_t*)malloc(sizeof(pthread_t) * nthread);
+    pthread_t* tids = (pthread_t*)safe_malloc(sizeof(pthread_t) * nthread);
 
     for (i=0; i<nthread - 1; i++)
     {

@@ -27,6 +27,8 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+#include "util.h"
+
 #define DATA_BUFFER_SIZE 2048
 #define MAX_PAYLOAD_SIZE 1400
 #define MAX_SENDBUF_SIZE (256 * 1024 * 1024)
@@ -57,14 +59,6 @@
 
 #define RGET_MAX_ITEMS 100
 
-#ifdef HAVE_MALLOC_H
-/* OpenBSD has a malloc.h, but warns to use stdlib.h instead */
-#ifndef __OpenBSD__
-#include <malloc.h>
-#endif
-#endif
-
-
 /* Get a consistent bool type */
 #if HAVE_STDBOOL_H
 # include <stdbool.h>
@@ -80,7 +74,7 @@ typedef unsigned char             uint8_t;
 
 /* unistd.h is here */
 #if HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 /* 64-bit Portable printf */

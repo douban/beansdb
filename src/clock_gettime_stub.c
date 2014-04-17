@@ -70,8 +70,12 @@
 #include <mach/clock.h>
 #include <mach/mach_time.h>
 #include <errno.h>
-#include <unistd.h>
 #include <sched.h>
+
+/* unistd.h is here */
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 typedef enum
 {

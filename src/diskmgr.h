@@ -17,6 +17,7 @@
 #define __DISKMGR_H__
 
 #include <stdint.h>
+#include "util.h"
 
 typedef struct disk_mgr Mgr;
 

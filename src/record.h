@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
@@ -18,7 +19,10 @@
 
 #include <stdio.h>
 #include <time.h>
+
 #include "htree.h"
+#include "util.h"
+
 
 typedef struct data_record
 {

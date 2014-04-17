@@ -17,6 +17,8 @@
 #ifndef __CODEC_H__
 #define __CODEC_H__
 
+#include "util.h"
+
 typedef struct t_codec Codec;
 
 Codec* dc_new();

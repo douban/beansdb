@@ -18,6 +18,8 @@
 #include <time.h>
 #include <stdint.h>
 
+#include "util.h"
+
 typedef struct t_hstore HStore;
 
 HStore* hs_open(char *path, int height, time_t before, int scan_threads);

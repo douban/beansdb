@@ -18,12 +18,18 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdlib.h>
+
+#include "util.h"
+
+/* unistd.h is here */
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #define MAX_ITEM_FREELIST_LENGTH 4000
 #define INIT_ITEM_FREELIST_LENGTH 500
@@ -41,11 +47,7 @@ void item_init(void)
     freeitemtotal = INIT_ITEM_FREELIST_LENGTH;
     freeitemcurr  = 0;
 
-    freeitem = (item **)malloc( sizeof(item *) * freeitemtotal );
-    if (freeitem == NULL)
-    {
-        perror("malloc()");
-    }
+    freeitem = (item **)safe_malloc(sizeof(item *) * freeitemtotal);
     return;
 }
 
@@ -63,13 +65,10 @@ item *do_item_from_freelist(void)
     }
     else
     {
-        /* If malloc fails, let the logic fall through without spamming
+        /* If try_malloc fails, let the logic fall through without spamming
          * STDERR on the server. */
-        s = (item *)malloc( settings.item_buf_size );
-        if (s != NULL)
-        {
-            memset(s, 0, settings.item_buf_size);
-        }
+        s = (item *)try_malloc(settings.item_buf_size);
+        if (s) memset(s, 0, settings.item_buf_size);
     }
 
     return s;
@@ -137,7 +136,7 @@ item *item_alloc1(char *key, const size_t nkey, const int flags, const int nbyte
 
     if (ntotal > settings.item_buf_size)
     {
-        it = (item *)malloc(ntotal);
+        it = (item *)try_malloc(ntotal);
         if (it == NULL)
         {
             return NULL;
@@ -145,7 +144,7 @@ item *item_alloc1(char *key, const size_t nkey, const int flags, const int nbyte
         memset(it, 0, ntotal);
         if (settings.verbose > 1)
         {
-            fprintf(stderr, "alloc a item buffer from malloc.\n");
+            fprintf(stderr, "alloc a item buffer from try_malloc.\n");
         }
     }
     else
