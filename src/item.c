@@ -92,7 +92,7 @@ int do_item_add_to_freelist(item *it)
             return 1;
         }
         /* try to enlarge free item buffer array */
-        item **new_freeitem = (item **)realloc(freeitem, sizeof(item *) * freeitemtotal * 2);
+        item **new_freeitem = (item **)try_realloc(freeitem, sizeof(item *) * freeitemtotal * 2);
         if (new_freeitem)
         {
             freeitemtotal *= 2;

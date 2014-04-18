@@ -55,7 +55,7 @@ void collect_items(Item* it, void* param)
     if (p->size - p->curr < length)
     {
         p->size *= 2;
-        p->buf = (char*)realloc(p->buf, p->size);
+        p->buf = (char*)safe_realloc(p->buf, p->size);
     }
 
     HintRecord *r = (HintRecord*)(p->buf + p->curr);

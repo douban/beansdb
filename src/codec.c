@@ -120,7 +120,7 @@ void dc_rebuild(Codec *dc)
 void dc_enlarge(Codec *dc)
 {
     dc->dict_size = min(dc->dict_size * 2, MAX_DICT_SIZE);
-    dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
+    dc->dict = (Fmt**)safe_realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
 
     dc_rebuild(dc);
 }
@@ -140,12 +140,14 @@ int dc_load(Codec *dc, const char *buf, int size)
     unsigned int dict_size = min(used * 2, MAX_DICT_SIZE);
     if (dc->dict_size < dict_size)
     {
-        dc->dict = (Fmt**) realloc(dc->dict, sizeof(Fmt*) * dict_size);
-        if (dc->dict == NULL)
-        {
-            fprintf(stderr, "realloc failed: %lu\n", sizeof(Fmt*) * dict_size);
-            return -1;
-        }
+        dc->dict = (Fmt**) safe_realloc(dc->dict, sizeof(Fmt*) * dict_size);
+        /*
+         *if (dc->dict == NULL)
+         *{
+         *    fprintf(stderr, "_realloc failed: %lu\n", sizeof(Fmt*) * dict_size);
+         *    return -1;
+         *}
+         */
         dc->dict_size = dict_size;
     }
 

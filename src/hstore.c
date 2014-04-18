@@ -444,7 +444,7 @@ bool hs_append(HStore *store, char *key, char* value, unsigned int vlen)
         fprintf(stderr, "try to append %s with flag=%x\n", key, flag);
         goto APPEND_END;
     }
-    body = (char*)realloc(body, rlen + vlen);
+    body = (char*)safe_realloc(body, rlen + vlen);
     memcpy(body + rlen, value, vlen);
     suc = hs_set(store, key, body, rlen + vlen, flag, 0); // TODO: use timestamp
 
