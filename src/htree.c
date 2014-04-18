@@ -128,7 +128,7 @@ static void enlarge_pool(HTree *tree)
     int old_size = g_index[tree->height];
     int new_size = g_index[tree->height + 1];
 
-    tree->root = (Node*)realloc(tree->root, sizeof(Node) * new_size);
+    tree->root = (Node*)safe_realloc(tree->root, sizeof(Node) * new_size);
     memset(tree->root + old_size, 0, sizeof(Node) * (new_size - old_size));
     for (i=old_size; i<new_size; i++)
     {
@@ -425,7 +425,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
                 if (bsize - n < rl)
                 {
                     bsize += rl;
-                    buf = (char*)realloc(buf, bsize);
+                    buf = (char*)safe_realloc(buf, bsize);
                 }
                 n += sprintf(buf + n, "%s", r);
                 free(r);
@@ -456,7 +456,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
                 if (bsize - n < 200)
                 {
                     bsize *= 2;
-                    buf = (char*)realloc(buf, bsize);
+                    buf = (char*)safe_realloc(buf, bsize);
                 }
             }
         }

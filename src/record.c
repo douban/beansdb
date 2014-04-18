@@ -29,6 +29,8 @@
 #include "quicklz.h"
 #include "fnv1a.h"
 
+#include "util.h"
+
 
 const int PADDING = 256;
 const int32_t COMPRESS_FLAG = 0x00010000;
@@ -591,7 +593,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             if (hint_used + hsize > hint_size)
             {
                 hint_size *= 2;
-                hintdata = (char*)realloc(hintdata, hint_size);
+                hintdata = (char*)safe_realloc(hintdata, hint_size);
             }
             HintRecord *hr = (HintRecord*)(hintdata + hint_used);
             hr->ksize = r->ksz;

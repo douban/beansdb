@@ -157,9 +157,8 @@ static int add_msghdr(conn *c)
 
     if (c->msgsize == c->msgused)
     {
-        msg = (struct msghdr *)realloc(c->msglist, c->msgsize * 2 * sizeof(struct msghdr));
-        if (! msg)
-            return -1;
+        msg = (struct msghdr *)try_realloc(c->msglist, c->msgsize * 2 * sizeof(struct msghdr));
+        if (! msg) return -1;
         c->msglist = msg;
         c->msgsize *= 2;
     }
@@ -220,7 +219,7 @@ conn *do_conn_from_freelist()
 }
 
 /*
- * Adds a connection to the freelist. 0 = success. Should call this using
+ * Adds a connection to the freelist. false = success. Should call this using
  * conn_add_to_freelist() for thread safety.
  */
 bool do_conn_add_to_freelist(conn *c)
@@ -233,7 +232,7 @@ bool do_conn_add_to_freelist(conn *c)
     else
     {
         /* try to enlarge free connections array */
-        conn **new_freeconns = (conn**)realloc(freeconns, sizeof(conn *) * freetotal * 2);
+        conn **new_freeconns = (conn**)try_realloc(freeconns, sizeof(conn *) * freetotal * 2);
         if (new_freeconns)
         {
             freetotal *= 2;
@@ -423,7 +422,7 @@ static void conn_shrink(conn *c)
         if (c->rcurr != c->rbuf)
             memmove(c->rbuf, c->rcurr, (size_t)c->rbytes);
 
-        newbuf = (char *)realloc((void *)c->rbuf, DATA_BUFFER_SIZE);
+        newbuf = (char *)try_realloc((void *)c->rbuf, DATA_BUFFER_SIZE);
 
         if (newbuf)
         {
@@ -436,7 +435,7 @@ static void conn_shrink(conn *c)
 
     if (c->isize > ITEM_LIST_HIGHWAT)
     {
-        item **newbuf = (item**) realloc((void *)c->ilist, ITEM_LIST_INITIAL * sizeof(c->ilist[0]));
+        item **newbuf = (item**) try_realloc((void *)c->ilist, ITEM_LIST_INITIAL * sizeof(c->ilist[0]));
         if (newbuf)
         {
             c->ilist = newbuf;
@@ -447,7 +446,7 @@ static void conn_shrink(conn *c)
 
     if (c->msgsize > MSG_LIST_HIGHWAT)
     {
-        struct msghdr *newbuf = (struct msghdr *) realloc((void *)c->msglist, MSG_LIST_INITIAL * sizeof(c->msglist[0]));
+        struct msghdr *newbuf = (struct msghdr *) try_realloc((void *)c->msglist, MSG_LIST_INITIAL * sizeof(c->msglist[0]));
         if (newbuf)
         {
             c->msglist = newbuf;
@@ -458,7 +457,7 @@ static void conn_shrink(conn *c)
 
     if (c->iovsize > IOV_LIST_HIGHWAT)
     {
-        struct iovec *newbuf = (struct iovec *) realloc((void *)c->iov, IOV_LIST_INITIAL * sizeof(c->iov[0]));
+        struct iovec *newbuf = (struct iovec *) try_realloc((void *)c->iov, IOV_LIST_INITIAL * sizeof(c->iov[0]));
         if (newbuf)
         {
             c->iov = newbuf;
@@ -501,9 +500,9 @@ static int ensure_iov_space(conn *c)
     if (c->iovused >= c->iovsize)
     {
         int i, iovnum;
-        struct iovec *new_iov = (struct iovec *)realloc(c->iov,
+        struct iovec *new_iov = (struct iovec *)try_realloc(c->iov,
                                 (c->iovsize * 2) * sizeof(struct iovec));
-        if (! new_iov)
+        if (!new_iov)
             return -1;
         c->iov = new_iov;
         c->iovsize *= 2;
@@ -549,7 +548,8 @@ static int add_iov(conn *c, const void *buf, int len)
         if (m->msg_iovlen == IOV_MAX ||
                 (limit_to_mtu && c->msgbytes >= MAX_PAYLOAD_SIZE))
         {
-            add_msghdr(c);
+            if (add_msghdr(c))
+                return -1;
             m = &c->msglist[c->msgused - 1];
         }
 
@@ -927,7 +927,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens)
             {
                 if (i >= c->isize)
                 {
-                    item **new_list = (item**)realloc(c->ilist, sizeof(item *) * c->isize * 2);
+                    item **new_list = (item**)try_realloc(c->ilist, sizeof(item *) * c->isize * 2);
                     if (new_list)
                     {
                         c->isize *= 2;
@@ -1378,11 +1378,11 @@ static int try_read_network(conn *c)
     {
         if (c->rbytes >= c->rsize)
         {
-            char *new_rbuf = (char*)realloc(c->rbuf, c->rsize * 2);
+            char *new_rbuf = (char*)try_realloc(c->rbuf, c->rsize * 2);
             if (!new_rbuf)
             {
                 if (settings.verbose > 0)
-                    fprintf(stderr, "Couldn't realloc input buffer\n");
+                    fprintf(stderr, "Couldn't _realloc input buffer\n");
                 c->rbytes = 0; /* ignore what we read */
                 out_string(c, "SERVER_ERROR out of memory reading request");
                 c->write_and_go = conn_closing;
