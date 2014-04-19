@@ -539,7 +539,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     }
     else
     {
-        sprintf(tmp, "%s.tmp", path);
+        safe_snprintf(tmp, 255, "%s.tmp", path);
         new_df = fopen(tmp, "wb");
         hintdata = (char*)safe_malloc(1<<20);
         hint_size = 1<<20;

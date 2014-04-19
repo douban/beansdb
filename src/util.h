@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <stdarg.h>
 
@@ -114,7 +115,21 @@ _check_snprintf(const char *file, int line, const char *func, char* s, size_t n,
     return result_len;
 }
 
-#define safe_snprintf(BUFFER, N, FORMAT, ...) _check_snprintf(__FILE__, __LINE__, __FUNCTION__, BUFFER, N, FORMAT, __VA_ARGS__)
+#define safe_snprintf(BUFFER, N, FORMAT, ...)  _check_snprintf(__FILE__, __LINE__, __FUNCTION__, BUFFER, N, FORMAT, ##__VA_ARGS__)
+
+inline static void*
+_check_memcpy(const char* file, int line, const char *func, void* dst, size_t dst_num, const void* src, size_t src_num)
+{
+    if (unlikely(dst_num < src_num))
+    {
+        fprintf(stderr, "_check_memcpy try to use lower dst buffer: %zu than src size: %zu. \
+                in %s (%s:%i).", dst_num, src_num, file, func, line);
+        exit(1);
+    }
+    return memcpy(dst, src, src_num);
+}
+
+#define safe_memcpy(DST, DST_NUM, SRC, SRC_NUM) _check_memcpy(__FILE__, __LINE__, __FUNCTION__, DST, DST_NUM, SRC, SRC_NUM)
 
 /*
 inline static char*

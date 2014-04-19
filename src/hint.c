@@ -81,7 +81,7 @@ void write_hint_file(char *buf, int size, const char* path)
     }
 
     char tmp[PATH_MAX];
-    sprintf(tmp, "%s.tmp", path);
+    safe_snprintf(tmp, PATH_MAX, "%s.tmp", path);
     FILE *hf = fopen(tmp, "wb");
     if (NULL==hf)
     {
