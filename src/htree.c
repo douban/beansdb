@@ -107,7 +107,7 @@ static inline void set_data(Node *node, Data *data)
 static inline uint32_t key_hash(HTree *tree, Item* it)
 {
     char buf[255];
-    int n = dc_decode(tree->dc, buf, it->key, KEYLENGTH(it));
+    int n = dc_decode(tree->dc, buf, 255, it->key, KEYLENGTH(it));
     return fnv1a(buf, n);
 }
 
@@ -117,7 +117,7 @@ static Item* create_item(HTree *tree, const char* key, int len, uint32_t pos, ui
     it->pos = pos;
     it->ver = ver;
     it->hash = hash;
-    int n = dc_encode(tree->dc, it->key, key, len);
+    int n = dc_encode(tree->dc, it->key, 512 - (sizeof(Item) - ITEM_PADDING) , key, len);
     it->length = sizeof(Item) + n - ITEM_PADDING;
     return it;
 }
@@ -407,12 +407,12 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
         update_node(tree, node);
 
         Node *child = get_child(tree, node, 0);
-        if (node->count > 100000 || (prefix==NULL && node->count > SPLIT_LIMIT * 4))
+        if (node->count > 100000 || (prefix == NULL && node->count > SPLIT_LIMIT * 4))
         {
             for (i=0; i<BUCKET_SIZE; i++)
             {
                 Node *t = child + i;
-                n += snprintf(buf + n, bsize - n, "%x/ %u %u\n",
+                n += safe_snprintf(buf + n, bsize - n, "%x/ %u %u\n",
                               i, t->hash, t->count);
             }
         }
@@ -427,7 +427,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
                     bsize += rl;
                     buf = (char*)safe_realloc(buf, bsize);
                 }
-                n += sprintf(buf + n, "%s", r);
+                n += safe_snprintf(buf + n, bsize - n, "%s", r);
                 free(r);
             }
         }
@@ -443,16 +443,16 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
         {
             if (dlen > 0)
             {
-                sprintf(pbuf, "%08x", key_hash(tree, it));
+                safe_snprintf(pbuf, 20, "%08x", key_hash(tree, it));
                 if (memcmp(pbuf + tree->depth + node->depth, dir, dlen) != 0)
                 {
                     continue;
                 }
             }
-            int l = dc_decode(tree->dc, key, it->key, KEYLENGTH(it));
+            int l = dc_decode(tree->dc, key, 255, it->key, KEYLENGTH(it));
             if (prefix == NULL || (l >= prefix_len && strncmp(key, prefix, prefix_len) == 0))
             {
-                n += snprintf(buf+n, bsize-n-1, "%s %u %d\n", key, it->hash, it->ver);
+                n += safe_snprintf(buf + n, bsize - n, "%s %u %d\n", key, it->hash, it->ver);
                 if (bsize - n < 200)
                 {
                     bsize *= 2;
@@ -483,7 +483,7 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
         for (i=0; i<data->count; i++)
         {
             memcpy(it, p, sizeof(Item));
-            dc_decode(tree->dc, it->key, p->key, KEYLENGTH(p));
+            dc_decode(tree->dc, it->key, 512 - (sizeof(Item) - ITEM_PADDING), p->key, KEYLENGTH(p));
             it->length = sizeof(Item) + strlen(it->key) - ITEM_PADDING;
             visitor(it, param);
             p = (Item*)((char*)p + p->length);
@@ -695,8 +695,8 @@ int ht_save(HTree *tree, const char *path)
 {
     if (!tree || !path) return -1;
 
-    char tmp[256];
-    sprintf(tmp, "%s.tmp", path);
+    char tmp[255];
+    safe_snprintf(tmp, 255, "%s.tmp", path);
 
     FILE *f = fopen(tmp, "wb");
     if (f == NULL)

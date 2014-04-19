@@ -64,7 +64,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
             int len = strlen(de->d_name);
             if (de->d_name[0] == '.') continue;
             if (len != 8 && len != 9 && len != 12) continue; // .data .htree .hint.qlz
-            sprintf(target, "%s/%s", disks[i], de->d_name);
+            safe_snprintf(target, 255, "%s/%s", disks[i], de->d_name);
             if (stat(target, &sb) != 0)
             {
                 unlink(target);
@@ -75,12 +75,12 @@ Mgr* mgr_create(const char **disks, int ndisks)
                 unlink(target);
                 continue;
             }
-            sprintf(sym, "%s/%s", disks[0], de->d_name);
+            safe_snprintf(sym, 255, "%s/%s", disks[0], de->d_name);
             if (0 == stat(sym, &sb)) continue;
             int r = 0;
             if (target[0] != '/')
             {
-                sprintf(real, "%s/%s", cwd, target);
+                safe_snprintf(real, 255, "%s/%s", cwd, target);
                 r = symlink(real, sym);
             }
             else
@@ -143,7 +143,7 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
     struct stat sb;
     for (i=0; i< mgr->ndisks; i++)
     {
-        sprintf(path, "%s/%s", mgr->disks[i], name);
+        safe_snprintf(path, 255, "%s/%s", mgr->disks[i], name);
         if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG)
         {
             return mgr->disks[i];
@@ -159,8 +159,8 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
     {
         // create symlink
         char target[255];
-        sprintf(target, "%s/%s", mgr->disks[maxi], name);
-        sprintf(path, "%s/%s", mgr->disks[0], name);
+        safe_snprintf(target, 255, "%s/%s", mgr->disks[maxi], name);
+        safe_snprintf(path, 255, "%s/%s", mgr->disks[0], name);
         if (lstat(path, &sb) == 0)
         {
             unlink(path);

@@ -24,8 +24,8 @@ typedef struct t_codec Codec;
 Codec* dc_new();
 void dc_destroy(Codec *dc);
 
-int dc_encode(Codec* dc, char* buf, const char *src, int len);
-int dc_decode(Codec* dc, char* buf, const char *src, int len);
+int dc_encode(Codec* dc, char* buf, int buf_size, const char *src, int len);
+int dc_decode(Codec* dc, char* buf, int buf_size, const char *src, int len);
 
 int dc_size(Codec* dc);
 int dc_dump(Codec* dc, char *buf, int size);

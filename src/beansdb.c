@@ -681,7 +681,7 @@ int store_item(item *it, int comm)
 int add_delta(char* key, size_t nkey, int64_t delta, char *buf)
 {
     uint64_t value = hs_incr(store, key, delta);
-    snprintf(buf, INCR_MAX_STORAGE_LEN, "%llu", (unsigned long long)value);
+    safe_snprintf(buf, INCR_MAX_STORAGE_LEN, "%llu", (unsigned long long)value);
     return 0;
 }
 
@@ -842,34 +842,34 @@ static void process_stat(conn *c, token_t *tokens, const size_t ntokens)
 #endif /* !WIN32 */
 
         STATS_LOCK();
-        pos += sprintf(pos, "STAT pid %ld\r\n", (long)pid);
-        pos += sprintf(pos, "STAT uptime %"PRIuS"\r\n", now - stats.started);
-        pos += sprintf(pos, "STAT time %"PRIuS"\r\n", now);
-        pos += sprintf(pos, "STAT version " VERSION "\r\n");
-        pos += sprintf(pos, "STAT pointer_size %"PRIuS"\r\n", 8 * sizeof(void *));
+        pos += safe_snprintf(pos,  temp + 1024 - pos, "STAT pid %ld\r\n", (long)pid);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT uptime %"PRIuS"\r\n", now - stats.started);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT time %"PRIuS"\r\n", now);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT version " VERSION "\r\n");
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT pointer_size %"PRIuS"\r\n", 8 * sizeof(void *));
 #ifndef WIN32
-        pos += sprintf(pos, "STAT rusage_user %ld.%06ld\r\n", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec);
-        pos += sprintf(pos, "STAT rusage_system %ld.%06ld\r\n", usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT rusage_user %ld.%06ld\r\n", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT rusage_system %ld.%06ld\r\n", usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
 #endif /* !WIN32 */
-        pos += sprintf(pos, "STAT rusage_maxrss %"PRIu64"\r\n", get_maxrss() / 1024);
-        pos += sprintf(pos, "STAT item_buf_size %"PRIuS"\r\n", settings.item_buf_size);
-        pos += sprintf(pos, "STAT curr_connections %"PRIu32"\r\n", stats.curr_conns - 1); /* ignore listening conn */
-        pos += sprintf(pos, "STAT total_connections %"PRIu32"\r\n", stats.total_conns);
-        pos += sprintf(pos, "STAT connection_structures %"PRIu32"\r\n", stats.conn_structs);
-        pos += sprintf(pos, "STAT cmd_get %"PRIu64"\r\n", stats.get_cmds);
-        pos += sprintf(pos, "STAT cmd_set %"PRIu64"\r\n", stats.set_cmds);
-        pos += sprintf(pos, "STAT cmd_delete %"PRIu64"\r\n", stats.delete_cmds);
-        pos += sprintf(pos, "STAT slow_cmd %"PRIu64"\r\n", stats.slow_cmds);
-        pos += sprintf(pos, "STAT get_hits %"PRIu64"\r\n", stats.get_hits);
-        pos += sprintf(pos, "STAT get_misses %"PRIu64"\r\n", stats.get_misses);
-        pos += sprintf(pos, "STAT curr_items %"PRIu64"\r\n", curr);
-        pos += sprintf(pos, "STAT total_items %"PRIu64"\r\n", total);
-        pos += sprintf(pos, "STAT avail_space %"PRIu64"\r\n", avail_space);
-        pos += sprintf(pos, "STAT total_space %"PRIu64"\r\n", total_space);
-        pos += sprintf(pos, "STAT bytes_read %"PRIu64"\r\n", stats.bytes_read);
-        pos += sprintf(pos, "STAT bytes_written %"PRIu64"\r\n", stats.bytes_written);
-        pos += sprintf(pos, "STAT threads %d\r\n", settings.num_threads);
-        pos += sprintf(pos, "END");
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT rusage_maxrss %"PRIu64"\r\n", get_maxrss() / 1024);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT item_buf_size %"PRIuS"\r\n", settings.item_buf_size);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT curr_connections %"PRIu32"\r\n", stats.curr_conns - 1); /* ignore listening conn */
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT total_connections %"PRIu32"\r\n", stats.total_conns);
+        pos += safe_snprintf(pos, temp + 1024 - pos,  "STAT connection_structures %"PRIu32"\r\n", stats.conn_structs);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT cmd_get %"PRIu64"\r\n", stats.get_cmds);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT cmd_set %"PRIu64"\r\n", stats.set_cmds);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT cmd_delete %"PRIu64"\r\n", stats.delete_cmds);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT slow_cmd %"PRIu64"\r\n", stats.slow_cmds);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT get_hits %"PRIu64"\r\n", stats.get_hits);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT get_misses %"PRIu64"\r\n", stats.get_misses);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT curr_items %"PRIu64"\r\n", curr);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT total_items %"PRIu64"\r\n", total);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT avail_space %"PRIu64"\r\n", avail_space);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT total_space %"PRIu64"\r\n", total_space);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT bytes_read %"PRIu64"\r\n", stats.bytes_read);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT bytes_written %"PRIu64"\r\n", stats.bytes_written);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "STAT threads %d\r\n", settings.num_threads);
+        pos += safe_snprintf(pos, temp + 1024 - pos, "END");
         STATS_UNLOCK();
         out_string(c, temp);
         return;
@@ -1793,7 +1793,7 @@ static int server_socket(const int port, const bool is_udp)
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_socktype = SOCK_STREAM;
 
-    snprintf(port_buf, NI_MAXSERV, "%d", port);
+    safe_snprintf(port_buf, NI_MAXSERV, "%d", port);
     error= getaddrinfo(settings.inter, port_buf, &hints, &ai);
     if (error != 0)
     {

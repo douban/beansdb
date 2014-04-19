@@ -23,7 +23,7 @@
 #include "codec.h"
 #include "fnv1a.h"
 
-#define min(a,b) ((a)<(b)?(a):(b))
+//#define min(a,b) ((a)<(b)?(a):(b))
 
 typedef struct
 {
@@ -52,14 +52,14 @@ struct t_codec
 
 Codec* dc_new()
 {
-    Codec *dc = (Codec*) safe_malloc(sizeof(struct t_codec));
+    Codec *dc = (Codec*)safe_malloc(sizeof(struct t_codec));
 
     dc->dict_size = DEFAULT_DICT_SIZE;
-    dc->dict = (Fmt**) safe_malloc(sizeof(Fmt*) * dc->dict_size);
+    dc->dict = (Fmt**)safe_malloc(sizeof(Fmt*) * dc->dict_size);
     memset(dc->dict, 0, sizeof(Fmt*) * dc->dict_size);
 
     dc->rdict_size = RDICT_SIZE(dc->dict_size);
-    dc->rdict = (short*) safe_malloc(sizeof(short) * dc->rdict_size);
+    dc->rdict = (short*)safe_malloc(sizeof(short) * dc->rdict_size);
     memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
 
     dc->dict_used = 1;
@@ -183,18 +183,18 @@ void dc_destroy(Codec *dc)
     free(dc);
 }
 
-int dc_encode(Codec* dc, char* buf, const char* src, int len)
+int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
 {
     if (dc && len > 6 && len < 100 && src[0] > 0)
     {
-        int m=0;
+        int m = 0;
         char fmt[255];
         bool hex[20];
         char num[20][10];
         int32_t args[10];
-        const char *p=src, *q=src + len;
-        char *dst=fmt;
-        while(p<q)
+        const char *p = src, *q = src + len;
+        char *dst = fmt;
+        while(p < q)
         {
             if (*p == '%' || *p == '@' || *p == ':')   // not supported format
             {
@@ -216,24 +216,24 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
                 // 8digit+1hex, pop it
                 if (hex[m] && nd-num[m]==9)
                 {
-                    nd--;
-                    p--;
+                    --nd;
+                    --p;
                     hex[m] = false;
                 }
                 *nd = 0;
                 if (hex[m] && nd - num[m] >= 4)
                 {
-                    *dst ++ = '%';
-                    *dst ++ = 'x';
+                    *dst++ = '%';
+                    *dst++ = 'x';
                     args[m] = strtol(num[m], NULL, 16);
-                    m ++;
+                    ++m;
                 }
                 else if (!hex[m] && nd - num[m] >= 3)
                 {
-                    *dst ++ = '%';
-                    *dst ++ = 'd';
+                    *dst++ = '%';
+                    *dst++ = 'd';
                     args[m] = atoi(num[m]);
-                    m ++;
+                    ++m;
                 }
                 else
                 {
@@ -243,7 +243,7 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
             }
             else
             {
-                *dst ++ = *p++;
+                *dst++ = *p++;
             }
         }
         *dst = 0; // ending 0
@@ -255,7 +255,7 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
             // test hash collision
             while (dc->rdict[h] > 0 && strcmp(fmt, dict[dc->rdict[h]]->fmt) != 0)
             {
-                h ++;
+                ++h;
                 if (h == dc->rdict_size) h = 0;
             }
             int rh = dc->rdict[h];
@@ -284,7 +284,7 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
                 if (rh < 64)
                 {
                     prefix = 1;
-                    *buf = - rh;
+                    *buf = -rh;
                 }
                 else
                 {
@@ -292,17 +292,17 @@ int dc_encode(Codec* dc, char* buf, const char* src, int len)
                     *buf = - (rh & 0x3f) - 64;
                     *(unsigned char*)(buf+1) = rh >> 6;
                 }
-                memcpy(buf+prefix, args, sizeof(int32_t)*m);
+                safe_memcpy(buf+prefix, buf_size - prefix, args, sizeof(int32_t)*m);
                 return prefix + m * sizeof(int32_t);
             }
         }
     }
 RET:
-    memcpy(buf, src, len);
+    safe_memcpy(buf, buf_size, src, len);
     return len;
 }
 
-int dc_decode(Codec* dc, char* buf, const char* src, int len)
+int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
 {
     if (src[0] < 0 && len >= 5)
     {
@@ -336,13 +336,13 @@ int dc_decode(Codec* dc, char* buf, const char* src, int len)
         switch(f->nargs)
         {
         case 1:
-            rlen = sprintf(buf, f->fmt, args[0]);
+            rlen = safe_snprintf(buf, buf_size, f->fmt, args[0]);
             break;
         case 2:
-            rlen = sprintf(buf, f->fmt, args[0], args[1]);
+            rlen = safe_snprintf(buf, buf_size, f->fmt, args[0], args[1]);
             break;
         case 3:
-            rlen = sprintf(buf, f->fmt, args[0], args[1], args[2]);
+            rlen = safe_snprintf(buf, buf_size, f->fmt, args[0], args[1], args[2]);
             break;
         default:
             ;

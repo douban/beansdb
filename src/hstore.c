@@ -221,16 +221,16 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
             switch(height)
             {
             case 0:
-                sprintf(buf[j], "%s", path);
+                safe_snprintf(buf[j], 255, "%s", path);
                 break;
             case 1:
-                sprintf(buf[j], "%s/%x", path, i);
+                safe_snprintf(buf[j], 255, "%s/%x", path, i);
                 break;
             case 2:
-                sprintf(buf[j], "%s/%x/%x", path, i>>4, i & 0xf);
+                safe_snprintf(buf[j], 255, "%s/%x/%x", path, i>>4, i & 0xf);
                 break;
             case 3:
-                sprintf(buf[j], "%s/%x/%x/%x", path, i>>8, (i>>4)&0xf, i&0xf);
+                safe_snprintf(buf[j], 255, "%s/%x/%x/%x", path, i>>8, (i>>4)&0xf, i&0xf);
                 break;
             }
         }
@@ -309,7 +309,7 @@ static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)
             /*int h,c;*/
             uint16_t h;
             uint32_t c;
-            sprintf(pos_buf, "%s%x", pos, i);
+            safe_snprintf(pos_buf, 255, "%s%x", pos, i);
             h = hs_get_hash(store, pos_buf, &c);
             hash *= 97;
             hash += h;
@@ -351,10 +351,10 @@ static char* hs_list(HStore *store, char *key)
         {
             char pos_buf[255];
             memcpy(pos_buf, key, p);
-            sprintf(pos_buf + p, "%x", i);
+            safe_snprintf(pos_buf + p, 255 - p , "%x", i);
             uint32_t hash, count;
             hash = hs_get_hash(store, pos_buf, &count);
-            used += snprintf(buf + used, bsize - used, "%x/ %u %u\n", i, hash & 0xffff, count);
+            used += safe_snprintf(buf + used, bsize - used, "%x/ %u %u\n", i, hash & 0xffff, count);
         }
         return buf;
     }
@@ -403,7 +403,7 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
         {
             hash = gen_hash(r->value, r->vsz);
         }
-        *vlen = (size_t)snprintf(res, 255, "%d %u %u %u %u", r->version,
+        *vlen = (size_t)safe_snprintf(res, 255, "%d %u %u %u %u", r->version,
                          hash, r->flag, r->vsz, r->tstamp);
         *flag = 0;
     }
@@ -485,7 +485,7 @@ int64_t hs_incr(HStore *store, char *key, int64_t value)
 
     result += value;
     if (result < 0) result = 0;
-    rlen = sprintf(buf, "%lld", (long long int) result);
+    rlen = safe_snprintf(buf, 25, "%lld", (long long int) result);
     if (!hs_set(store, key, buf, rlen, INCR_FLAG, 0))   // use timestamp later
     {
         result = 0; // set failed
