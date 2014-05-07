@@ -10,7 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
- *
+ *      Hurricane Lee <hurricane1026@gmail.com>
  */
 
 #include "beansdb.h"
@@ -299,7 +299,7 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
     c->rbytes = c->wbytes = 0;
     c->wcurr = c->wbuf;
     c->rcurr = c->rbuf;
-    c->ritem = 0;
+    c->ritem = 0; // FIXME: replace 0 by NULL while the variable is a ptr
     c->icurr = c->ilist;
     c->ileft = 0;
     c->iovused = 0;
@@ -600,15 +600,15 @@ static void out_string(conn *c, const char *str)
     }
 
     len = strlen(str);
-    if ((len + 2) > c->wsize)
+    if (len + 2 > (unsigned int)(c->wsize))
     {
         /* ought to be always enough. just fail for simplicity */
         str = "SERVER_ERROR output line too long";
         len = strlen(str);
     }
 
-    memcpy(c->wbuf, str, len);
-    memcpy(c->wbuf + len, "\r\n", 2);
+    safe_memcpy(c->wbuf, c->wsize, str, len);
+    safe_memcpy(c->wbuf + len, c->wsize - len, "\r\n", 2);
     c->wbytes = len + 2;
     c->wcurr = c->wbuf;
 
@@ -626,7 +626,7 @@ static void complete_nread(conn *c)
 {
     assert(c != NULL);
 
-    item *it = c->item;
+    item *it = (item*)c->item;
     int comm = c->item_comm;
     int ret;
 
@@ -1050,7 +1050,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         return;
     }
 
-    it = item_alloc1(key, nkey, flags, vlen+2);
+    it = item_alloc1(key, nkey, flags, vlen + 2);
     it->ver = exptime;
     it->flag = flags;
 
@@ -1598,7 +1598,7 @@ int drive_machine(conn *c)
             if (c->rbytes > 0)
             {
                 int tocopy = c->rbytes > c->rlbytes ? c->rlbytes : c->rbytes;
-                memcpy(c->ritem, c->rcurr, tocopy);
+                memcpy(c->ritem, c->rcurr, tocopy); // safe: the buffer size = nbytes == rlbytes.
                 c->ritem += tocopy;
                 c->rlbytes -= tocopy;
                 c->rcurr += tocopy;
@@ -2144,7 +2144,7 @@ int main (int argc, char **argv)
             char fmt[] = "%Y-%m-%d-%H:%M:%S";
             char buf[] = "2000-01-01-00:00:00";
             struct tm tb;
-            memcpy(buf, optarg, strlen(optarg));
+            safe_memcpy(buf, sizeof(buf), optarg, strlen(optarg));
             if (strptime(buf, fmt, &tb) != 0)
             {
                 before_time = timelocal(&tb);

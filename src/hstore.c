@@ -337,9 +337,9 @@ static char* hs_list(HStore *store, char *key)
     if (p >= store->height)
     {
         char buf[20] = {0};
-        memcpy(buf, key, store->height);
+        safe_memcpy(buf, 20, key, store->height);
         int index = strtol(buf, NULL, 16);
-        memcpy(buf, key, p);
+        safe_memcpy(buf, 20, key, p);
         return bc_list(store->bitcasks[index], buf + store->height, prefix);
     }
     else
@@ -350,7 +350,7 @@ static char* hs_list(HStore *store, char *key)
         for (i=0; i < 16; i++)
         {
             char pos_buf[255];
-            memcpy(pos_buf, key, p);
+            safe_memcpy(pos_buf, 255, key, p);
             safe_snprintf(pos_buf + p, 255 - p , "%x", i);
             uint32_t hash, count;
             hash = hs_get_hash(store, pos_buf, &count);
@@ -445,7 +445,7 @@ bool hs_append(HStore *store, char *key, char* value, unsigned int vlen)
         goto APPEND_END;
     }
     body = (char*)safe_realloc(body, rlen + vlen);
-    memcpy(body + rlen, value, vlen);
+    memcpy(body + rlen, value, vlen); // safe
     suc = hs_set(store, key, body, rlen + vlen, flag, 0); // TODO: use timestamp
 
 APPEND_END:

@@ -10,6 +10,7 @@
  *
  *  Authors:
  *      Davies Liu <davies.liu@gmail.com>
+ *      Hurricane Lee <hurricane1026@gmail.com>
  *
  */
 
@@ -163,7 +164,7 @@ item *item_alloc1(char *key, const size_t nkey, const int flags, const int nbyte
     it->nkey = nkey;
     it->nbytes = nbytes;
     strcpy(ITEM_key(it), key);
-    memcpy(ITEM_suffix(it), suffix, (size_t)nsuffix);
+    memcpy(ITEM_suffix(it), suffix, (size_t)nsuffix); // safe
     it->nsuffix = nsuffix;
     return it;
 }
@@ -221,8 +222,8 @@ item *item_get(char *key, unsigned int nkey)
         it = item_alloc1(key, nkey, flag, vlen + 2);
         if (it)
         {
-            memcpy(ITEM_data(it), value, vlen);
-            memcpy(ITEM_data(it) + vlen, "\r\n", 2);
+            memcpy(ITEM_data(it), value, vlen); // safe
+            memcpy(ITEM_data(it) + vlen, "\r\n", 2); // safe
         }
         free(value);
     }

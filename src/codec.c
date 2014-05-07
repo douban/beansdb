@@ -70,7 +70,7 @@ Codec* dc_new()
 int dc_size(Codec *dc)
 {
     int i, s = sizeof(int);
-    for (i=1; i<dc->dict_used; i++)
+    for (i=1; i<dc->dict_used; ++i)
     {
         s += 1 + fmt_size(dc->dict[i]);
     }
@@ -80,18 +80,22 @@ int dc_size(Codec *dc)
 int dc_dump(Codec *dc, char *buf, int size)
 {
     char *orig = buf;
-    int i=0;
+    int i = 0;
+    int buf_size = size;
     if (size < (int)sizeof(int)) return -1;
     *(int*)buf = dc->dict_used;
     buf += sizeof(int);
+    buf_size -= sizeof(int);
 
-    for (i = 1; i < dc->dict_used; i++)
+    for (i = 1; i < dc->dict_used; ++i)
     {
         unsigned char s = fmt_size(dc->dict[i]);
         if (buf + s + 1 - orig > size) return -1;
-        *(unsigned char*)buf ++ = s;
-        memcpy(buf, dc->dict[i], s);
+        *(unsigned char*)buf++ = s;
+        --buf_size;
+        safe_memcpy(buf, buf_size, dc->dict[i], s);
         buf += s;
+        buf_size -= s;
     }
 
     return buf - orig;
@@ -105,12 +109,12 @@ void dc_rebuild(Codec *dc)
     dc->rdict = (short*) safe_malloc(sizeof(short) * dc->rdict_size);
     memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
 
-    for (i=1; i<dc->dict_used; i++)
+    for (i=1; i<dc->dict_used; ++i)
     {
         uint32_t h = fnv1a(dc->dict[i]->fmt, strlen(dc->dict[i]->fmt)) % dc->rdict_size;
         while (dc->rdict[h] > 0)
         {
-            h ++;
+            ++h;
             if (h == dc->rdict_size) h = 0;
         }
         dc->rdict[h] = i;
@@ -129,9 +133,12 @@ int dc_load(Codec *dc, const char *buf, int size)
 {
     //const char *orig = buf;
     int i;
+    int offset = 0;
     if (dc == NULL) return -1;
     int used = *(int*)buf;
     buf += sizeof(int);
+    offset += sizeof(int);
+    if (offset > size) return -1;
     if (used > MAX_DICT_SIZE)
     {
         fprintf(stderr, "number of formats overflow: %d > %d\n", used, MAX_DICT_SIZE);
@@ -152,18 +159,22 @@ int dc_load(Codec *dc, const char *buf, int size)
     }
 
     dc->dict_used = 1;
-    for (i=1; i<used; i++)
+    for (i = 1; i < used; ++i)
     {
-        int s = *(unsigned char*) buf++;
+        int s = *(unsigned char*)buf++;
+        offset += sizeof(unsigned char*);
+        if (offset > size) return -1;
         dc->dict[i] = (Fmt*)try_malloc(s);
         if (dc->dict[i] == NULL)
         {
             fprintf(stderr, "try_malloc failed: %d\n", s);
             return -1;
         }
-        dc->dict_used ++;
-        memcpy(dc->dict[i], buf, s);
+        dc->dict_used++;
+        memcpy(dc->dict[i], buf, s); // safe
         buf += s;
+        offset += sizeof(char) * s;
+        if (offset > size) return -1;
     }
 
     dc_rebuild(dc);
@@ -237,7 +248,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
                 }
                 else
                 {
-                    memcpy(dst, num[m], nd - num[m]);
+                    safe_memcpy(dst, 255, num[m], nd - num[m]);
                     dst += nd - num[m];
                 }
             }
@@ -265,7 +276,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
                 {
                     dict[dc->dict_used] = (Fmt*) safe_malloc(sizeof(Fmt) + flen - 7 + 1);
                     dict[dc->dict_used]->nargs = m;
-                    memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
+                    safe_memcpy(dict[dc->dict_used]->fmt, fmt_size(dict[dc->dict_used]) - 1, fmt, flen + 1);
                     // fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);
                     dc->rdict[h] = rh = dc->dict_used ++;
                     if ((unsigned int)(dc->dict_used) == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
@@ -311,7 +322,7 @@ int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
         if (idx >= 64)
         {
             idx -= 64;
-            idx += (*(unsigned char*)(src+1)) << 6;
+            idx += (*(unsigned char*)(src + 1)) << 6;
             args = (int32_t*)(src + 2);
         }
         Fmt *f = dc->dict[idx];
@@ -319,7 +330,7 @@ int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
         {
             fprintf(stderr, "invalid fmt index: %d\n", idx);
             fprintf(stderr, "invalid key: ");
-            for (idx=0; idx < len; idx++)
+            for (idx=0; idx < len; ++idx)
             {
                 fprintf(stderr, "%x ", src[idx]);
             }
@@ -349,7 +360,7 @@ int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
         }
         return rlen;
     }
-    memcpy(buf, src, len);
+    safe_memcpy(buf, buf_size, src, len);
     buf[len] = 0;
     return len;
 }

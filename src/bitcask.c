@@ -600,7 +600,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
     {
         uint32_t size = bc->wbuf_curr_pos;
         char * tmp = (char*)safe_malloc(size);
-        memcpy(tmp, bc->write_buffer, size);
+        memcpy(tmp, bc->write_buffer, size); // safe
         pthread_mutex_unlock(&bc->buffer_lock);
 
         char buf[255];
@@ -736,7 +736,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
     int klen = strlen(key);
     DataRecord *r = (DataRecord*)safe_malloc(sizeof(DataRecord) + klen);
     r->ksz = klen;
-    memcpy(r->key, key, klen);
+    memcpy(r->key, key, klen); // safe
     r->vsz = vlen;
     r->value = value;
     r->free_value = false;
@@ -772,7 +772,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
             bc_rotate(bc);
         }
     }
-    memcpy(bc->write_buffer + bc->wbuf_curr_pos, rbuf, rlen);
+    memcpy(bc->write_buffer + bc->wbuf_curr_pos, rbuf, rlen); // safe
     int pos = (bc->wbuf_start_pos + bc->wbuf_curr_pos) | bc->curr;
     bc->wbuf_curr_pos += rlen;
     pthread_mutex_unlock(&bc->buffer_lock);
