@@ -63,7 +63,8 @@ void collect_items(Item* it, void* param)
     r->pos = it->pos >> 8;
     r->version = it->ver;
     r->hash = it->hash;
-    memcpy(r->key, it->key, r->ksize + 1);
+        // TODO: check ir
+    safe_memcpy(r->key, p->size - p->curr - sizeof(HintRecord) + NAME_IN_RECORD, it->key, r->ksize + 1);
 
     p->curr += length;
 }

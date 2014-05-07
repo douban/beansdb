@@ -71,7 +71,7 @@ char* record_value(DataRecord *r)
     {
         // value was alloced in record
         res = (char*)safe_malloc(r->vsz);
-        memcpy(res, r->value, r->vsz);
+        memcpy(res, r->value, r->vsz); // safe
     }
     return res;
 }
@@ -167,7 +167,7 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
     int ksz = r->ksz, vsz = r->vsz;
     if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024)
     {
-        //fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
+        fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
         return NULL;
     }
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
@@ -183,12 +183,12 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
         return NULL;
     }
 
-    DataRecord *r2 = (DataRecord *) safe_malloc(need + 1 + sizeof(char*));
-    memcpy(&r2->crc, &r->crc, sizeof(DataRecord) - sizeof(char*) + ksz);
+    DataRecord *r2 = (DataRecord *)safe_malloc(need + 1 + sizeof(char*));
+    memcpy(&r2->crc, &r->crc, sizeof(DataRecord) - sizeof(char*) + ksz); // safe
     r2->key[ksz] = 0; // c str
     r2->free_value = false;
     r2->value = r2->key + ksz + 1;
-    memcpy(r2->value, r->key + ksz, vsz);
+    memcpy(r2->value, r->key + ksz, vsz); // safe
 
     if (decomp)
     {
@@ -228,7 +228,7 @@ DataRecord* read_record(FILE *f, bool decomp)
     {
         r->value = (char*)safe_malloc(vsz);
         r->free_value = true;
-        memcpy(r->value, r->key + ksz, read_size);
+        safe_memcpy(r->value, vsz, r->key + ksz, read_size);
         int need = vsz - read_size;
         int ret = 0;
         if (need > 0 && need != (ret=fread(r->value + read_size, 1, need, f)))
@@ -290,7 +290,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
     {
         r->value = (char*)safe_malloc(vsz);
         r->free_value = true;
-        memcpy(r->value, r->key + ksz, read_size);
+        safe_memcpy(r->value, vsz, r->key + ksz, read_size);
         int need = vsz - read_size;
         int ret = 0;
         if (need > 0 && need != (ret=pread(fd, r->value + read_size, need, offset+PADDING)))
@@ -338,9 +338,9 @@ char* encode_record(DataRecord *r, unsigned int *size)
     char *buf = (char*)safe_malloc(m);
 
     DataRecord *data = (DataRecord*)(buf - hs);
-    memcpy(&data->crc, &r->crc, sizeof(DataRecord)-hs);
-    memcpy(data->key, r->key, ksz);
-    memcpy(data->key + ksz, r->value, vsz);
+    memcpy(&data->crc, &r->crc, sizeof(DataRecord) - hs); // safe
+    memcpy(data->key, r->key, ksz); // safe
+    memcpy(data->key + ksz, r->value, vsz); // safe
     data->crc = crc32(0, (unsigned char*)&data->tstamp, n - sizeof(uint32_t));
 
     *size = m;
@@ -526,7 +526,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             hint_size = hint->size * 2;
             if (hint_size < 4096) hint_size = 4096;
             hintdata = (char*)safe_malloc(hint_size);
-            memcpy(hintdata, hint->buf, hint->size);
+            memcpy(hintdata, hint->buf, hint->size); // safe
             hint_used = hint->size;
             close_hint(hint);
         }
@@ -600,7 +600,8 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             hr->pos = new_pos >> 8;
             hr->version = it->ver;
             hr->hash = hash;
-            memcpy(hr->key, r->key, r->ksz + 1);
+            safe_memcpy(hr->key, hint_size - sizeof(uint32_t) -
+                    sizeof(int32_t) - sizeof(uint16_t), r->key, r->ksz + 1);
             hint_used += hsize;
 
             if (write_record(new_df, r) != 0)

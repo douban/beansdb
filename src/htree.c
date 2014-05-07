@@ -163,15 +163,15 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     Data *data = get_data(node);
     Item *p = data->head;
     int i;
-    for (i=0; i<data->count; i++)
+    for (i=0; i<data->count; ++i)
     {
         if (it->length == p->length &&
                 memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
         {
             node->hash += (HASH(it) - HASH(p)) * keyhash;
-            node->count += it->ver > 0;
-            node->count -= p->ver > 0;
-            memcpy(p, it, sizeof(Item));
+            node->count += (it->ver > 0);
+            node->count -= (p->ver > 0);
+            memcpy(p, it, sizeof(Item)); // safe
             return;
         }
         p = (Item*)((char*)p + p->length);
@@ -180,19 +180,19 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     if (data->size < data->used + it->length)
     {
         int size = max(data->used + it->length, data->size + 64);
-        int pos = (char*)p-(char*)data;
-        Data *new_data = (Data*) safe_malloc(size);
-        memcpy(new_data, data, data->used);
+        int pos = (char*)p - (char*)data;
+        Data *new_data = (Data*)safe_malloc(size);
+        safe_memcpy(new_data, size, data, data->used);
         data = new_data;
         set_data(node, data);
         data->size = size;
         p = (Item *)((char*)data + pos);
     }
 
-    memcpy(p, it, it->length);
-    data->count ++;
+    safe_memcpy(p, data->size - data->used, it, it->length);
+    data->count++;
     data->used += it->length;
-    node->count += it->ver > 0;
+    node->count += (it->ver > 0);
     node->hash += keyhash * HASH(it);
 
     if (node->count > SPLIT_LIMIT)
@@ -218,14 +218,14 @@ static void split_node(HTree *tree, Node *node)
 {
     Node *child = get_child(tree, node, 0);
     int i;
-    for (i=0; i<BUCKET_SIZE; i++)
+    for (i=0; i<BUCKET_SIZE; ++i)
     {
-        clear(child+i);
+        clear(child + i);
     }
 
     Data *data = get_data(node);
     Item *it = data->head;
-    for (i=0; i<data->count; i++)
+    for (i=0; i < data->count; ++i)
     {
         int32_t keyhash = key_hash(tree, it);
         add_item(tree, child + INDEX(it), it, keyhash, false);
@@ -250,12 +250,12 @@ static void remove_item(HTree *tree, Node *node, Item *it, uint32_t keyhash)
     if (data->count == 0) return ;
     Item *p = data->head;
     int i;
-    for (i=0; i<data->count; i++)
+    for (i=0; i < data->count; ++i)
     {
         if (it->length == p->length &&
                 memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
         {
-            data->count --;
+            data->count--;
             data->used -= p->length;
             node->count -= p->ver > 0;
             node->hash -= keyhash * HASH(p);
@@ -480,10 +480,14 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
         Data *data = get_data(node);
         Item *p = data->head;
         Item *it = (Item*)tree->buf;
+        int buf_size = 512;
+        int decode_len;
         for (i=0; i<data->count; i++)
         {
-            memcpy(it, p, sizeof(Item));
-            dc_decode(tree->dc, it->key, 512 - (sizeof(Item) - ITEM_PADDING), p->key, KEYLENGTH(p));
+            safe_memcpy(it, buf_size, p, sizeof(Item));
+            buf_size -= (sizeof(Item) - ITEM_PADDING);
+            decode_len = dc_decode(tree->dc, it->key, buf_size, p->key, KEYLENGTH(p));
+            buf_size -= decode_len;
             it->length = sizeof(Item) + strlen(it->key) - ITEM_PADDING;
             visitor(it, param);
             p = (Item*)((char*)p + p->length);
@@ -878,8 +882,8 @@ Item* ht_get2(HTree* tree, const char* key, int len)
     if (r != NULL)
     {
         Item *rr = (Item*)safe_malloc(sizeof(Item) + len);
-        memcpy(rr, r, sizeof(Item));
-        memcpy(rr->key, key, len);
+        memcpy(rr, r, sizeof(Item)); // safe
+        memcpy(rr->key, key, len);  // safe
         rr->key[len] = 0; // c-str
         r = rr; // r is in node->Data block
     }
