@@ -25,6 +25,7 @@
 #include "fnv1a.h"
 #include "htree.h"
 #include "codec.h"
+#include "const.h"
 
 const int MAX_KEY_LENGTH = 200;
 const int BUCKET_SIZE = 16;
@@ -106,8 +107,8 @@ static inline void set_data(Node *node, Data *data)
 
 static inline uint32_t key_hash(HTree *tree, Item* it)
 {
-    char buf[255];
-    int n = dc_decode(tree->dc, buf, 255, it->key, KEYLENGTH(it));
+    char buf[MAX_KEY_LENGTH];
+    int n = dc_decode(tree->dc, buf, MAX_KEY_LENGTH, it->key, KEYLENGTH(it));
     return fnv1a(buf, n);
 }
 
@@ -386,11 +387,11 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
     while (node->is_node && dlen > 0)
     {
         int b = hex2int(dir[0]);
-        if (b >=0 && b < 16)
+        if (b >= 0 && b < BUCKET_SIZE)
         {
             node = get_child(tree, node, b);
-            dir ++;
-            dlen --;
+            ++dir;
+            --dlen;
         }
         else
         {
@@ -699,8 +700,8 @@ int ht_save(HTree *tree, const char *path)
 {
     if (!tree || !path) return -1;
 
-    char tmp[255];
-    safe_snprintf(tmp, 255, "%s.tmp", path);
+    char tmp[MAX_PATH_LEN];
+    safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
 
     FILE *f = fopen(tmp, "wb");
     if (f == NULL)

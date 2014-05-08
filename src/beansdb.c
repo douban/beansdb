@@ -299,7 +299,7 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
     c->rbytes = c->wbytes = 0;
     c->wcurr = c->wbuf;
     c->rcurr = c->rbuf;
-    c->ritem = 0; // FIXME: replace 0 by NULL while the variable is a ptr
+    c->ritem = NULL;
     c->icurr = c->ilist;
     c->ileft = 0;
     c->iovused = 0;
@@ -308,7 +308,7 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
 
     c->write_and_go = conn_read;
     c->write_and_free = 0;
-    c->item = 0;
+    c->item = NULL;
     c->noreply = false;
 
     update_event(c, AE_READABLE);

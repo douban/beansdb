@@ -32,6 +32,7 @@
 #include "record.h"
 #include "diskmgr.h"
 #include "hint.h"
+#include "const.h"
 
 /* unistd.h is here */
 #if HAVE_UNISTD_H
@@ -115,11 +116,11 @@ static inline bool file_exists(const char *path)
 
 static inline char *gen_path(char *dst, int dst_size, const char *base, const char *fmt, int i)
 {
-    static char path[255];
+    static char path[MAX_PATH_LEN];
     char name[16];
     if (dst == NULL) {
         dst = path;
-        dst_size = 255;
+        dst_size = MAX_PATH_LEN;
     }
     safe_snprintf(name, 16, fmt, i);
     safe_snprintf(dst, dst_size , "%s/%s",  base, name);
@@ -141,43 +142,43 @@ static inline char *new_path(char *dst, int dst_size, Mgr *mgr, const char *fmt,
 static void skip_empty_file(Bitcask* bc)
 {
     int i, last=0;
-    char opath[255], npath[255];
+    char opath[MAX_PATH_LEN], npath[MAX_PATH_LEN];
 
     const char* base = mgr_base(bc->mgr);
     for (i=0; i<MAX_BUCKET_COUNT; i++)
     {
-        if (file_exists(gen_path(opath, 255, base, DATA_FILE, i)))
+        if (file_exists(gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, i)))
         {
             if (i != last)
             {
-                mgr_rename(opath, gen_path(npath, 255, base, DATA_FILE, last));
+                mgr_rename(opath, gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last));
 
-                if (file_exists(gen_path(opath, 255, base, HINT_FILE, i)))
+                if (file_exists(gen_path(opath, MAX_PATH_LEN, base, HINT_FILE, i)))
                 {
-                    mgr_rename(opath, gen_path(npath, 255, base, HINT_FILE, last));
+                    mgr_rename(opath, gen_path(npath, MAX_PATH_LEN, base, HINT_FILE, last));
                 }
 
-                mgr_unlink(gen_path(opath, 255, base, HTREE_FILE, i));
+                mgr_unlink(gen_path(opath, MAX_PATH_LEN, base, HTREE_FILE, i));
             }
-            last ++;
+            ++last;
         }
     }
 }
 
 void bc_scan(Bitcask* bc)
 {
-    char datapath[255], hintpath[255];
-    int i=0;
+    char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
+    int i = 0;
     struct stat st, hst;
 
     skip_empty_file(bc);
 
     const char* base = mgr_base(bc->mgr);
     // load snapshot of htree
-    for (i=MAX_BUCKET_COUNT-1; i>=0; i--)
+    for (i = MAX_BUCKET_COUNT - 1; i >= 0; --i)
     {
-        if (stat(gen_path(datapath, 255, base, HTREE_FILE, i), &st) == 0
-                && stat(gen_path(hintpath, 255, base, HINT_FILE, i), &hst) == 0
+        if (stat(gen_path(datapath, MAX_PATH_LEN, base, HTREE_FILE, i), &st) == 0
+                && stat(gen_path(hintpath, MAX_PATH_LEN, base, HINT_FILE, i), &hst) == 0
                 && st.st_mtime >= hst.st_mtime
                 && (bc->before == 0 || st.st_mtime < bc->before))
         {
@@ -201,14 +202,14 @@ void bc_scan(Bitcask* bc)
 
     for (i=0; i<MAX_BUCKET_COUNT; i++)
     {
-        if (stat(gen_path(datapath, 255, base, DATA_FILE, i), &st) != 0)
+        if (stat(gen_path(datapath, MAX_PATH_LEN, base, DATA_FILE, i), &st) != 0)
         {
             break;
         }
         bc->bytes += st.st_size;
         if (i <= bc->last_snapshot) continue;
 
-        gen_path(hintpath, 255, base, HINT_FILE, i);
+        gen_path(hintpath, MAX_PATH_LEN, base, HINT_FILE, i);
         if (bc->before == 0)
         {
             if (0 == stat(hintpath, &st))
@@ -218,7 +219,7 @@ void bc_scan(Bitcask* bc)
             else
             {
                 scanDataFile(bc->tree, i, datapath,
-                             new_path(hintpath, 255, bc->mgr, HINT_FILE, i));
+                             new_path(hintpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, i));
             }
         }
         else
@@ -237,7 +238,7 @@ void bc_scan(Bitcask* bc)
 
     if (i - bc->last_snapshot > SAVE_HTREE_LIMIT)
     {
-        if (ht_save(bc->tree, new_path(datapath, 255, bc->mgr, HTREE_FILE, i-1)) == 0)
+        if (ht_save(bc->tree, new_path(datapath, MAX_PATH_LEN, bc->mgr, HTREE_FILE, i-1)) == 0)
         {
             mgr_unlink(gen_path(NULL, 0, base, HTREE_FILE, bc->last_snapshot));
 
@@ -257,7 +258,7 @@ void bc_scan(Bitcask* bc)
  * */
 void bc_close(Bitcask *bc)
 {
-    char datapath[255], hintpath[255];
+    char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
 
     if (bc->optimize_flag > 0)
     {
@@ -276,7 +277,7 @@ void bc_close(Bitcask *bc)
     {
         if (bc->curr_bytes > 0)
         {
-            build_hint(bc->curr_tree, new_path(hintpath, 255, bc->mgr, HINT_FILE, bc->curr));
+            build_hint(bc->curr_tree, new_path(hintpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, bc->curr));
         }
         else
         {
@@ -288,9 +289,9 @@ void bc_close(Bitcask *bc)
     if (bc->curr_bytes == 0) --(bc->curr);
     if (bc->curr - bc->last_snapshot >= SAVE_HTREE_LIMIT)
     {
-        if (ht_save(bc->tree, new_path(datapath, 255, bc->mgr, HTREE_FILE, bc->curr)) == 0)
+        if (ht_save(bc->tree, new_path(datapath, MAX_PATH_LEN, bc->mgr, HTREE_FILE, bc->curr)) == 0)
         {
-            mgr_unlink(gen_path(datapath, 255, mgr_base(bc->mgr), HTREE_FILE, bc->last_snapshot));
+            mgr_unlink(gen_path(datapath, MAX_PATH_LEN, mgr_base(bc->mgr), HTREE_FILE, bc->last_snapshot));
         }
         else
         {
@@ -307,8 +308,8 @@ void bc_close(Bitcask *bc)
 uint64_t data_file_size(Bitcask *bc, int bucket)
 {
     struct stat st;
-    char path[255];
-    gen_path(path, 255, mgr_base(bc->mgr), DATA_FILE, bucket);
+    char path[MAX_PATH_LEN];
+    gen_path(path, MAX_PATH_LEN, mgr_base(bc->mgr), DATA_FILE, bucket);
     if (stat(path, &st) != 0) return 0;
     return st.st_size;
 }
@@ -363,9 +364,9 @@ void bc_optimize(Bitcask *bc, int limit)
     bool skipped = false;
     for (i=0; i < bc->curr && bc->optimize_flag == 1; i++)
     {
-        char datapath[255], hintpath[255];
-        gen_path(datapath, 255, base, DATA_FILE, i);
-        gen_path(hintpath, 255, base, HINT_FILE, i);
+        char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
+        gen_path(datapath, MAX_PATH_LEN, base, DATA_FILE, i);
+        gen_path(hintpath, MAX_PATH_LEN, base, HINT_FILE, i);
         if (stat(datapath, &st) != 0)
         {
             continue; // skip empty file
@@ -378,8 +379,8 @@ void bc_optimize(Bitcask *bc, int limit)
             last ++;
             if (last != i)   // rotate data file
             {
-                char npath[255];
-                gen_path(npath, 255, base, DATA_FILE, last);
+                char npath[MAX_PATH_LEN];
+                gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
                 if (symlink(datapath, npath) != 0)
                 {
                     fprintf(stderr, "symlink failed: %s -> %s\n", datapath, npath);
@@ -404,7 +405,7 @@ void bc_optimize(Bitcask *bc, int limit)
 
                 unlink(npath);
                 mgr_rename(datapath, npath);
-                mgr_rename(hintpath, gen_path(npath, 255, base, HINT_FILE, last));
+                mgr_rename(hintpath, gen_path(npath, MAX_PATH_LEN, base, HINT_FILE, last));
             }
             continue;
         }
@@ -421,9 +422,9 @@ void bc_optimize(Bitcask *bc, int limit)
         }
         while (last < i)
         {
-            char ldpath[255], lhpath[255];
-            new_path(ldpath, 255, bc->mgr, DATA_FILE, last);
-            new_path(lhpath, 255, bc->mgr, HINT_FILE, last);
+            char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN];
+            new_path(ldpath, MAX_PATH_LEN, bc->mgr, DATA_FILE, last);
+            new_path(lhpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, last);
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath,
                                         skipped, MAX_BUCKET_SIZE, last, ldpath, lhpath);
             if (recoverd == 0)
@@ -452,12 +453,12 @@ void bc_optimize(Bitcask *bc, int limit)
     pthread_mutex_lock(&bc->flush_lock);
     if (i == bc->curr && ++last < bc->curr)
     {
-        char opath[255], npath[255];
-        gen_path(opath, 255, base, DATA_FILE, bc->curr);
+        char opath[MAX_PATH_LEN], npath[MAX_PATH_LEN];
+        gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, bc->curr);
 
         if (file_exists(opath))
         {
-            gen_path(npath, 255, base, DATA_FILE, last);
+            gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
             if (symlink(opath, npath) != 0)
                 fprintf(stderr, "symlink failed: %s -> %s\n", opath, npath);
 
@@ -516,10 +517,10 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         }
     }
 
-    char fname[20], data[255];
+    char fname[20], data[MAX_PATH_LEN];
     const char * path = mgr_base(bc->mgr);
     safe_snprintf(fname, 20, DATA_FILE, bucket);
-    safe_snprintf(data, 255, "%s/%s", path, fname);
+    safe_snprintf(data, MAX_PATH_LEN, "%s/%s", path, fname);
     int fd = open(data, O_RDONLY);
     if (-1 == fd)
     {
@@ -569,8 +570,8 @@ void* build_thread(void *param)
 void bc_rotate(Bitcask *bc)
 {
     // build in new thread
-    char hintpath[255];
-    new_path(hintpath, 255, bc->mgr, HINT_FILE, bc->curr);
+    char hintpath[MAX_PATH_LEN];
+    new_path(hintpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, bc->curr);
     struct build_thread_args *args = (struct build_thread_args*)safe_malloc(
                                          sizeof(struct build_thread_args));
     args->tree = bc->curr_tree;
@@ -603,8 +604,8 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
         memcpy(tmp, bc->write_buffer, size); // safe
         pthread_mutex_unlock(&bc->buffer_lock);
 
-        char buf[255];
-        new_path(buf, 255, bc->mgr, DATA_FILE, bc->curr);
+        char buf[MAX_PATH_LEN];
+        new_path(buf, MAX_PATH_LEN, bc->mgr, DATA_FILE, bc->curr);
 
         FILE *f = fopen(buf, "ab");
         if (f == NULL)

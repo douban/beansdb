@@ -30,6 +30,7 @@
 #include "fnv1a.h"
 
 #include "util.h"
+#include "const.h"
 
 
 const int PADDING = 256;
@@ -509,7 +510,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     if (f == NULL) return -1;
 
     FILE *new_df = NULL;
-    char tmp[255], *hintdata = NULL;
+    char tmp[MAX_PATH_LEN], *hintdata = NULL;
     uint32_t hint_used=0, hint_size = 0, old_data_size=0;
     if (lastdata != NULL)
     {
@@ -541,7 +542,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     }
     else
     {
-        safe_snprintf(tmp, 255, "%s.tmp", path);
+        safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
         new_df = fopen(tmp, "wb");
         hintdata = (char*)safe_malloc(1<<20);
         hint_size = 1<<20;

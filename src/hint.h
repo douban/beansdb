@@ -31,7 +31,6 @@ MFile* open_mfile(const char* path);
 void close_mfile(MFile *f);
 void write_file(char *buf, int size, const char* path);
 
-#define PATH_MAX (256)
 #define NAME_IN_RECORD 2
 
 typedef struct hint_record
