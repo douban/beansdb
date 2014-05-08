@@ -28,6 +28,7 @@
 #include "quicklz.h"
 #include "diskmgr.h"
 #include "fnv1a.h"
+#include "const.h"
 
 /* unistd.h is here */
 #if HAVE_UNISTD_H
@@ -81,8 +82,8 @@ void write_hint_file(char *buf, int size, const char* path)
         free(wbuf);
     }
 
-    char tmp[PATH_MAX];
-    safe_snprintf(tmp, PATH_MAX, "%s.tmp", path);
+    char tmp[MAX_PATH_LEN];
+    safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
     FILE *hf = fopen(tmp, "wb");
     if (NULL==hf)
     {

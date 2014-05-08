@@ -24,6 +24,7 @@
 #include "diskmgr.h"
 
 #include <unistd.h>
+#include "const.h"
 struct disk_mgr
 {
     char **disks;
@@ -57,14 +58,14 @@ Mgr* mgr_create(const char **disks, int ndisks)
             continue;
         }
         struct dirent *de;
-        char target[255], sym[255], real[255];
+        char target[MAX_PATH_LEN], sym[MAX_PATH_LEN], real[MAX_PATH_LEN];
         struct stat sb;
         while ((de = readdir(dp)) != NULL)
         {
             int len = strlen(de->d_name);
             if (de->d_name[0] == '.') continue;
             if (len != 8 && len != 9 && len != 12) continue; // .data .htree .hint.qlz
-            safe_snprintf(target, 255, "%s/%s", disks[i], de->d_name);
+            safe_snprintf(target, MAX_PATH_LEN, "%s/%s", disks[i], de->d_name);
             if (stat(target, &sb) != 0)
             {
                 unlink(target);
@@ -75,12 +76,12 @@ Mgr* mgr_create(const char **disks, int ndisks)
                 unlink(target);
                 continue;
             }
-            safe_snprintf(sym, 255, "%s/%s", disks[0], de->d_name);
+            safe_snprintf(sym, MAX_PATH_LEN, "%s/%s", disks[0], de->d_name);
             if (0 == stat(sym, &sb)) continue;
             int r = 0;
             if (target[0] != '/')
             {
-                safe_snprintf(real, 255, "%s/%s", cwd, target);
+                safe_snprintf(real, MAX_PATH_LEN, "%s/%s", cwd, target);
                 r = symlink(real, sym);
             }
             else
@@ -139,11 +140,11 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
     }
     uint64_t maxa= 0;
     int maxi = 0, i;
-    char path[255];
+    char path[MAX_PATH_LEN];
     struct stat sb;
     for (i=0; i< mgr->ndisks; i++)
     {
-        safe_snprintf(path, 255, "%s/%s", mgr->disks[i], name);
+        safe_snprintf(path, MAX_PATH_LEN, "%s/%s", mgr->disks[i], name);
         if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG)
         {
             return mgr->disks[i];
@@ -158,9 +159,9 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
     if (maxi != 0)
     {
         // create symlink
-        char target[255];
-        safe_snprintf(target, 255, "%s/%s", mgr->disks[maxi], name);
-        safe_snprintf(path, 255, "%s/%s", mgr->disks[0], name);
+        char target[MAX_PATH_LEN];
+        safe_snprintf(target, MAX_PATH_LEN, "%s/%s", mgr->disks[maxi], name);
+        safe_snprintf(path, MAX_PATH_LEN, "%s/%s", mgr->disks[0], name);
         if (lstat(path, &sb) == 0)
         {
             unlink(path);
@@ -179,8 +180,8 @@ void mgr_unlink(const char *path)
     struct stat sb;
     if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
     {
-        char buf[256];
-        int n = readlink(path, buf, 255);
+        char buf[MAX_PATH_LEN];
+        int n = readlink(path, buf, MAX_PATH_LEN);
         if (n > 0)
         {
             buf[n] = 0;
@@ -197,10 +198,10 @@ void mgr_unlink(const char *path)
 void mgr_rename(const char *oldpath, const char *newpath)
 {
     struct stat sb;
-    char ropath[256];
+    char ropath[MAX_PATH_LEN];
     if (lstat(oldpath, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
     {
-        int n = readlink(oldpath, ropath, 255);
+        int n = readlink(oldpath, ropath, MAX_PATH_LEN);
         if (n > 0)
         {
             ropath[n] = 0;

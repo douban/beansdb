@@ -34,6 +34,8 @@
 #include <unistd.h>
 #endif
 
+#include "const.h"
+
 #define NUM_OF_MUTEX 37
 #define MAX_PATHS 20
 const int APPEND_FLAG  = 0x00000100;
@@ -211,7 +213,7 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     char *buf[20] = {0};
     for (i=0; i<npath; i++)
     {
-        buf[i] = (char*)safe_malloc(255);
+        buf[i] = (char*)safe_malloc(MAX_PATH_LEN);
     }
     for (i=0; i<count; i++)
     {
@@ -221,16 +223,16 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
             switch(height)
             {
             case 0:
-                safe_snprintf(buf[j], 255, "%s", path);
+                safe_snprintf(buf[j], MAX_PATH_LEN, "%s", path);
                 break;
             case 1:
-                safe_snprintf(buf[j], 255, "%s/%x", path, i);
+                safe_snprintf(buf[j], MAX_PATH_LEN, "%s/%x", path, i);
                 break;
             case 2:
-                safe_snprintf(buf[j], 255, "%s/%x/%x", path, i>>4, i & 0xf);
+                safe_snprintf(buf[j], MAX_PATH_LEN, "%s/%x/%x", path, i>>4, i & 0xf);
                 break;
             case 3:
-                safe_snprintf(buf[j], 255, "%s/%x/%x/%x", path, i>>8, (i>>4)&0xf, i&0xf);
+                safe_snprintf(buf[j], MAX_PATH_LEN, "%s/%x/%x/%x", path, i>>8, (i>>4)&0xf, i&0xf);
                 break;
             }
         }
@@ -304,7 +306,7 @@ static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)
         uint16_t i, hash=0;
         *count = 0;
         char pos_buf[255];
-        for (i=0; i<16; i++)
+        for (i = 0; i < 16; ++i)
         {
             /*int h,c;*/
             uint16_t h;
@@ -345,9 +347,9 @@ static char* hs_list(HStore *store, char *key)
     else
     {
         int i, bsize = 1024, used = 0;
-        char *buf = (char*)safe_malloc(bsize);
-        /*if (!buf) return NULL;*/
-        for (i=0; i < 16; i++)
+        char *buf = (char*)try_malloc(bsize);
+        if (!buf) return NULL;
+        for (i=0; i < 16; ++i)
         {
             char pos_buf[255];
             safe_memcpy(pos_buf, 255, key, p);
@@ -366,7 +368,7 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
 
     if (key[0] == '@')
     {
-        char *r = hs_list(store, key+1);
+        char *r = hs_list(store, key + 1);
         if (r) *vlen = strlen(r);
         *flag = 0;
         return r;
@@ -376,7 +378,7 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
     if (key[0] == '?')
     {
         info = true;
-        key ++;
+        ++key;
     }
     int index = get_index(store, key);
     DataRecord *r = bc_get(store->bitcasks[index], key);
@@ -388,22 +390,20 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
     char *res = NULL;
     if (info)
     {
-        res = (char*)safe_malloc(256);
-/*
- *
- *        if (!res)
- *        {
- *            free_record(r);
- *            return NULL;
- *        }
- *
- */
+        res = (char*)try_malloc(META_BUF_SIZE);
+
+        if (!res)
+        {
+            free_record(r);
+            return NULL;
+        }
+
         uint16_t hash = 0;
         if (r->version > 0)
         {
             hash = gen_hash(r->value, r->vsz);
         }
-        *vlen = (size_t)safe_snprintf(res, 255, "%d %u %u %u %u", r->version,
+        *vlen = (size_t)safe_snprintf(res, META_BUF_SIZE, "%d %u %u %u %u", r->version,
                          hash, r->flag, r->vsz, r->tstamp);
         *flag = 0;
     }
