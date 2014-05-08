@@ -57,11 +57,13 @@ uint32_t gen_hash(char *buf, int len)
 int record_length(DataRecord *r)
 {
     size_t n = sizeof(DataRecord) - sizeof(char*) + r->ksz + r->vsz;
+    /*
     if (n % PADDING != 0)
     {
         n += PADDING - (n % PADDING);
     }
-    return n;
+    */
+    return (n / PADDING + (int)!!(n % PADDING)) * PADDING;
 }
 
 char* record_value(DataRecord *r)
