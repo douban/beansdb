@@ -28,6 +28,7 @@
 #include <netdb.h>
 
 #include "util.h"
+#include "zlog.h"
 
 #define DATA_BUFFER_SIZE 2048
 #define MAX_PAYLOAD_SIZE 1400
@@ -59,12 +60,22 @@
 
 #define RGET_MAX_ITEMS 100
 
-/* Get a consistent bool type */
-#if HAVE_STDBOOL_H
+#ifdef HAVE_STDBOOL_H
 # include <stdbool.h>
 #else
-typedef enum {false = 0, true = 1} bool;
+# ifndef HAVE__BOOL
+#  ifdef __cplusplus
+typedef bool _Bool;
+#  else
+#   define _Bool signed char
+#  endif
+# endif
+# define bool _Bool
+# define false 0
+# define true 1
+# define __bool_true_false_are_defined 1
 #endif
+
 
 #if HAVE_STDINT_H
 # include <stdint.h>
