@@ -280,7 +280,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
                 }
                 else
                 {
-                    log_error("not captched fmt: %s <= %s", fmt, src);
+                    log_debug("not captched fmt: %s <= %s", fmt, src);
                     dc->rdict[h] = rh = -1; // not again
                 }
             }
