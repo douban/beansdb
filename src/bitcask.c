@@ -33,6 +33,7 @@
 #include "diskmgr.h"
 #include "hint.h"
 #include "const.h"
+#include "log.h"
 
 /* unistd.h is here */
 #if HAVE_UNISTD_H
@@ -72,7 +73,7 @@ Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
     if (path == NULL || depth > 4) return NULL;
     if (0 != access(path, F_OK) && 0 != mkdir(path, 0750))
     {
-        fprintf(stderr, "mkdir %s failed\n", path);
+        log_error("mkdir %s failed", path);
         return NULL;
     }
     const char* t[] = {path};
@@ -190,7 +191,7 @@ void bc_scan(Bitcask* bc)
             }
             else
             {
-                fprintf(stderr, "open HTree from %s failed\n", datapath);
+                log_error("open HTree from %s failed", datapath);
                 mgr_unlink(datapath);
             }
         }
@@ -246,7 +247,7 @@ void bc_scan(Bitcask* bc)
         }
         else
         {
-            fprintf(stderr, "save HTree to %s failed\n", datapath);
+            log_error("save HTree to %s failed", datapath);
         }
     }
 
@@ -295,7 +296,7 @@ void bc_close(Bitcask *bc)
         }
         else
         {
-            fprintf(stderr, "save HTree to %s failed\n", datapath);
+            log_error("save HTree to %s failed", datapath);
         }
     }
     ht_destroy(bc->tree);
@@ -383,7 +384,7 @@ void bc_optimize(Bitcask *bc, int limit)
                 gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
                 if (symlink(datapath, npath) != 0)
                 {
-                    fprintf(stderr, "symlink failed: %s -> %s\n", datapath, npath);
+                    log_error("symlink failed: %s -> %s", datapath, npath);
                     last = i;
                     continue;
                 }
@@ -391,7 +392,7 @@ void bc_optimize(Bitcask *bc, int limit)
                 // update HTree to use new index
                 if (stat(hintpath, &st) != 0)
                 {
-                    fprintf(stderr, "no hint file: %s, skip it\n", hintpath);
+                    log_error("no hint file: %s, skip it", hintpath);
                     last = i;
                     continue;
                 }
@@ -460,7 +461,7 @@ void bc_optimize(Bitcask *bc, int limit)
         {
             gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
             if (symlink(opath, npath) != 0)
-                fprintf(stderr, "symlink failed: %s -> %s\n", opath, npath);
+                log_error("symlink failed: %s -> %s", opath, npath);
 
             struct update_args args;
             args.tree = bc->tree;
@@ -493,7 +494,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     uint32_t pos = item->pos & 0xffffff00;
     if (bucket > (uint32_t)(bc->curr))
     {
-        fprintf(stderr, "BUG: invalid bucket %d > %d\n", bucket, bc->curr);
+        log_error("BUG: invalid bucket %d > %d", bucket, bc->curr);
         ht_remove(bc->tree, key);
         free(item);
         return NULL;
@@ -531,7 +532,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     if (NULL == r)
     {
         if (bc->optimize_flag == 0)
-            fprintf(stderr, "Bug: get %s failed in %s %u %u\n", key, path, bucket, pos);
+            log_error("Bug: get %s failed in %s %u %u", key, path, bucket, pos);
     }
     else
     {
@@ -539,7 +540,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         if (strcmp(key, r->key) != 0)
         {
             if (bc->optimize_flag == 0)
-                fprintf(stderr, "Bug: record %s is not expected %s in %u @ %u\n", r->key, key, bucket, pos);
+                log_error("Bug: record %s is not expected %s in %u @ %u", r->key, key, bucket, pos);
             free_record(r);
             r = NULL;
         }
@@ -588,7 +589,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
 {
     if (bc->curr >= MAX_BUCKET_COUNT)
     {
-        fprintf(stderr, "reach max bucket count\n");
+        log_error("reach max bucket count");
         exit(1);
     }
 
@@ -610,21 +611,21 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
         FILE *f = fopen(buf, "ab");
         if (f == NULL)
         {
-            fprintf(stderr, "open file %s for flushing failed.\n", buf);
+            log_error("open file %s for flushing failed.", buf);
             exit(1);
         }
         // check file size
         uint64_t last_pos = ftello(f);
         if (last_pos > 0 && last_pos != bc->wbuf_start_pos)
         {
-            fprintf(stderr, "last pos not match: %"PRIu64" != %d in %s\n", last_pos, bc->wbuf_start_pos, buf);
+            log_error("last pos not match: %"PRIu64" != %d in %s", last_pos, bc->wbuf_start_pos, buf);
             exit(1);
         }
 
         size_t n = fwrite(tmp, 1, size, f);
         if (n < size)
         {
-            fprintf(stderr, "write failed: return %zu\n", n);
+            log_error("write failed: return %zu", n);
             exit(1);
         }
         free(tmp);
@@ -670,7 +671,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
 {
     if ((version < 0 && vlen > 0) || vlen > MAX_RECORD_SIZE)
     {
-        fprintf(stderr, "invalid set cmd \n");
+        log_error("invalid set cmd");
         return false;
     }
 
@@ -749,7 +750,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
     char *rbuf = encode_record(r, &rlen);
     if (rbuf == NULL || (rlen & 0xff) != 0)
     {
-        fprintf(stderr, "encode_record() failed with %d\n", rlen);
+        log_error("encode_record() failed with %d", rlen);
         if (rbuf != NULL) free(rbuf);
         goto SET_FAIL;
     }

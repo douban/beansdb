@@ -4,6 +4,7 @@
 
 #include <sys/epoll.h>
 #include <errno.h>
+#include "log.h"
 
 typedef struct aeApiState
 {
@@ -41,7 +42,7 @@ static int aeApiAddEvent(EventLoop *eventLoop, int fd, int mask)
     ee.data.fd = fd;
     if (epoll_ctl(state->epfd, EPOLL_CTL_ADD,fd,&ee) == -1 && errno != EEXIST)
     {
-        fprintf(stderr, "epoll_ctl(%d,%d) failed: %d\n", EPOLL_CTL_ADD,fd,errno);
+        log_error("epoll_ctl(%d,%d) failed: %d", EPOLL_CTL_ADD,fd,errno);
         return -1;
     }
     return 0;
@@ -58,7 +59,7 @@ static int aeApiUpdateEvent(EventLoop *eventLoop, int fd, int mask)
     ee.data.fd = fd;
     if (epoll_ctl(state->epfd, EPOLL_CTL_MOD,fd,&ee) == -1)
     {
-        fprintf(stderr, "epoll_ctl(%d,%d) failed: %d\n", EPOLL_CTL_ADD,fd,errno);
+        log_error("epoll_ctl(%d,%d) failed: %d", EPOLL_CTL_ADD,fd,errno);
         return -1;
     }
     return 0;
@@ -77,7 +78,7 @@ static int aeApiDelEvent(EventLoop *eventLoop, int fd)
     if ( epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee) == -1
             && errno != ENOENT && errno != EBADF)
     {
-        fprintf(stderr, "epoll_ctl(%d,%d) failed: %d\n", EPOLL_CTL_DEL,fd,errno);
+        log_error("epoll_ctl(%d,%d) failed: %d", EPOLL_CTL_DEL,fd,errno);
         return -1;
     }
     return 0;

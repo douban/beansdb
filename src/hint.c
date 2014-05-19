@@ -35,6 +35,8 @@
 #include <unistd.h>
 #endif
 
+#include "log.h"
+
 const  int MAX_MMAP_SIZE = 1<<12; // 4G
 static int curr_mmap_size = 0;
 static pthread_mutex_t mmap_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -87,7 +89,7 @@ void write_hint_file(char *buf, int size, const char* path)
     FILE *hf = fopen(tmp, "wb");
     if (NULL==hf)
     {
-        fprintf(stderr, "open %s failed\n", tmp);
+        log_error("open %s failed", tmp);
         return;
     }
     int n = fwrite(dst, 1, size, hf);
@@ -101,7 +103,7 @@ void write_hint_file(char *buf, int size, const char* path)
     }
     else
     {
-        fprintf(stderr, "write to %s failed \n", tmp);
+        log_error("write to %s failed", tmp);
     }
 }
 
@@ -124,7 +126,7 @@ MFile* open_mfile(const char* path)
     int fd = open(path, O_RDONLY);
     if (fd == -1)
     {
-        fprintf(stderr, "open mfile %s failed\n", path);
+        log_error("open mfile %s failed", path);
         return NULL;
     }
 
@@ -158,7 +160,7 @@ MFile* open_mfile(const char* path)
         f->addr = (char*) mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
         if (f->addr == MAP_FAILED)
         {
-            fprintf(stderr, "mmap failed %s\n", path);
+            log_error("mmap failed %s", path);
             close(fd);
             pthread_mutex_lock(&mmap_lock);
             curr_mmap_size -= mb;
@@ -169,7 +171,7 @@ MFile* open_mfile(const char* path)
 
         if (madvise(f->addr, sb.st_size, MADV_SEQUENTIAL) < 0)
         {
-            fprintf(stderr, "Unable to madvise() region %p\n", f->addr);
+            log_error("Unable to madvise() region %p", f->addr);
         }
     }
     else
@@ -218,7 +220,7 @@ HintFile *open_hint(const char* path, const char* new_path)
         int vsize = qlz_decompress(hint->buf, buf, wbuf);
         if (vsize != size)
         {
-            fprintf(stderr, "decompress %s failed: %d < %d, remove it\n", path, vsize, size);
+            log_fatal("decompress %s failed: %d < %d, remove it\n", path, vsize, size);
             mgr_unlink(path);
             exit(1);
         }
@@ -256,7 +258,7 @@ void scanHintFile(HTree* tree, int bucket, const char* path, const char* new_pat
         p += sizeof(HintRecord) - NAME_IN_RECORD + r->ksize + 1;
         if (p > end)
         {
-            fprintf(stderr, "scan %s: unexpected end, need %ld byte\n", path, p - end);
+            log_error("scan %s: unexpected end, need %ld byte", path, p - end);
             break;
         }
         uint32_t pos = (r->pos << 8) | (bucket & 0xff);
@@ -286,7 +288,7 @@ int count_deleted_record(HTree* tree, int bucket, const char* path, int *total)
         p += sizeof(HintRecord) - NAME_IN_RECORD + r->ksize + 1;
         if (p > end)
         {
-            fprintf(stderr, "scan %s: unexpected end, need %ld byte\n", path, p - end);
+            log_error("scan %s: unexpected end, need %ld byte", path, p - end);
             break;
         }
         (*total) ++;

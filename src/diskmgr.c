@@ -25,6 +25,7 @@
 
 #include <unistd.h>
 #include "const.h"
+#include "log.h"
 struct disk_mgr
 {
     char **disks;
@@ -42,7 +43,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
     {
         if (0 != access(disks[i], F_OK) && 0 != mkdir(disks[i], 0755))
         {
-            fprintf(stderr, "access %s failed\n", disks[i]);
+            log_error("access %s failed", disks[i]);
             free(mgr->disks);
             free(mgr);
             return NULL;
@@ -54,7 +55,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
         DIR* dp = opendir(disks[i]);
         if (dp == NULL)
         {
-            fprintf(stderr, "opendir failed: %s\n", disks[i]);
+            log_error("opendir failed: %s", disks[i]);
             continue;
         }
         struct dirent *de;
@@ -90,7 +91,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
             }
             if (0 != r)
             {
-                fprintf(stderr, "symlink failed %s -> %s\n", sym, target);
+                log_error("symlink failed %s -> %s", sym, target);
             }
         }
         (void) closedir(dp);
@@ -168,7 +169,7 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
         }
         if (symlink(target, path) != 0)
         {
-            fprintf(stderr, "create symlink failed: %s -> %s", path, target);
+            log_fatal("create symlink failed: %s -> %s", path, target);
             exit(1);
         }
     }
@@ -189,7 +190,7 @@ void mgr_unlink(const char *path)
         }
         else
         {
-            fprintf(stderr, "readlink failed: %s\n", path);
+            log_error("readlink failed: %s", path);
         }
     }
     unlink(path);
@@ -210,11 +211,11 @@ void mgr_rename(const char *oldpath, const char *newpath)
             rename(ropath, rnpath);
             unlink(oldpath);
             if (symlink(rnpath, newpath) != 0)
-                fprintf(stderr, "symlink failed: %s -> %s\n", rnpath, newpath);
+                log_error("symlink failed: %s -> %s", rnpath, newpath);
         }
         else
         {
-            fprintf(stderr, "readlink failed: %s\n", oldpath);
+            log_error("readlink failed: %s", oldpath);
         }
     }
     else

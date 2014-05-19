@@ -26,6 +26,7 @@
 #include <stdlib.h>
 
 #include "util.h"
+#include "log.h"
 
 /* unistd.h is here */
 #if HAVE_UNISTD_H
@@ -145,7 +146,7 @@ item *item_alloc1(char *key, const size_t nkey, const int flags, const int nbyte
         memset(it, 0, ntotal);
         if (settings.verbose > 1)
         {
-            fprintf(stderr, "alloc a item buffer from try_malloc.\n");
+            log_debug("alloc a item buffer from try_malloc.");
         }
     }
     else
@@ -157,7 +158,7 @@ item *item_alloc1(char *key, const size_t nkey, const int flags, const int nbyte
         }
         if (settings.verbose > 1)
         {
-            fprintf(stderr, "alloc a item buffer from freelist.\n");
+            log_debug("alloc a item buffer from freelist.");
         }
     }
 
@@ -185,7 +186,7 @@ int item_free(item *it)
     {
         if (settings.verbose > 1)
         {
-            fprintf(stderr, "ntotal: %"PRIuS", use free() directly.\n", ntotal);
+            log_error("ntotal: %"PRIuS", use free() directly.", ntotal);
         }
         free(it);
     }
@@ -195,7 +196,7 @@ int item_free(item *it)
         {
             if (settings.verbose > 1)
             {
-                fprintf(stderr, "ntotal: %"PRIuS", add a item buffer to freelist fail, use free() directly.\n", ntotal);
+                log_error("ntotal: %"PRIuS", add a item buffer to freelist fail, use free() directly.", ntotal);
             }
             free(it);
         }
@@ -203,7 +204,7 @@ int item_free(item *it)
         {
             if (settings.verbose > 1)
             {
-                fprintf(stderr, "ntotal: %"PRIuS", add a item buffer to freelist.\n", ntotal);
+                log_error("ntotal: %"PRIuS", add a item buffer to freelist.", ntotal);
             }
         }
     }

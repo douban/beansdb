@@ -38,6 +38,7 @@
 
 
 //#include "const.h"
+#include "log.h"
 
 inline static void*
 _safe_malloc(size_t s, const char *file, int line, const char *func)
@@ -45,7 +46,7 @@ _safe_malloc(size_t s, const char *file, int line, const char *func)
     void *p = malloc(s);
     if (unlikely(p == NULL))
     {
-        fprintf(stderr, "Out of memory: %d, %zu bytes in %s (%s:%i)\n", errno, s, func, file, line);
+        log_fatal("Out of memory: %d, %zu bytes in %s (%s:%i)", errno, s, func, file, line);
         /*
         * memset will make debug easier
         */
@@ -63,7 +64,7 @@ _try_malloc(size_t s, const char *file, int line, const char *func)
     void *p = malloc(s);
     if (unlikely(p == NULL))
     {
-        fprintf(stderr, "Out of memory: %d, %zu bytes in %s (%s:%i) but continue working.\n", errno, s, func, file, line);
+        log_warn("Out of memory: %d, %zu bytes in %s (%s:%i) but continue working.", errno, s, func, file, line);
     }
     return p;
 }
@@ -76,7 +77,7 @@ _safe_realloc(void* ptr, size_t s, const char *file, int line, const char *func)
     void *p = realloc(ptr, s);
     if (unlikely(p == NULL))
     {
-        fprintf(stderr, "Realloc failed: %d, %zu bytes in %s (%s:%i)\n", errno, s, func, file, line);
+        log_fatal("Realloc failed: %d, %zu bytes in %s (%s:%i)", errno, s, func, file, line);
         exit(1);
     }
     return p;
@@ -90,13 +91,39 @@ _try_realloc(void* ptr, size_t s, const char *file, int line, const char *func)
     void *p = realloc(ptr, s);
     if (unlikely(p == NULL))
     {
-        fprintf(stderr, "Realloc failed: %d, %zu bytes in %s (%s:%i), but continue working\n", errno, s, func, file, line);
+        log_warn("Realloc failed: %d, %zu bytes in %s (%s:%i), but continue working", errno, s, func, file, line);
     }
     return p;
 }
 
 #define try_realloc(X, Y) _try_realloc(X, Y, __FILE__, __LINE__, __FUNCTION__)
 
+inline static void*
+_safe_calloc(size_t num, size_t size, const char *file, int line, const char *func)
+{
+    void *p = calloc(num, size);
+    if (unlikely(p == NULL))
+    {
+        log_fatal("Calloc failed: %d, %zu bytes in %s (%s:%i)", errno, num * size, func, file, line);
+        exit(1);
+    }
+    return p;
+}
+
+#define safe_calloc(X, Y) _safe_calloc(X, Y, __FILE__, __LINE__, __FUNCTION__)
+
+inline static void*
+_try_calloc(size_t num, size_t size, const char *file, int line, const char *func)
+{
+    void *p = calloc(num, size);
+    if (unlikely(p == NULL))
+    {
+        log_warn("Calloc failed: %d, %zu bytes in %s (%s:%i)", errno, num * size, func, file, line);
+    }
+    return p;
+}
+
+#define try_calloc(X, Y) _try_calloc(X, Y, __FILE__, __LINE__, __FUNCTION__)
 
 inline static size_t
 _check_snprintf(const char *file, int line, const char *func, char* s, size_t n, const char* format, ...)
@@ -107,7 +134,7 @@ _check_snprintf(const char *file, int line, const char *func, char* s, size_t n,
     result_len = vsnprintf(s, n, format, args);
     if (unlikely(result_len >= n))
     {
-        fprintf(stderr, "Truncation: content truncated while calling snprintf \
+        log_fatal("Truncation: content truncated while calling snprintf \
                 in %s (%s:%i), %zu content print to %zu length buffer.", file, func, line, result_len, n);
         exit(1);
     }
@@ -122,7 +149,7 @@ _check_memcpy(const char* file, int line, const char *func, void* dst, size_t ds
 {
     if (unlikely(dst_num < src_num))
     {
-        fprintf(stderr, "_check_memcpy try to use lower dst buffer: %zu than src size: %zu. \
+        log_fatal("_check_memcpy try to use lower dst buffer: %zu than src size: %zu. \
                 in %s (%s:%i).", dst_num, src_num, file, func, line);
         exit(1);
     }
@@ -141,7 +168,7 @@ gen_path(char *dst, const char *base, const char *fmt, int i, const size_t max_p
         dst = path;
     else
     {
-        fprintf(stderr, "Try to do a snprintf over a insufficient buffer");
+        //fprintf(stderr, "Try to do a snprintf over a insufficient buffer");
         exit(1);
     }
     //snprintf(name, 16, fmt, i);
@@ -150,7 +177,6 @@ gen_path(char *dst, const char *base, const char *fmt, int i, const size_t max_p
     return dst;
 }
 */
-
 #define min(a,b) ((a)<(b)?(a):(b))
 
 #endif
