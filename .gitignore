@@ -29,4 +29,5 @@ src/cscope.*
 src/tags
 beansdb
 cscope.*
+src/.ycm_extra_conf.py*
 
