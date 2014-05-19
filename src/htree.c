@@ -26,6 +26,7 @@
 #include "htree.h"
 #include "codec.h"
 #include "const.h"
+#include "log.h"
 
 const int MAX_KEY_LENGTH = 200;
 const int BUCKET_SIZE = 16;
@@ -552,14 +553,14 @@ HTree* ht_open(int depth, int pos, const char *path)
     FILE *f = fopen(path, "rb");
     if (f == NULL)
     {
-        fprintf(stderr, "open %s failed\n", path);
+        log_error("open %s failed", path);
         return NULL;
     }
 
     if (fread(version, sizeof(VERSION), 1, f) != 1
             || memcmp(version, VERSION, sizeof(VERSION)) != 0)
     {
-        fprintf(stderr, "the version %s is not expected\n", version);
+        log_error("the version %s is not expected", version);
         fclose(f);
         return NULL;
     }
@@ -568,7 +569,7 @@ HTree* ht_open(int depth, int pos, const char *path)
     if (fread(&fsize, sizeof(fsize), 1, f) != 1 ||
             fseeko(f, 0, 2) != 0 || ftello(f) != fsize)
     {
-        fprintf(stderr, "the size %lld is not expected\n", fsize);
+        log_error("the size %lld is not expected", fsize);
         fclose(f);
         return NULL;
     }
@@ -576,7 +577,7 @@ HTree* ht_open(int depth, int pos, const char *path)
 #if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
     if (posix_fadvise(fileno(f), 0, fsize, POSIX_FADV_SEQUENTIAL) != 0)
     {
-        fprintf(stderr, "posix_favise() failed\n");
+        log_error("posix_favise() failed");
     }
 #endif
 
@@ -597,7 +598,7 @@ HTree* ht_open(int depth, int pos, const char *path)
     if (fread(&tree->height, sizeof(int), 1, f) != 1 ||
             tree->height + depth < 0 || tree->height + depth > 9)
     {
-        fprintf(stderr, "invalid height: %d\n", tree->height);
+        log_error("invalid height: %d", tree->height);
         goto FAIL;
     }
 
@@ -636,7 +637,7 @@ HTree* ht_open(int depth, int pos, const char *path)
             }
             if (data->used != size)
             {
-                fprintf(stderr, "broken data: %d != %d\n", data->used, size);
+                log_error("broken data: %d != %d", data->used, size);
                 goto FAIL;
             }
             data->size = size;
@@ -647,7 +648,7 @@ HTree* ht_open(int depth, int pos, const char *path)
         }
         else
         {
-            fprintf(stderr, "unexpected size: %d\n", size);
+            log_error("unexpected size: %d", size);
             goto FAIL;
         }
         tree->root[i].data = data;
@@ -658,19 +659,19 @@ HTree* ht_open(int depth, int pos, const char *path)
     if (fread(&size, sizeof(int), 1, f) != 1
             || size < 0 || size > (10<<20))
     {
-        fprintf(stderr, "bad codec size: %d\n", size);
+        log_error("bad codec size: %d", size);
         goto FAIL;
     }
     buf = (char*)safe_malloc(size);
     if (fread(buf, size, 1, f) != 1)
     {
-        fprintf(stderr, "read codec failed\n");
+        log_error("read codec failed");
         goto FAIL;
     }
     tree->dc = dc_new();
     if (dc_load(tree->dc, buf, size) != 0)
     {
-        fprintf(stderr, "load codec failed\n");
+        log_error("load codec failed");
         goto FAIL;
     }
     free(buf);
@@ -706,7 +707,7 @@ int ht_save(HTree *tree, const char *path)
     FILE *f = fopen(tmp, "wb");
     if (f == NULL)
     {
-        fprintf(stderr, "open %s failed\n", tmp);
+        log_error("open %s failed", tmp);
         return -1;
     }
 
@@ -714,7 +715,7 @@ int ht_save(HTree *tree, const char *path)
     if (fwrite(VERSION, sizeof(VERSION), 1, f) != 1 ||
             fwrite(&pos, sizeof(off_t), 1, f) != 1)
     {
-        fprintf(stderr, "write version failed\n");
+        log_error("write version failed");
         fclose(f);
         return -1;
     }
@@ -725,7 +726,7 @@ int ht_save(HTree *tree, const char *path)
     if (fwrite(&tree->height, sizeof(int), 1, f) != 1 ||
             fwrite(tree->root, sizeof(Node) * pool_size, 1, f) != 1 )
     {
-        fprintf(stderr, "write nodes failed\n");
+        log_error("write nodes failed");
         fclose(f);
         return -1;
     }
@@ -758,14 +759,14 @@ int ht_save(HTree *tree, const char *path)
     *(int*)buf = s;
     if (dc_dump(tree->dc, buf + sizeof(int), s) != s)
     {
-        fprintf(stderr, "dump Codec failed\n");
+        log_error("dump Codec failed");
         free(buf);
         fclose(f);
         return -1;
     }
     if (fwrite(buf, s + sizeof(int), 1, f) != 1)
     {
-        fprintf(stderr, "write Codec failed\n");
+        log_error("write Codec failed");
         free(buf);
         fclose(f);
         return -1;
@@ -776,7 +777,7 @@ int ht_save(HTree *tree, const char *path)
     fseeko(f, sizeof(VERSION), 0);
     if (fwrite(&pos, sizeof(off_t), 1, f) != 1)
     {
-        fprintf(stderr, "write size failed\n");
+        log_error("write size failed");
         fclose(f);
         return -1;
     }
@@ -817,12 +818,12 @@ bool check_key(HTree *tree, const char* key, int len)
     if (!tree || !key) return false;
     if (len == 0 || len > MAX_KEY_LENGTH)
     {
-        fprintf(stderr, "bad key len=%d\n", len);
+        log_error("bad key len=%d", len);
         return false;
     }
     if (key[0]<=' ')
     {
-        fprintf(stderr, "bad key len=%d %x\n", len, key[0]);
+        log_error("bad key len=%d %x", len, key[0]);
         return false;
     }
     int k;
@@ -830,7 +831,7 @@ bool check_key(HTree *tree, const char* key, int len)
     {
         if (isspace(key[k]) || iscntrl(key[k]))
         {
-            fprintf(stderr, "bad key len=%d %s\n", len, key);
+            log_error("bad key len=%d %s", len, key);
             return false;
         }
     }
@@ -838,7 +839,7 @@ bool check_key(HTree *tree, const char* key, int len)
     uint32_t h = keyhash(key, len);
     if (tree->depth > 0 && h >> ((8-tree->depth)*4) != (unsigned int)(tree->pos))
     {
-        fprintf(stderr, "key %s (#%x) should not in this tree (%d:%0x)\n", key, h >> ((8-tree->depth)*4), tree->depth, tree->pos);
+        log_error("key %s (#%x) should not in this tree (%d:%0x)", key, h >> ((8-tree->depth)*4), tree->depth, tree->pos);
         return false;
     }
 

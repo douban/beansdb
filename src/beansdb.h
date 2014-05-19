@@ -28,7 +28,8 @@
 #include <netdb.h>
 
 #include "util.h"
-#include "zlog.h"
+#include "const.h"
+#include "log.h"
 
 #define DATA_BUFFER_SIZE 2048
 #define MAX_PAYLOAD_SIZE 1400

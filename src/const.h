@@ -22,5 +22,4 @@
 #define META_BUF_SIZE (256)
 #define MAX_KEY_LEN (255)
 
-
 #endif

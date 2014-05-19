@@ -35,7 +35,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <string.h> // for strerror()
 #include <time.h>
 #include <assert.h>
 #include <limits.h>
@@ -191,10 +191,7 @@ static void conn_init(void)
 {
     freetotal = 200;
     freecurr = 0;
-    if ((freeconns = (conn **)safe_malloc(sizeof(conn *) * freetotal)) == NULL)
-    {
-        fprintf(stderr, "_malloc()\n");
-    }
+    freeconns = (conn **)safe_malloc(sizeof(conn *) * freetotal);
     return;
 }
 
@@ -250,9 +247,8 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
 
     if (NULL == c)
     {
-        if (!(c = (conn *)calloc(1, sizeof(conn))))
+        if (!(c = (conn *)try_calloc(1, sizeof(conn))))
         {
-            fprintf(stderr, "calloc()\n");
             return NULL;
         }
         c->rbuf = c->wbuf = 0;
@@ -266,17 +262,16 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
         c->iovsize = IOV_LIST_INITIAL;
         c->msgsize = MSG_LIST_INITIAL;
 
-        c->rbuf = (char *)safe_malloc((size_t)c->rsize);
-        c->wbuf = (char *)safe_malloc((size_t)c->wsize);
-        c->ilist = (item **)safe_malloc(sizeof(item *) * c->isize);
-        c->iov = (struct iovec *)safe_malloc(sizeof(struct iovec) * c->iovsize);
-        c->msglist = (struct msghdr *)safe_malloc(sizeof(struct msghdr) * c->msgsize);
+        c->rbuf = (char *)try_malloc((size_t)c->rsize);
+        c->wbuf = (char *)try_malloc((size_t)c->wsize);
+        c->ilist = (item **)try_malloc(sizeof(item *) * c->isize);
+        c->iov = (struct iovec *)try_malloc(sizeof(struct iovec) * c->iovsize);
+        c->msglist = (struct msghdr *)try_malloc(sizeof(struct msghdr) * c->msgsize);
 
         if (c->rbuf == 0 || c->wbuf == 0 || c->ilist == 0 || c->iov == 0 ||
                 c->msglist == 0)
         {
             conn_free(c);
-            fprintf(stderr, "_malloc()\n");
             return NULL;
         }
 
@@ -288,9 +283,9 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
     if (settings.verbose > 1)
     {
         if (init_state == conn_listening)
-            fprintf(stderr, "<%d server listening\n", sfd);
+            log_debug("<%d server listening", sfd);
         else
-            fprintf(stderr, "<%d new client connection\n", sfd);
+            log_debug("<%d new client connection", sfd);
     }
 
     c->sfd = sfd;
@@ -318,7 +313,7 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
         {
             conn_free(c);
         }
-        perror("event_add");
+        log_error("event_add: %s", strerror(errno));
         return NULL;
     }
 
@@ -381,7 +376,7 @@ void conn_close(conn *c)
     assert(c != NULL);
 
     if (settings.verbose > 1)
-        fprintf(stderr, "<%d connection closed.\n", c->sfd);
+        log_debug("<%d connection closed.", c->sfd);
 
     delete_event(c->sfd);
     close(c->sfd);
@@ -593,7 +588,7 @@ static void out_string(conn *c, const char *str)
     if (c->noreply)
     {
         if (settings.verbose > 1)
-            fprintf(stderr, ">%d %s\n", c->sfd, str);
+            log_debug(">%d %s", c->sfd, str);
         c->noreply = false;
         conn_set_state(c, conn_read);
         return;
@@ -959,7 +954,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens)
                 }
 
                 if (settings.verbose > 1)
-                    fprintf(stderr, ">%d sending key %s\n", c->sfd, ITEM_key(it));
+                    log_debug(">%d sending key %s", c->sfd, ITEM_key(it));
 
                 stats_get_hits++;
                 *(c->ilist + i) = it;
@@ -991,7 +986,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens)
     c->ileft = i;
 
     if (settings.verbose > 1)
-        fprintf(stderr, ">%d END\n", c->sfd);
+        log_debug(">%d END", c->sfd);
 
     /*
         If the loop was terminated because of out-of-memory, it is not
@@ -1186,7 +1181,7 @@ static void process_command(conn *c, char *command)
     assert(c != NULL);
 
     if (settings.verbose > 1)
-        fprintf(stderr, "<%d %s\n", c->sfd, command);
+        log_debug("<%d %s", c->sfd, command);
 
     /*
      * for commands set/add/replace, we build an item and read the data
@@ -1281,7 +1276,7 @@ static void process_command(conn *c, char *command)
     else if (stopme && ntokens == 2 && (strcmp(tokens[COMMAND_TOKEN].value, "stopme") == 0))
     {
 
-        fprintf(stderr, "quit under request\n");
+        log_warn("quit under request");
         daemon_quit = 1;
 
     }
@@ -1296,24 +1291,25 @@ static void process_command(conn *c, char *command)
     if (secs > settings.slow_cmd_time)
     {
         STATS_LOCK();
-        stats.slow_cmds ++;
+        ++stats.slow_cmds;
         STATS_UNLOCK();
     }
 
     // access logging
     if (NULL != access_log && ntokens >= 3)
     {
-        char now[255];
-        time_t t = time(NULL);
-        strftime(now, 200, "%Y-%m-%d %H:%M:%S", localtime(&t));
+        /*
+         *char now[255];
+         *time_t t = time(NULL);
+         *strftime(now, 200, "%Y-%m-%d %H:%M:%S", localtime(&t));
+         */
         struct sockaddr_storage addr;
         socklen_t addrlen = (socklen_t)sizeof(addr);
         getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen);
         char host[NI_MAXHOST], serv[NI_MAXSERV];
         getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host), serv, sizeof(serv),
                     NI_NUMERICSERV);
-        fprintf(access_log, "%s %s:%s %s %s %.3f\n", now, host, serv,
-                command, tokens[1].value, secs*1000);
+        log_info("%s:%s %s %s %.3f", host, serv, command, tokens[1].value, secs * 1000);
     }
 
     return;
@@ -1382,7 +1378,7 @@ static int try_read_network(conn *c)
             if (!new_rbuf)
             {
                 if (settings.verbose > 0)
-                    fprintf(stderr, "Couldn't _realloc input buffer\n");
+                    log_error("Couldn't _realloc input buffer");
                 c->rbytes = 0; /* ignore what we read */
                 out_string(c, "SERVER_ERROR out of memory reading request");
                 c->write_and_go = conn_closing;
@@ -1491,7 +1487,7 @@ static int transmit(conn *c)
         /* if res==0 or res==-1 and error is not EAGAIN or EWOULDBLOCK,
            we have a real error, on which we close the connection */
         if (settings.verbose > 0)
-            perror("Failed to write, and not due to blocking");
+            log_debug("Failed to write, and not due to blocking: %s", strerror(errno));
 
         conn_set_state(c, conn_closing);
         return TRANSMIT_HARD_ERROR;
@@ -1533,7 +1529,7 @@ int drive_machine(conn *c)
                 else if (errno == EMFILE)
                 {
                     if (settings.verbose > 0)
-                        fprintf(stderr, "Too many open connections\n");
+                        log_debug("Too many open connections");
                     if (stub_fd > 0)
                     {
                         close(stub_fd);
@@ -1546,20 +1542,20 @@ int drive_machine(conn *c)
                         else
                         {
                             if (settings.verbose > 0)
-                                fprintf(stderr, "Too many open connections 2\n");
+                                log_error("Too many open connections 2");
                         }
                     }
                 }
                 else
                 {
-                    perror("accept()");
+                    log_error("accept(): %s", strerror(errno));
                 }
                 if (stop) break;
             }
             if ((flags = fcntl(sfd, F_GETFL, 0)) < 0 ||
                     fcntl(sfd, F_SETFL, flags | O_NONBLOCK) < 0)
             {
-                perror("setting O_NONBLOCK");
+                log_error("setting O_NONBLOCK: %s", strerror(errno));
                 close(sfd);
                 break;
             }
@@ -1567,7 +1563,7 @@ int drive_machine(conn *c)
             {
                 if (settings.verbose > 0)
                 {
-                    fprintf(stderr, "Can't listen for events on fd %d\n", sfd);
+                    log_error("Can't listen for events on fd %d", sfd);
                 }
                 close(sfd);
             }
@@ -1630,7 +1626,7 @@ int drive_machine(conn *c)
             }
             /* otherwise we have a real error, on which we close the connection */
             if (settings.verbose > 0)
-                fprintf(stderr, "Failed to read, and not due to blocking\n");
+                log_error("Failed to read, and not due to blocking");
             conn_set_state(c, conn_closing);
             break;
 
@@ -1675,7 +1671,7 @@ int drive_machine(conn *c)
             }
             /* otherwise we have a real error, on which we close the connection */
             if (settings.verbose > 0)
-                fprintf(stderr, "Failed to read, and not due to blocking\n");
+                log_error("Failed to read, and not due to blocking");
             conn_set_state(c, conn_closing);
             break;
 
@@ -1690,7 +1686,7 @@ int drive_machine(conn *c)
                 if (add_iov(c, c->wcurr, c->wbytes) != 0)
                 {
                     if (settings.verbose > 0)
-                        fprintf(stderr, "Couldn't build response\n");
+                        log_error("Couldn't build response");
                     conn_set_state(c, conn_closing);
                     break;
                 }
@@ -1725,7 +1721,7 @@ int drive_machine(conn *c)
                 else
                 {
                     if (settings.verbose > 0)
-                        fprintf(stderr, "Unexpected state %d\n", c->state);
+                        log_error("Unexpected state %d", c->state);
                     conn_set_state(c, conn_closing);
                 }
                 break;
@@ -1756,14 +1752,14 @@ static int new_socket(struct addrinfo *ai)
 
     if ((sfd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol)) == -1)
     {
-        perror("socket()");
+        log_error("socket(): %s", strerror(errno));
         return -1;
     }
 
     if ((flags = fcntl(sfd, F_GETFL, 0)) < 0 ||
             fcntl(sfd, F_SETFL, flags | O_NONBLOCK) < 0)
     {
-        perror("setting O_NONBLOCK");
+        log_error("setting O_NONBLOCK: %s", strerror(errno));
         close(sfd);
         return -1;
     }
@@ -1798,9 +1794,9 @@ static int server_socket(const int port, const bool is_udp)
     if (error != 0)
     {
         if (error != EAI_SYSTEM)
-            fprintf(stderr, "getaddrinfo(): %s\n", gai_strerror(error));
+            log_error("getaddrinfo(): %s\n", gai_strerror(error));
         else
-            perror("getaddrinfo()");
+            log_error("getaddrinfo(): %s", strerror(errno));
 
         return 1;
     }
@@ -1823,7 +1819,7 @@ static int server_socket(const int port, const bool is_udp)
         {
             if (errno != EADDRINUSE)
             {
-                perror("bind()");
+                log_error("bind(): %s", strerror(errno));
                 close(sfd);
                 freeaddrinfo(ai);
                 return 1;
@@ -1836,7 +1832,7 @@ static int server_socket(const int port, const bool is_udp)
             success++;
             if (listen(sfd, 1024) == -1)
             {
-                perror("listen()");
+                log_error("listen(): %s", strerror(errno));
                 close(sfd);
                 freeaddrinfo(ai);
                 return 1;
@@ -1845,7 +1841,7 @@ static int server_socket(const int port, const bool is_udp)
 
         if (!(listen_conn_add = conn_new(sfd, conn_listening, 1)))
         {
-            fprintf(stderr, "failed to create listening connection\n");
+            log_error("failed to create listening connection");
             exit(EXIT_FAILURE);
         }
     }
@@ -1966,14 +1962,14 @@ static void save_pid(const pid_t pid, const char *pid_file)
 
     if ((fp = fopen(pid_file, "w")) == NULL)
     {
-        fprintf(stderr, "Could not open the pid file %s for writing\n", pid_file);
+        log_error("Could not open the pid file %s for writing", pid_file);
         return;
     }
 
     fprintf(fp,"%ld\n", (long)pid);
     if (fclose(fp) == -1)
     {
-        fprintf(stderr, "Could not close the pid file %s.\n", pid_file);
+        log_error("Could not close the pid file %s.", pid_file);
         return;
     }
 }
@@ -1985,7 +1981,7 @@ static void remove_pidfile(const char *pid_file)
 
     if (unlink(pid_file) != 0)
     {
-        fprintf(stderr, "Could not remove the pid file %s.\n", pid_file);
+        log_error("Could not remove the pid file %s.", pid_file);
     }
 
 }
@@ -1993,7 +1989,6 @@ static void remove_pidfile(const char *pid_file)
 /* for safely exit, make sure to do checkpoint*/
 static void sig_handler(const int sig)
 {
-    int ret;
     if (sig != SIGTERM && sig != SIGQUIT && sig != SIGINT)
     {
         return;
@@ -2003,7 +1998,7 @@ static void sig_handler(const int sig)
         return;
     }
     daemon_quit = 1;
-    fprintf(stderr, "Signal(%d) received, try to exit daemon gracefully..\n", sig);
+    log_error("Signal(%d) received, try to exit daemon gracefully..", sig);
 }
 
 void* do_flush(void *args)
@@ -2013,7 +2008,7 @@ void* do_flush(void *args)
         hs_flush(store, (unsigned int)settings.flush_limit, settings.flush_period);
         sleep(1);
     }
-    fprintf(stderr, "flush thread exit.\n");
+    log_error("flush thread exit.");
     return NULL;
 }
 
@@ -2028,11 +2023,16 @@ int main (int argc, char **argv)
     int maxcore = 0;
     char *username = NULL;
     char *pid_file = NULL;
-    FILE *log_file = NULL;
+    char *conf_path = NULL;
+    /*
+     *FILE *log_file = NULL;
+     */
     struct passwd *pw;
     struct sigaction sa;
     struct rlimit rlim;
+    bool invalid_arg = false;
 
+    char buf[] = "2000-01-01-00:00:00";
     char *portstr = NULL;
 
     /* init settings */
@@ -2042,25 +2042,10 @@ int main (int argc, char **argv)
     setbuf(stderr, NULL);
 
     /* process arguments */
-    while ((c = getopt(argc, argv, "a:p:c:hivl:dru:P:L:t:b:H:T:m:s:f:n:S")) != -1)
+    while ((c = getopt(argc, argv, "p:c:hivl:dru:P:L:t:b:H:T:m:s:f:n:S")) != -1)
     {
         switch (c)
         {
-        case 'a':
-            if (strcmp(optarg, "-") == 0)
-            {
-                access_log = stdout;
-            }
-            else
-            {
-                access_log = fopen(optarg, "a");
-                if (NULL == access_log)
-                {
-                    fprintf(stderr, "open access_log %s failed\n", optarg);
-                    exit(1);
-                }
-            }
-            break;
         case 'p':
             settings.port = atoi(optarg);
             break;
@@ -2092,37 +2077,13 @@ int main (int argc, char **argv)
             pid_file = optarg;
             break;
         case 'L':
-            if ((log_file = fopen(optarg, "a")) != NULL)
-            {
-                setlinebuf(log_file);
-                fclose(stdout);
-                fclose(stderr);
-                stdout = stderr = log_file;
-            }
-            else
-            {
-                fprintf(stderr, "open log file %s failed\n", optarg);
-            }
+            conf_path = optarg;
             break;
         case 't':
             settings.num_threads = atoi(optarg);
-            if (settings.num_threads == 0)
-            {
-                fprintf(stderr, "Number of threads must be greater than 0\n");
-                exit(EXIT_FAILURE);
-            }
             break;
         case 'b':
             settings.item_buf_size = atoi(optarg);
-            if(settings.item_buf_size < 512)
-            {
-                fprintf(stderr, "item buf size must be larger than 512 bytes\n");
-                exit(EXIT_FAILURE);
-            }
-            if(settings.item_buf_size > 256 * 1024)
-            {
-                fprintf(stderr, "Warning: item buffer size(-b) larger than 256KB may cause performance issue\n");
-            }
             break;
         case 'H':
             dbhome = optarg;
@@ -2141,30 +2102,51 @@ int main (int argc, char **argv)
             break;
         case 'm':
         {
-            char fmt[] = "%Y-%m-%d-%H:%M:%S";
-            char buf[] = "2000-01-01-00:00:00";
-            struct tm tb;
             safe_memcpy(buf, sizeof(buf), optarg, strlen(optarg));
-            if (strptime(buf, fmt, &tb) != 0)
-            {
-                before_time = timelocal(&tb);
-            }
-            else
-            {
-                fprintf(stderr, "invalid time:%s, need:%s\n", optarg, fmt);
-                exit(EXIT_FAILURE);
-            }
             break;
         }
         case 'S':
-            fprintf(stderr, "dangerous: it can been stopped by command 'stopme'\n");
             stopme = 1;
             break;
         default:
-            fprintf(stderr, "Illegal argument \"%c\"\n", c);
-            exit(EXIT_FAILURE);
+            invalid_arg = true;
         }
     }
+
+    if (!conf_path) conf_path = "/etc/douban/beansdb/log.conf";
+    log_init(conf_path);
+    if (invalid_arg)
+    {
+        log_fatal("Illegal argument \"%c\"", c);
+        exit(EXIT_FAILURE);
+    }
+    if (stopme) log_warn("dangerous: it can been stopped by command 'stopme'");
+    if (settings.num_threads == 0)
+    {
+        log_fatal("Number of threads must be greater than 0");
+        exit(EXIT_FAILURE);
+    }
+    if(settings.item_buf_size < 512)
+    {
+        log_fatal("item buf size must be larger than 512 bytes");
+        exit(EXIT_FAILURE);
+    }
+    if(settings.item_buf_size > 256 * 1024)
+    {
+        log_warn("Warning: item buffer size(-b) larger than 256KB may cause performance issue");
+    }
+    char fmt[] = "%Y-%m-%d-%H:%M:%S";
+    struct tm tb;
+    if (strptime(buf, fmt, &tb) != 0)
+    {
+        before_time = timelocal(&tb);
+    }
+    else
+    {
+        log_fatal("invalid time:%s, need:%s", optarg, fmt);
+        exit(EXIT_FAILURE);
+    }
+
 
     if (maxcore != 0)
     {
@@ -2191,7 +2173,7 @@ int main (int argc, char **argv)
 
         if ((getrlimit(RLIMIT_CORE, &rlim) != 0) || rlim.rlim_cur == 0)
         {
-            fprintf(stderr, "failed to ensure corefile creation\n");
+            log_fatal("failed to ensure corefile creation");
             exit(EXIT_FAILURE);
         }
     }
@@ -2203,7 +2185,7 @@ int main (int argc, char **argv)
 
     if (getrlimit(RLIMIT_NOFILE, &rlim) != 0)
     {
-        fprintf(stderr, "failed to getrlimit number of files\n");
+        log_fatal("failed to getrlimit number of files");
         exit(EXIT_FAILURE);
     }
     else
@@ -2215,7 +2197,7 @@ int main (int argc, char **argv)
             rlim.rlim_max = rlim.rlim_cur;
         if (setrlimit(RLIMIT_NOFILE, &rlim) != 0)
         {
-            fprintf(stderr, "failed to set rlimit for open files. Try running as root or requesting smaller maxconns value.\n");
+            log_fatal("failed to set rlimit for open files. Try running as root or requesting smaller maxconns value.");
             exit(EXIT_FAILURE);
         }
     }
@@ -2225,10 +2207,10 @@ int main (int argc, char **argv)
     if (daemonize)
     {
         int res;
-        res = daemon(1, settings.verbose || log_file);
+        res = daemon(1, settings.verbose);
         if (res == -1)
         {
-            fprintf(stderr, "failed to daemon() in order to daemonize\n");
+            log_error("failed to daemon() in order to daemonize");
             return 1;
         }
     }
@@ -2243,17 +2225,17 @@ int main (int argc, char **argv)
     {
         if (username == 0 || *username == '\0')
         {
-            fprintf(stderr, "can't run as root without the -u switch\n");
+            log_error("can't run as root without the -u switch");
             return 1;
         }
         if ((pw = getpwnam(username)) == 0)
         {
-            fprintf(stderr, "can't find the user %s to switch to\n", username);
+            log_error("can't find the user %s to switch to", username);
             return 1;
         }
         if (setgid(pw->pw_gid) < 0 || setuid(pw->pw_uid) < 0)
         {
-            fprintf(stderr, "failed to assume identity of user %s\n", username);
+            log_error("failed to assume identity of user %s", username);
             return 1;
         }
     }
@@ -2272,7 +2254,7 @@ int main (int argc, char **argv)
     if (sigemptyset(&sa.sa_mask) == -1 ||
             sigaction(SIGPIPE, &sa, 0) == -1)
     {
-        perror("failed to ignore SIGPIPE; sigaction");
+        log_error("failed to ignore SIGPIPE; sigaction : %s", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -2280,13 +2262,13 @@ int main (int argc, char **argv)
     store = hs_open(dbhome, height, before_time, settings.num_threads);
     if (!store)
     {
-        fprintf(stderr, "failed to open db %s\n", dbhome);
+        log_error("failed to open db %s", dbhome);
         exit(1);
     }
 
     if ((stub_fd = open("/dev/null", O_RDONLY)) == -1)
     {
-        perror("open stub file failed");
+        log_error("open stub file failed: %s", strerror(errno));
         exit(1);
     }
     thread_init(settings.num_threads);
@@ -2294,22 +2276,22 @@ int main (int argc, char **argv)
     /* create the listening socket, bind it, and init */
     if (server_socket(settings.port, false))
     {
-        fprintf(stderr, "failed to listen\n");
+        log_fatal("failed to listen");
         exit(EXIT_FAILURE);
     }
 
     /* register signal callback */
     if (signal(SIGTERM, sig_handler) == SIG_ERR)
-        fprintf(stderr, "can not catch SIGTERM\n");
+        log_error("can not catch SIGTERM");
     if (signal(SIGQUIT, sig_handler) == SIG_ERR)
-        fprintf(stderr, "can not catch SIGQUIT\n");
+        log_error("can not catch SIGQUIT");
     if (signal(SIGINT,  sig_handler) == SIG_ERR)
-        fprintf(stderr, "can not catch SIGINT\n");
+        log_error("can not catch SIGINT");
 
     pthread_t flush_id;
     if (pthread_create(&flush_id, NULL, do_flush, NULL) != 0)
     {
-        fprintf(stderr, "create flush thread failed\n");
+        log_fatal("create flush thread failed");
         exit(1);
     }
 
@@ -2318,18 +2300,21 @@ int main (int argc, char **argv)
     loop_run(settings.num_threads);
 
     /* wait other thread to ends */
-    fprintf(stderr, "waiting for close ... \n");
+    log_error("waiting for close ... ");
     pthread_join(flush_id, NULL);
     pthread_detach(flush_id);
 
     hs_close(store);
-    fprintf(stderr, "done.\n");
-
-    if (log_file)
-    {
-        fclose(log_file);
-    }
-
+    log_error("done.");
+    log_finish();
+/*
+ *
+ *    if (log_file)
+ *    {
+ *        fclose(log_file);
+ *    }
+ *
+ */
     /* remove the PID file if we're a daemon */
     if (daemonize)
         remove_pidfile(pid_file);

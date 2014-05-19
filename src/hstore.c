@@ -35,6 +35,7 @@
 #endif
 
 #include "const.h"
+#include "log.h"
 
 #define NUM_OF_MUTEX 37
 #define MAX_PATHS 20
@@ -98,7 +99,7 @@ static void* scan_thread(void *_args)
     pthread_cond_signal(&scan_cond);
     pthread_mutex_unlock(&scan_lock);
 
-//    fprintf(stderr, "thread %d completed\n", index);
+    log_debug("thread %d completed", index);
     return NULL;
 }
 
@@ -121,7 +122,7 @@ static void parallelize(HStore *store, BC_FUNC func)
         args[i].func = func;
         if ((ret = pthread_create(thread_ids + i, &attr, scan_thread, args + i)) != 0)
         {
-            fprintf(stderr, "Can't create thread: %s\n", strerror(ret));
+            log_fatal("Can't create thread: %s", strerror(ret));
             exit(1);
         }
     }
@@ -147,19 +148,19 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     if (NULL == path) return NULL;
     if (height < 0 || height > 3)
     {
-        fprintf(stderr, "invalid db height: %d\n", height);
+        log_error("invalid db height: %d", height);
         return NULL;
     }
     if (before != 0)
     {
         if (before<0)
         {
-            fprintf(stderr, "invalid time:%ld\n", before);
+            log_error("invalid time:%ld", before);
             return NULL;
         }
         else
         {
-            fprintf(stderr, "serve data modified before %s\n", ctime(&before));
+            log_error("serve data modified before %s", ctime(&before));
         }
     }
 
@@ -171,7 +172,7 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
         path = paths[npath];
         if (0 != access(path, F_OK) && 0 != mkdir(path, 0755))
         {
-            fprintf(stderr, "mkdir %s failed\n", path);
+            log_error("mkdir %s failed", path);
             return NULL;
         }
         if (height > 1)
@@ -441,7 +442,7 @@ bool hs_append(HStore *store, char *key, char* value, unsigned int vlen)
     char *body = hs_get(store, key, &rlen, &flag);
     if (body != NULL && flag != APPEND_FLAG)
     {
-        fprintf(stderr, "try to append %s with flag=%x\n", key, flag);
+        log_error("try to append %s with flag=%x", key, flag);
         goto APPEND_END;
     }
     body = (char*)safe_realloc(body, rlen + vlen);
@@ -472,13 +473,13 @@ int64_t hs_incr(HStore *store, char *key, int64_t value)
     {
         if (flag != INCR_FLAG || rlen > 22)
         {
-            fprintf(stderr, "try to incr %s but flag=0x%x, len=%u", key, flag, rlen);
+            log_error("try to incr %s but flag=0x%x, len=%u", key, flag, rlen);
             goto INCR_END;
         }
         result = strtoll(body, NULL, 10);
         if (result == 0 && errno == EINVAL)
         {
-            fprintf(stderr, "incr %s failed: %s\n", key, buf);
+            log_error("incr %s failed: %s", key, buf);
             goto INCR_END;
         }
     }
@@ -501,14 +502,14 @@ void* do_optimize(void *arg)
 {
     HStore *store = (HStore *) arg;
     time_t st = time(NULL);
-    fprintf(stderr, "start to optimize from %d to %d\n",
+    log_error("start to optimize from %d to %d",
             store->op_start, store->op_end);
     for (; store->op_start < store->op_end; store->op_start ++)
     {
         bc_optimize(store->bitcasks[store->op_start], store->op_limit);
     }
     store->op_start = store->op_end = 0;
-    fprintf(stderr, "optimization completed in %lld seconds\n",
+    log_error("optimization completed in %lld seconds",
             (long long)(time(NULL) - st));
     return NULL;
 }

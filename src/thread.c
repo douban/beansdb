@@ -26,6 +26,7 @@
 
 #include <pthread.h>
 #include "util.h"
+#include "log.h"
 
 typedef struct EventLoop
 {
@@ -146,7 +147,7 @@ int add_event(int fd, int mask, conn *c)
 {
     if (fd >= AE_SETSIZE)
     {
-        fprintf(stderr, "fd is too large: %d\n", fd);
+        log_error("fd is too large: %d", fd);
         return AE_ERR;
     }
     assert(loop.conns[fd] == NULL);
@@ -202,7 +203,7 @@ AGAIN:
         conn *c = loop.conns[fd];
         if (c == NULL)
         {
-            fprintf(stderr, "Bug: conn %d should not be NULL\n", fd);
+            log_error("Bug: conn %d should not be NULL", fd);
             delete_event(fd);
             close(fd);
             goto AGAIN;
@@ -229,7 +230,7 @@ void loop_run(int nthread)
     {
         if ((ret = pthread_create(tids + i, &attr, worker_main, NULL)) != 0)
         {
-            fprintf(stderr, "Can't create thread: %s\n",
+            log_fatal("Can't create thread: %s",
                     strerror(ret));
             exit(1);
         }

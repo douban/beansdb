@@ -22,6 +22,7 @@
 
 #include "codec.h"
 #include "fnv1a.h"
+#include "log.h"
 
 //#define min(a,b) ((a)<(b)?(a):(b))
 
@@ -141,20 +142,13 @@ int dc_load(Codec *dc, const char *buf, int size)
     if (offset > size) return -1;
     if (used > MAX_DICT_SIZE)
     {
-        fprintf(stderr, "number of formats overflow: %d > %d\n", used, MAX_DICT_SIZE);
+        log_error("number of formats overflow: %d > %d", used, MAX_DICT_SIZE);
         return -1;
     }
     unsigned int dict_size = min(used * 2, MAX_DICT_SIZE);
     if (dc->dict_size < dict_size)
     {
         dc->dict = (Fmt**) safe_realloc(dc->dict, sizeof(Fmt*) * dict_size);
-        /*
-         *if (dc->dict == NULL)
-         *{
-         *    fprintf(stderr, "_realloc failed: %lu\n", sizeof(Fmt*) * dict_size);
-         *    return -1;
-         *}
-         */
         dc->dict_size = dict_size;
     }
 
@@ -167,7 +161,7 @@ int dc_load(Codec *dc, const char *buf, int size)
         dc->dict[i] = (Fmt*)try_malloc(s);
         if (dc->dict[i] == NULL)
         {
-            fprintf(stderr, "try_malloc failed: %d\n", s);
+            log_error("try_malloc failed: %d", s);
             return -1;
         }
         dc->dict_used++;
@@ -277,7 +271,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
                     dict[dc->dict_used] = (Fmt*) safe_malloc(sizeof(Fmt) + flen - 7 + 1);
                     dict[dc->dict_used]->nargs = m;
                     safe_memcpy(dict[dc->dict_used]->fmt, fmt_size(dict[dc->dict_used]) - 1, fmt, flen + 1);
-                    // fprintf(stderr, "new fmt %d: %s <= %s\n", dc->dict_used, fmt, src);
+                    log_debug("new fmt %d: %s <= %s", dc->dict_used, fmt, src);
                     dc->rdict[h] = rh = dc->dict_used ++;
                     if ((unsigned int)(dc->dict_used) == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
                     {
@@ -286,7 +280,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
                 }
                 else
                 {
-                    fprintf(stderr, "not captched fmt: %s <= %s\n", fmt, src);
+                    log_error("not captched fmt: %s <= %s", fmt, src);
                     dc->rdict[h] = rh = -1; // not again
                 }
             }
@@ -328,19 +322,21 @@ int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
         Fmt *f = dc->dict[idx];
         if (f == NULL)
         {
-            fprintf(stderr, "invalid fmt index: %d\n", idx);
-            fprintf(stderr, "invalid key: ");
-            for (idx=0; idx < len; ++idx)
+            int key_buf_len = sizeof(char) * len * 2 + 1;
+            char *key_hex_buf = (char*)safe_malloc(key_buf_len);
+            *(key_hex_buf + key_buf_len - 1) = 0;
+            log_error("invalid fmt index: %d", idx);
+            for (idx = 0; idx < len; ++idx)
             {
-                fprintf(stderr, "%x ", src[idx]);
+                sprintf(key_hex_buf + 2 * idx, "%x", src[idx]);
             }
-            fprintf(stderr, "\n");
+            log_error("invalid key: %s", key_hex_buf);
             return 0;
         }
         int nlen = f->nargs * sizeof(int32_t) + ((char *)args - src);
         if (len != nlen)
         {
-            fprintf(stderr, "invalid length of key: %d != %d\n", len, nlen);
+            log_error("invalid length of key: %d != %d", len, nlen);
             return 0;
         }
         int rlen = 0;

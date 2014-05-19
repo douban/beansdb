@@ -31,6 +31,7 @@
 
 #include "util.h"
 #include "const.h"
+#include "log.h"
 
 
 const int PADDING = 256;
@@ -130,22 +131,15 @@ DataRecord* decompress_record(DataRecord *r)
         unsigned int csize = qlz_size_compressed(r->value);
         if (csize != r->vsz)
         {
-            fprintf(stderr, "broken compressed data: %d != %d, flag=%x\n", csize, r->vsz, r->flag);
+            log_error("broken compressed data: %d != %d, flag=%x", csize, r->vsz, r->flag);
             goto DECOMP_END;
         }
         unsigned int size = qlz_size_decompressed(r->value);
         char *v = (char*)safe_malloc(size);
-        /*
-        if (v == NULL)
-        {
-            fprintf(stderr, "_malloc(%d)\n", size);
-            goto DECOMP_END;
-        }
-        */
         unsigned int ret = qlz_decompress(r->value, v, scratch);
         if (ret != size)
         {
-            fprintf(stderr, "decompress %s failed: %d != %d\n", r->key, ret, size);
+            log_error("decompress %s failed: %d != %d", r->key, ret, size);
             goto DECOMP_END;
         }
         if (r->free_value)
@@ -170,19 +164,19 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
     int ksz = r->ksz, vsz = r->vsz;
     if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024)
     {
-        fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
+        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
         return NULL;
     }
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
     {
-        fprintf(stderr, "not enough data in buffer: %d < %d\n", size, need);
+        log_error("not enough data in buffer: %d < %d", size, need);
         return NULL;
     }
     uint32_t crc = crc32(0, (unsigned char*)buf + sizeof(uint32_t),  need - sizeof(uint32_t));
     if (r->crc != crc)
     {
-        fprintf(stderr, "CRC checksum failed\n");
+        log_error("CRC checksum failed");
         return NULL;
     }
 
@@ -208,14 +202,14 @@ DataRecord* read_record(FILE *f, bool decomp)
 
     if (fread(&r->crc, 1, PADDING, f) != PADDING)
     {
-        fprintf(stderr, "read record faied\n");
+        log_error("read record faied");
         goto READ_END;
     }
 
     int ksz = r->ksz, vsz = r->vsz;
     if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024)
     {
-        fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
+        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
         goto READ_END;
     }
 
@@ -237,7 +231,7 @@ DataRecord* read_record(FILE *f, bool decomp)
         if (need > 0 && need != (ret=fread(r->value + read_size, 1, need, f)))
         {
             r->key[ksz] = 0; // c str
-            fprintf(stderr, "read record %s faied: %d < %d @%lld\n", r->key, ret, need, ftello(f));
+            log_error("read record %s faied: %d < %d @%lld", r->key, ret, need, ftello(f));
             goto READ_END;
         }
     }
@@ -248,7 +242,7 @@ DataRecord* read_record(FILE *f, bool decomp)
     crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
-        fprintf(stderr, "%s @%lld crc32 check failed %d != %d\n", r->key, ftello(f), crc, r->crc);
+        log_error("%s @%lld crc32 check failed %d != %d", r->key, ftello(f), crc, r->crc);
         goto READ_END;
     }
 
@@ -270,14 +264,14 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
     {
-        fprintf(stderr, "read record faied\n");
+        log_error("read record faied");
         goto READ_END;
     }
 
     int ksz = r->ksz, vsz = r->vsz;
     if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024)
     {
-        fprintf(stderr, "invalid ksz=: %d, vsz=%d\n", ksz, vsz);
+        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
         goto READ_END;
     }
 
@@ -299,7 +293,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
         if (need > 0 && need != (ret=pread(fd, r->value + read_size, need, offset+PADDING)))
         {
             r->key[ksz] = 0; // c str
-            fprintf(stderr, "read record %s faied: %d < %d @%lld\n", r->key, ret, need, offset);
+            log_error("read record %s faied: %d < %d @%lld", r->key, ret, need, offset);
             goto READ_END;
         }
     }
@@ -310,7 +304,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
     crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
-        fprintf(stderr, "%s @%lld crc32 check failed %d != %d\n", r->key, offset, crc, r->crc);
+        log_error("%s @%lld crc32 check failed %d != %d", r->key, offset, crc, r->crc);
         goto READ_END;
     }
 
@@ -356,7 +350,7 @@ int write_record(FILE *f, DataRecord *r)
     char *data = encode_record(r, &size);
     if (fwrite(data, 1, size, f) < size)
     {
-        fprintf(stderr, "write %d byte failed\n", size);
+        log_error("write %d byte failed", size);
         free(data);
         return -1;
     }
@@ -369,7 +363,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     MFile *f = open_mfile(path);
     if (f == NULL) return;
 
-    fprintf(stderr, "scan datafile %s\n", path);
+    log_error("scan datafile %s", path);
     HTree *cur_tree = ht_new(0,0);
     char *p = f->addr, *end = f->addr + f->size;
     int broken = 0;
@@ -400,7 +394,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
             broken ++;
             if (broken > 40960)   // 10M
             {
-                fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr - broken * PADDING);
+                log_error("unexpected broken data in %s at %ld", path, p - f->addr - broken * PADDING);
                 break;
             }
             p += PADDING;
@@ -425,7 +419,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
     MFile *f = open_mfile(path);
     if (f == NULL) return;
 
-    fprintf(stderr, "scan datafile %s before %ld\n", path, before);
+    log_error("scan datafile %s before %ld", path, before);
     char *p = f->addr, *end = f->addr + f->size;
     int broken = 0;
     size_t last_advise = 0;
@@ -458,7 +452,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             broken ++;
             if (broken > 40960)   // 10M
             {
-                fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr - broken * PADDING);
+                log_error("unexpected broken data in %s at %ld", path, p - f->addr - broken * PADDING);
                 break;
             }
             p += PADDING;
@@ -522,7 +516,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             HintFile *hint = open_hint(lasthint, NULL);
             if (hint == NULL)
             {
-                fprintf(stderr, "open last hint file %s failed\n", lasthint);
+                log_error("open last hint file %s failed", lasthint);
                 close_mfile(f);
                 return 0;
             }
@@ -549,7 +543,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     }
     if (new_df == NULL)
     {
-        fprintf(stderr, "open new datafile failed\n");
+        log_error("open new datafile failed");
         close_mfile(f);
         return -1;
     }
@@ -567,7 +561,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             if (broken > 40960)   // 10M
             {
                 // TODO: delete broken keys from htree
-                fprintf(stderr, "unexpected broken data in %s at %ld\n", path, p - f->addr - broken * PADDING);
+                log_error("unexpected broken data in %s at %ld", path, p - f->addr - broken * PADDING);
                 break;
             }
             p += PADDING;
@@ -580,7 +574,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size)
             {
-                fprintf(stderr, "optimize %s into %s failed\n", path, lastdata);
+                log_error("optimize %s into %s failed", path, lastdata);
                 free(hintdata);
                 ht_destroy(cur_tree);
                 close_mfile(f);
@@ -609,7 +603,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
 
             if (write_record(new_df, r) != 0)
             {
-                fprintf(stderr, "write error: %s\n", path);
+                log_error("write error: %s", path);
                 free(hintdata);
                 ht_destroy(cur_tree);
                 close_mfile(f);
@@ -652,7 +646,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     write_hint_file(hintdata, hint_used, lasthint ? lasthint : hintpath);
     free(hintdata);
 
-    fprintf(stderr, "optimize %s complete, %d records deleted, %u bytes came back\n",
+    log_error("optimize %s complete, %d records deleted, %u bytes came back",
             path, deleted, deleted_bytes);
     return deleted_bytes;
 }
