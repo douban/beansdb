@@ -538,14 +538,14 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     {
         safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
         new_df = fopen(tmp, "wb");
+        if (new_df == NULL)
+        {
+            log_error("open new datafile failed");
+            close_mfile(f);
+            return -1;
+        }
         hintdata = (char*)safe_malloc(1<<20);
         hint_size = 1<<20;
-    }
-    if (new_df == NULL)
-    {
-        log_error("open new datafile failed");
-        close_mfile(f);
-        return -1;
     }
 
     HTree *cur_tree = ht_new(0,0);

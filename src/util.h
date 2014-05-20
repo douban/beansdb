@@ -77,6 +77,7 @@ _safe_realloc(void* ptr, size_t s, const char *file, int line, const char *func)
     void *p = realloc(ptr, s);
     if (unlikely(p == NULL))
     {
+        free(p);
         log_fatal("Realloc failed: %d, %zu bytes in %s (%s:%i)", errno, s, func, file, line);
         exit(1);
     }
@@ -91,6 +92,7 @@ _try_realloc(void* ptr, size_t s, const char *file, int line, const char *func)
     void *p = realloc(ptr, s);
     if (unlikely(p == NULL))
     {
+        free(p);
         log_warn("Realloc failed: %d, %zu bytes in %s (%s:%i), but continue working", errno, s, func, file, line);
     }
     return p;
