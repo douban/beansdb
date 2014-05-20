@@ -574,7 +574,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size)
             {
-                log_error("optimize %s into %s failed", path, lastdata);
+                log_warn("optimize %s into %s failed", path, lastdata);
                 free(hintdata);
                 ht_destroy(cur_tree);
                 close_mfile(f);
