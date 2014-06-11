@@ -19,7 +19,7 @@
 
 #include "zlog.h"
 
-static zlog_category_t *cat;
+zlog_category_t *cat;
 
 int log_init(const char* conf_path);
 void log_finish();

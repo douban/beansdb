@@ -345,7 +345,7 @@ void bc_optimize(Bitcask *bc, int limit)
     bc->optimize_flag = 1;
     const char *base = mgr_base(bc->mgr);
     // remove htree
-    for (i=0; i < bc->curr; i++)
+    for (i=0; i < bc->curr; ++i)
     {
         mgr_unlink(gen_path(NULL, 0, base, HTREE_FILE, i));
     }
@@ -363,7 +363,7 @@ void bc_optimize(Bitcask *bc, int limit)
 
     struct stat st;
     bool skipped = false;
-    for (i=0; i < bc->curr && bc->optimize_flag == 1; i++)
+    for (i=0; i < bc->curr && bc->optimize_flag == 1; ++i)
     {
         char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
         gen_path(datapath, MAX_PATH_LEN, base, DATA_FILE, i);
@@ -377,7 +377,7 @@ void bc_optimize(Bitcask *bc, int limit)
         {
             skipped = true;
 
-            last ++;
+            ++last;
             if (last != i)   // rotate data file
             {
                 char npath[MAX_PATH_LEN];
@@ -419,7 +419,7 @@ void bc_optimize(Bitcask *bc, int limit)
         uint32_t recoverd = 0;
         if (last == -1 || last_size + curr_size > MAX_BUCKET_SIZE)
         {
-            last ++;
+            ++last;
         }
         while (last < i)
         {
@@ -430,7 +430,7 @@ void bc_optimize(Bitcask *bc, int limit)
                                         skipped, MAX_BUCKET_SIZE, last, ldpath, lhpath);
             if (recoverd == 0)
             {
-                last ++;
+                ++last;
             }
             else
             {

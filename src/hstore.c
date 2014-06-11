@@ -502,14 +502,14 @@ void* do_optimize(void *arg)
 {
     HStore *store = (HStore *) arg;
     time_t st = time(NULL);
-    log_error("start to optimize from %d to %d",
+    log_warn("start to optimize from %d to %d",
             store->op_start, store->op_end);
-    for (; store->op_start < store->op_end; store->op_start ++)
+    for (; store->op_start < store->op_end; ++(store->op_start))
     {
         bc_optimize(store->bitcasks[store->op_start], store->op_limit);
     }
     store->op_start = store->op_end = 0;
-    log_error("optimization completed in %lld seconds",
+    log_warn("optimization completed in %lld seconds",
             (long long)(time(NULL) - st));
     return NULL;
 }

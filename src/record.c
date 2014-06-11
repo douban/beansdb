@@ -363,8 +363,8 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     MFile *f = open_mfile(path);
     if (f == NULL) return;
 
-    log_error("scan datafile %s", path);
-    HTree *cur_tree = ht_new(0,0);
+    log_warn("scan datafile %s", path);
+    HTree *cur_tree = ht_new(0, 0);
     char *p = f->addr, *end = f->addr + f->size;
     int broken = 0;
     size_t last_advise = 0;
@@ -505,7 +505,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
 
     FILE *new_df = NULL;
     char tmp[MAX_PATH_LEN], *hintdata = NULL;
-    uint32_t hint_used=0, hint_size = 0, old_data_size=0;
+    uint32_t hint_used = 0, hint_size = 0, old_data_size = 0;
     if (lastdata != NULL)
     {
         new_df = fopen(lastdata, "ab");
@@ -548,7 +548,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         hint_size = 1<<20;
     }
 
-    HTree *cur_tree = ht_new(0,0);
+    HTree *cur_tree = ht_new(0, 0);
     int deleted = 0, broken = 0;
     char *p = f->addr, *end = f->addr + f->size;
     size_t last_advise = 0;
