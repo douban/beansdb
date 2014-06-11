@@ -35,3 +35,4 @@ compile
 depcomp
 install-sh
 missing
+ar-lib
