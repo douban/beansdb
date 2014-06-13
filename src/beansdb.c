@@ -94,7 +94,6 @@ struct stats stats;
 struct settings settings;
 
 HStore *store = NULL;
-FILE   *access_log = NULL;
 int daemon_quit = 0;
 int    stopme = 0;
 
@@ -1296,7 +1295,7 @@ static void process_command(conn *c, char *command)
     }
 
     // access logging
-    if (NULL != access_log && ntokens >= 3)
+    if (ntokens >= 3)
     {
         /*
          *char now[255];
