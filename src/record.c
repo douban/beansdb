@@ -500,6 +500,7 @@ void update_items(Item *it, void *args)
 uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
                           bool skipped, uint32_t max_data_size, int last_bucket, const char *lastdata, const char *lasthint)
 {
+    //FIXME: open a data file but when to close.
     MFile *f = open_mfile(path);
     if (f == NULL) return -1;
 
@@ -508,16 +509,20 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     uint32_t hint_used = 0, hint_size = 0, old_data_size = 0;
     if (lastdata != NULL)
     {
+        //open a last data file
         new_df = fopen(lastdata, "ab");
         old_data_size = ftello(new_df);
 
+        // the last data file is not empty.
         if (old_data_size > 0)
         {
+            // open the last hint file.
             HintFile *hint = open_hint(lasthint, NULL);
             if (hint == NULL)
             {
                 log_error("open last hint file %s failed", lasthint);
                 close_mfile(f);
+                fclose(new_df);
                 return 0;
             }
             hint_size = hint->size * 2;
@@ -537,6 +542,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     else
     {
         safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
+        // open a tmp file
         new_df = fopen(tmp, "wb");
         if (new_df == NULL)
         {
