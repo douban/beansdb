@@ -276,11 +276,11 @@ static void merge_node(HTree *tree, Node *node)
 
     Node* child = get_child(tree, node, 0);
     int i, j;
-    for (i=0; i<BUCKET_SIZE; i++)
+    for (i=0; i<BUCKET_SIZE; ++i)
     {
-        Data *data = get_data(child+i);
+        Data *data = get_data(child + i);
         Item *it = data->head;
-        for (j=0; j < data->count; j++)
+        for (j=0; j < data->count; ++j)
         {
             if (it->ver > 0) {
                 add_item(tree, node, it, key_hash(tree, it), false);
