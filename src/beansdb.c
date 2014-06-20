@@ -2019,6 +2019,7 @@ int main (int argc, char **argv)
     int height = 1;
     time_t before_time = 0;
     bool daemonize = false;
+    bool use_before = false;
     int maxcore = 0;
     char *username = NULL;
     char *pid_file = NULL;
@@ -2032,6 +2033,7 @@ int main (int argc, char **argv)
     bool invalid_arg = false;
 
     char buf[] = "2000-01-01-00:00:00";
+    char fmt[] = "%Y-%m-%d-%H:%M:%S";
     char *portstr = NULL;
 
     /* init settings */
@@ -2102,6 +2104,7 @@ int main (int argc, char **argv)
         case 'm':
         {
             safe_memcpy(buf, sizeof(buf), optarg, strlen(optarg));
+            use_before = true;
             break;
         }
         case 'S':
@@ -2134,18 +2137,19 @@ int main (int argc, char **argv)
     {
         log_warn("Warning: item buffer size(-b) larger than 256KB may cause performance issue");
     }
-    char fmt[] = "%Y-%m-%d-%H:%M:%S";
-    struct tm tb;
-    if (strptime(buf, fmt, &tb) != 0)
+    if (use_before)
     {
-        before_time = timelocal(&tb);
+        struct tm tb;
+        if (strptime(buf, fmt, &tb) != 0)
+        {
+            before_time = timelocal(&tb);
+        }
+        else
+        {
+            log_fatal("invalid time:%s, need:%s", optarg, fmt);
+            exit(EXIT_FAILURE);
+        }
     }
-    else
-    {
-        log_fatal("invalid time:%s, need:%s", optarg, fmt);
-        exit(EXIT_FAILURE);
-    }
-
 
     if (maxcore != 0)
     {
