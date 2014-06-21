@@ -1858,7 +1858,7 @@ static void usage(void)
            "-l <ip_addr>  interface to listen on, default is INDRR_ANY\n"
            "-d            run as a daemon\n"
            "-P <file>     save PID in <file>, only used with -d option\n"
-           "-L <file>     log file\n"
+           "-L <file>     log file conf_path, use \"/etc/douban/beansdb/log.conf\" by default\n"
            "-r            maximize core file limit\n"
            "-u <username> assume identity of <username> (only when run as root)\n"
            "-c <num>      max simultaneous connections, default is 1024\n"
