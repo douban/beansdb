@@ -399,15 +399,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
             }
             p += PADDING;
         }
-        size_t pos = p - f->addr;
-        if (pos - last_advise > (64<<20))
-        {
-            madvise(f->addr, pos, MADV_DONTNEED);
-#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
-            posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
-#endif
-            last_advise = pos;
-        }
+         mfile_dontneed(f, p - f->addr, &last_advise);
     }
 
     close_mfile(f);
@@ -457,15 +449,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             }
             p += PADDING;
         }
-        size_t pos = p - f->addr;
-        if (pos - last_advise > (64<<20))
-        {
-            madvise(f->addr, pos, MADV_DONTNEED);
-#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
-            posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
-#endif
-            last_advise = pos;
-        }
+         mfile_dontneed(f, p - f->addr, &last_advise);
     }
 
     close_mfile(f);
@@ -627,14 +611,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
         p += record_length(r);
         free_record(r);
 
-        if (pos - last_advise > (64<<20))
-        {
-            madvise(f->addr, pos, MADV_DONTNEED);
-#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
-            posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
-#endif
-            last_advise = pos;
-        }
+        mfile_dontneed(f, pos, &last_advise);
     }
     uint32_t deleted_bytes = f->size - (ftello(new_df) - old_data_size);
 

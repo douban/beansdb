@@ -199,6 +199,17 @@ void close_mfile(MFile *f)
     free(f);
 }
 
+size_t mfile_dontneed(MFile* f,  size_t pos, size_t* last_advise) {
+    if (pos - *last_advise > (64<<20))
+    {
+        madvise(f->addr, pos, MADV_DONTNEED);
+#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
+        posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
+#endif
+        *last_advise = pos;
+    }
+}
+
 HintFile *open_hint(const char* path, const char* new_path)
 {
     MFile *f = open_mfile(path);
