@@ -26,7 +26,7 @@ void log_finish();
 #define log_fatal(FORMAT, ...) zlog_fatal(cat, FORMAT, ##__VA_ARGS__)
 #define log_error(FORMAT, ...) zlog_error(cat, FORMAT, ##__VA_ARGS__)
 #define log_warn(FORMAT, ...) zlog_warn(cat, FORMAT, ##__VA_ARGS__)
-#define log_notice(FORMAT, ...) zlog_notice(cat, FORMAT, ##_VA_ARGS__)
+#define log_notice(FORMAT, ...) zlog_notice(cat, FORMAT, ##__VA_ARGS__)
 #define log_info(FORMAT, ...) zlog_info(cat, FORMAT, ##__VA_ARGS__)
 #define log_debug(FORMAT, ...) zlog_debug(cat, FORMAT, ##__VA_ARGS__)
 #endif
