@@ -270,7 +270,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
                 {
                     dict[dc->dict_used] = (Fmt*) safe_malloc(sizeof(Fmt) + flen - 7 + 1);
                     dict[dc->dict_used]->nargs = m;
-                    safe_memcpy(dict[dc->dict_used]->fmt, fmt_size(dict[dc->dict_used]) - 1, fmt, flen + 1);
+                    memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
                     log_debug("new fmt %d: %s <= %s", dc->dict_used, fmt, src);
                     dc->rdict[h] = rh = dc->dict_used ++;
                     if ((unsigned int)(dc->dict_used) == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
