@@ -117,12 +117,7 @@ static inline bool file_exists(const char *path)
 
 static inline char *gen_path(char *dst, int dst_size, const char *base, const char *fmt, int i)
 {
-    static char path[MAX_PATH_LEN];
     char name[16];
-    if (dst == NULL) {
-        dst = path;
-        dst_size = MAX_PATH_LEN;
-    }
     safe_snprintf(name, 16, fmt, i);
     safe_snprintf(dst, dst_size , "%s/%s",  base, name);
     return dst;
@@ -241,8 +236,8 @@ void bc_scan(Bitcask* bc)
     {
         if (ht_save(bc->tree, new_path(datapath, MAX_PATH_LEN, bc->mgr, HTREE_FILE, i-1)) == 0)
         {
-            mgr_unlink(gen_path(NULL, 0, base, HTREE_FILE, bc->last_snapshot));
-
+            char htreepath_tmp[MAX_PATH_LEN];
+            mgr_unlink(gen_path(htreepath_tmp, MAX_PATH_LEN, base, HTREE_FILE, bc->last_snapshot));
             bc->last_snapshot = i-1;
         }
         else
@@ -344,10 +339,11 @@ void bc_optimize(Bitcask *bc, int limit)
     int i, total, last = -1;
     bc->optimize_flag = 1;
     const char *base = mgr_base(bc->mgr);
+    char htreepath_tmp[MAX_PATH_LEN];
     // remove htree
     for (i=0; i < bc->curr; ++i)
     {
-        mgr_unlink(gen_path(NULL, 0, base, HTREE_FILE, i));
+        mgr_unlink(gen_path(htreepath_tmp, MAX_PATH_LEN, base, HTREE_FILE, i));
     }
     bc->last_snapshot = -1;
 
