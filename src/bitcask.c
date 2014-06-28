@@ -514,11 +514,10 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         }
     }
 
-    char fname[20], data[MAX_PATH_LEN];
-    const char * path = mgr_base(bc->mgr);
-    safe_snprintf(fname, 20, DATA_FILE, bucket);
-    safe_snprintf(data, MAX_PATH_LEN, "%s/%s", path, fname);
-    int fd = open(data, O_RDONLY);
+    char datapath[MAX_PATH_LEN];
+    const char * base= mgr_base(bc->mgr);
+    gen_path(datapath, MAX_PATH_LEN, base,  DATA_FILE, bucket);
+    int fd = open(datapath, O_RDONLY);
     if (-1 == fd)
     {
         goto GET_END;
@@ -528,7 +527,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     if (NULL == r)
     {
         if (bc->optimize_flag == 0)
-            log_error("Bug: get %s failed in %s %u %u", key, path, bucket, pos);
+            log_error("Bug: get %s failed in %s %u %u", key, base, bucket, pos);
     }
     else
     {
