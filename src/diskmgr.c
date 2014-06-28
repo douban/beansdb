@@ -200,14 +200,19 @@ void mgr_rename(const char *oldpath, const char *newpath)
 {
     struct stat sb;
     char ropath[MAX_PATH_LEN];
+    char rnpath[MAX_PATH_LEN];
     if (lstat(oldpath, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
     {
         int n = readlink(oldpath, ropath, MAX_PATH_LEN);
         if (n > 0)
         {
             ropath[n] = 0;
-            char *rnpath = strcat(strcat(dirname(strdup(ropath)), "/"),
-                                  basename(strdup(newpath)));
+            char *ropath_dup = strdup(ropath);
+            char *newpath_dup = strdup(newpath);
+            sprintf(rnpath, "%s/%s", dirname(ropath_dup), basename(newpath_dup));
+            free(ropath_dup);
+            free(newpath_dup); 
+
             rename(ropath, rnpath);
             unlink(oldpath);
             if (symlink(rnpath, newpath) != 0)

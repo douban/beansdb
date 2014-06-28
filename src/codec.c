@@ -330,6 +330,7 @@ int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
             {
                 sprintf(key_hex_buf + 2 * idx, "%x", src[idx]);
             }
+            free(key_hex_buf);
             log_error("invalid key: %s", key_hex_buf);
             return 0;
         }
