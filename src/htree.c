@@ -35,7 +35,7 @@ const int MAX_DEPTH = 8;
 static const long long g_index[] = {0, 1, 17, 273, 4369, 69905, 1118481, 17895697, 286331153, 4581298449L};
 
 const char VERSION[] = "HTREE001";
-
+#define TREE_BUF_SIZE 512 
 #define max(a,b) ((a)>(b)?(a):(b))
 #define INDEX(it) (0x0f & (keyhash >> ((7 - node->depth - tree->depth) * 4)))
 #define KEYLENGTH(it) ((it)->length-sizeof(Item)+ITEM_PADDING)
@@ -70,7 +70,7 @@ struct t_hash_tree
     Node *root;
     Codec *dc;
     pthread_mutex_t lock;
-    char buf[512];
+    char buf[TREE_BUF_SIZE];
 };
 
 
@@ -119,7 +119,7 @@ static Item* create_item(HTree *tree, const char* key, int len, uint32_t pos, ui
     it->pos = pos;
     it->ver = ver;
     it->hash = hash;
-    int n = dc_encode(tree->dc, it->key, 512 - (sizeof(Item) - ITEM_PADDING) , key, len);
+    int n = dc_encode(tree->dc, it->key, TREE_BUF_SIZE - (sizeof(Item) - ITEM_PADDING) , key, len);
     it->length = sizeof(Item) + n - ITEM_PADDING;
     return it;
 }
@@ -480,14 +480,12 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
         Data *data = get_data(node);
         Item *p = data->head;
         Item *it = (Item*)tree->buf;
-        int buf_size = 512;
+        int buf_size = TREE_BUF_SIZE - (sizeof(Item) - ITEM_PADDING);;
         int decode_len;
         for (i=0; i<data->count; i++)
         {
             safe_memcpy(it, buf_size, p, sizeof(Item));
-            buf_size -= (sizeof(Item) - ITEM_PADDING);
             decode_len = dc_decode(tree->dc, it->key, buf_size, p->key, KEYLENGTH(p));
-            buf_size -= decode_len;
             it->length = sizeof(Item) + strlen(it->key) - ITEM_PADDING;
             visitor(it, param);
             p = (Item*)((char*)p + p->length);
