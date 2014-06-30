@@ -247,6 +247,10 @@ void bc_scan(Bitcask* bc)
     }
 
     bc->curr = i;
+    if (i > 0)
+    {
+        log_notice("bitcask %x loaded, curr = %d", bc->pos , i);
+    }
 }
 
 /*
@@ -472,7 +476,7 @@ void bc_optimize(Bitcask *bc, int limit)
     }
     pthread_mutex_unlock(&bc->flush_lock);
     pthread_mutex_unlock(&bc->write_lock);
-
+    log_notice("bitcask %x optimization done, curr = %d", bc->pos, bc->curr);
     bc->optimize_flag = 0;
 }
 
@@ -490,7 +494,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     uint32_t pos = item->pos & 0xffffff00;
     if (bucket > (uint32_t)(bc->curr))
     {
-        log_error("BUG: invalid bucket %d > %d", bucket, bc->curr);
+        log_error("Bug: invalid bucket %d > %d, bitcask %x, key = %s", bucket, bc->curr, bc->pos, key);
         ht_remove(bc->tree, key);
         free(item);
         return NULL;
@@ -606,21 +610,21 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
         FILE *f = fopen(buf, "ab");
         if (f == NULL)
         {
-            log_error("open file %s for flushing failed.", buf);
+            log_error("open file %s for flushing failed. exit!", buf);
             exit(1);
         }
         // check file size
         uint64_t last_pos = ftello(f);
         if (last_pos > 0 && last_pos != bc->wbuf_start_pos)
         {
-            log_error("last pos not match: %"PRIu64" != %d in %s", last_pos, bc->wbuf_start_pos, buf);
+            log_error("last pos not match: %"PRIu64" != %d in %s. exit!", last_pos, bc->wbuf_start_pos, buf);
             exit(1);
         }
 
         size_t n = fwrite(tmp, 1, size, f);
         if (n < size)
         {
-            log_error("write failed: return %zu", n);
+            log_error("write failed: return %zu. exit!", n);
             exit(1);
         }
         free(tmp);

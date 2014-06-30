@@ -592,7 +592,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
 
             if (write_record(new_df, r) != 0)
             {
-                log_error("write error: %s", path);
+                log_error("write error: %s -> %d, old src data size = %d", path, last_bucket, old_data_size);
                 free(hintdata);
                 ht_destroy(cur_tree);
                 close_mfile(f);
@@ -628,7 +628,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     write_hint_file(hintdata, hint_used, lasthint ? lasthint : hintpath);
     free(hintdata);
 
-    log_error("optimize %s complete, %d records deleted, %u bytes came back",
-            path, deleted, deleted_bytes);
+    log_notice("optimize %s -> %d complete, %d records deleted, %u bytes released",
+            path, last_bucket, deleted, deleted_bytes);
     return deleted_bytes;
 }

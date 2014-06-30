@@ -2300,6 +2300,7 @@ int main (int argc, char **argv)
 
     /* enter the event loop */
     printf("all ready.\n");
+    log_notice("all ready.");
     loop_run(settings.num_threads);
 
     /* wait other thread to ends */
