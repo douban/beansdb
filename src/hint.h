@@ -17,19 +17,9 @@
 #ifndef __HINT_H__
 #define __HINT_H__
 
+#include "mfile.h"
 #include "htree.h"
 #include "util.h"
-
-typedef struct
-{
-    int fd;
-    size_t size;
-    char *addr;
-} MFile;
-
-MFile* open_mfile(const char* path);
-void close_mfile(MFile *f);
-void write_file(char *buf, int size, const char* path);
 
 #define NAME_IN_RECORD 2
 

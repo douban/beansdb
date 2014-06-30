@@ -14,14 +14,10 @@
  *
  */
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <pthread.h>
 #include <time.h>
 
 #include "hint.h"
@@ -35,12 +31,8 @@
 #include <unistd.h>
 #endif
 
+#include "mfile.h"
 #include "log.h"
-
-const  int MAX_MMAP_SIZE = 1<<12; // 4G
-static int curr_mmap_size = 0;
-static pthread_mutex_t mmap_lock = PTHREAD_MUTEX_INITIALIZER;
-
 
 // for build hint
 struct param
@@ -119,95 +111,6 @@ void build_hint(HTree* tree, const char* hintpath)
 
     write_hint_file(p.buf, p.curr, hintpath);
     free(p.buf);
-}
-
-MFile* open_mfile(const char* path)
-{
-    int fd = open(path, O_RDONLY);
-    if (fd == -1)
-    {
-        log_error("open mfile %s failed", path);
-        return NULL;
-    }
-
-    struct stat sb;
-    if (fstat(fd, &sb) == -1)
-    {
-        close(fd);
-        return  NULL;
-    }
-#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
-    posix_fadvise(fd, 0, sb.st_size, POSIX_FADV_SEQUENTIAL);
-#endif
-
-    pthread_mutex_lock(&mmap_lock);
-    int mb = sb.st_size >> 20;
-    while (curr_mmap_size + mb > MAX_MMAP_SIZE && mb > 100)
-    {
-        pthread_mutex_unlock(&mmap_lock);
-        sleep(5);
-        pthread_mutex_lock(&mmap_lock);
-    }
-    curr_mmap_size += mb;
-    pthread_mutex_unlock(&mmap_lock);
-
-    MFile *f = (MFile*) safe_malloc(sizeof(MFile));
-    f->fd = fd;
-    f->size = sb.st_size;
-
-    if (f->size > 0)
-    {
-        f->addr = (char*) mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-        if (f->addr == MAP_FAILED)
-        {
-            log_error("mmap failed %s", path);
-            close(fd);
-            pthread_mutex_lock(&mmap_lock);
-            curr_mmap_size -= mb;
-            pthread_mutex_unlock(&mmap_lock);
-            free(f);
-            return NULL;
-        }
-
-        if (madvise(f->addr, sb.st_size, MADV_SEQUENTIAL) < 0)
-        {
-            log_error("Unable to madvise() region %p", f->addr);
-        }
-    }
-    else
-    {
-        f->addr = NULL;
-    }
-
-    return f;
-}
-
-void close_mfile(MFile *f)
-{
-    if (f->addr)
-    {
-        madvise(f->addr, f->size, MADV_DONTNEED);
-        munmap(f->addr, f->size);
-    }
-#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
-    posix_fadvise(f->fd, 0, f->size, POSIX_FADV_DONTNEED);
-#endif
-    close(f->fd);
-    pthread_mutex_lock(&mmap_lock);
-    curr_mmap_size -= f->size >> 20;
-    pthread_mutex_unlock(&mmap_lock);
-    free(f);
-}
-
-size_t mfile_dontneed(MFile* f,  size_t pos, size_t* last_advise) {
-    if (pos - *last_advise > (64<<20))
-    {
-        madvise(f->addr, pos, MADV_DONTNEED);
-#if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
-        posix_fadvise(f->fd, 0, pos, POSIX_FADV_DONTNEED);
-#endif
-        *last_advise = pos;
-    }
 }
 
 HintFile *open_hint(const char* path, const char* new_path)

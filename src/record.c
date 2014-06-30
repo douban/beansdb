@@ -14,9 +14,7 @@
  *
  */
 
-#include <sys/mman.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -29,6 +27,7 @@
 #include "quicklz.h"
 #include "fnv1a.h"
 
+#include "mfile.h"
 #include "util.h"
 #include "const.h"
 #include "log.h"
