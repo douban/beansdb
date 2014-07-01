@@ -27,6 +27,7 @@
 #include "codec.h"
 #include "const.h"
 #include "log.h"
+#include "diskmgr.h"
 
 const int MAX_KEY_LENGTH = 200;
 const int BUCKET_SIZE = 16;
@@ -693,6 +694,76 @@ FAIL:
     return NULL;
 }
 
+static int ht_save2(HTree *tree, FILE* f)
+{
+    off_t pos = 0;
+    if (fwrite(VERSION, sizeof(VERSION), 1, f) != 1 ||
+            fwrite(&pos, sizeof(off_t), 1, f) != 1)
+    {
+        log_error("write version failed");
+        return -1;
+    }
+
+
+    int pool_size = g_index[tree->height];
+    if (fwrite(&tree->height, sizeof(int), 1, f) != 1 ||
+            fwrite(tree->root, sizeof(Node) * pool_size, 1, f) != 1 )
+    {
+        log_error("write nodes failed");
+        return -1;
+    }
+
+    int i, zero = 0;
+    for (i=0; i<pool_size; i++)
+    {
+        Data *data= tree->root[i].data;
+        if (data)
+        {
+            if (fwrite(&data->used, sizeof(int), 1, f) != 1
+                    || fwrite(data, data->used, 1, f) != 1)
+            {
+                log_error("write pool failed");
+                return -1;
+            }
+        }
+        else
+        {
+            if (fwrite(&zero, sizeof(int), 1, f) != 1)
+            {
+                log_error("write zero failed");
+                return -1;
+            }
+        }
+    }
+
+    int s = dc_size(tree->dc);
+    char *buf = (char*)safe_malloc(s + sizeof(int));
+    *(int*)buf = s;
+    if (dc_dump(tree->dc, buf + sizeof(int), s) != s)
+    {
+        log_error("dump Codec failed");
+        free(buf);
+        return -1;
+    }
+    if (fwrite(buf, s + sizeof(int), 1, f) != 1)
+    {
+        log_error("write Codec failed");
+        free(buf);
+        return -1;
+    }
+    free(buf);
+
+    pos = ftello(f);
+    fseeko(f, sizeof(VERSION), 0);
+    if (fwrite(&pos, sizeof(off_t), 1, f) != 1)
+    {
+        log_error("write size failed");
+        return -1;
+    }
+
+    return 0;
+}
+
 int ht_save(HTree *tree, const char *path)
 {
     if (!tree || !path) return -1;
@@ -706,84 +777,13 @@ int ht_save(HTree *tree, const char *path)
         log_error("open %s failed", tmp);
         return -1;
     }
-
-    off_t pos = 0;
-    if (fwrite(VERSION, sizeof(VERSION), 1, f) != 1 ||
-            fwrite(&pos, sizeof(off_t), 1, f) != 1)
-    {
-        log_error("write version failed");
-        fclose(f);
-        return -1;
-    }
-
     pthread_mutex_lock(&tree->lock);
-
-    int pool_size = g_index[tree->height];
-    if (fwrite(&tree->height, sizeof(int), 1, f) != 1 ||
-            fwrite(tree->root, sizeof(Node) * pool_size, 1, f) != 1 )
-    {
-        log_error("write nodes failed");
-        fclose(f);
-        return -1;
-    }
-
-    int i, zero = 0;
-    for (i=0; i<pool_size; i++)
-    {
-        Data *data= tree->root[i].data;
-        if (data)
-        {
-            if (fwrite(&data->used, sizeof(int), 1, f) != 1
-                    || fwrite(data, data->used, 1, f) != 1)
-            {
-                fclose(f);
-                return -1;
-            }
-        }
-        else
-        {
-            if (fwrite(&zero, sizeof(int), 1, f) != 1)
-            {
-                fclose(f);
-                return -1;
-            }
-        }
-    }
-
-    int s = dc_size(tree->dc);
-    char *buf = (char*)safe_malloc(s + sizeof(int));
-    *(int*)buf = s;
-    if (dc_dump(tree->dc, buf + sizeof(int), s) != s)
-    {
-        log_error("dump Codec failed");
-        free(buf);
-        fclose(f);
-        return -1;
-    }
-    if (fwrite(buf, s + sizeof(int), 1, f) != 1)
-    {
-        log_error("write Codec failed");
-        free(buf);
-        fclose(f);
-        return -1;
-    }
-    free(buf);
-
-    pos = ftello(f);
-    fseeko(f, sizeof(VERSION), 0);
-    if (fwrite(&pos, sizeof(off_t), 1, f) != 1)
-    {
-        log_error("write size failed");
-        fclose(f);
-        return -1;
-    }
-
+    int ret = ht_save2(tree, f);
     pthread_mutex_unlock(&tree->lock);
-
     fclose(f);
-    rename(tmp, path);
 
-    return 0;
+    mgr_rename(tmp, path);
+    return ret;
 }
 
 void ht_destroy(HTree *tree)
