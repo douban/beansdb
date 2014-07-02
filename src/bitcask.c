@@ -339,7 +339,7 @@ static void update_item_pos(Item *it, void *_args)
     }
 }
 
-void bc_optimize(Bitcask *bc, int limit)
+int bc_optimize(Bitcask *bc, int limit)
 {
     int i, total, last = -1;
     bc->optimize_flag = 1;
@@ -479,6 +479,7 @@ void bc_optimize(Bitcask *bc, int limit)
     pthread_mutex_unlock(&bc->write_lock);
     log_notice("bitcask %x optimization done, curr = %d", bc->pos, bc->curr);
     bc->optimize_flag = 0;
+    return 0;
 }
 
 DataRecord* bc_get(Bitcask *bc, const char* key)

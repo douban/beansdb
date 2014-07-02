@@ -1251,6 +1251,20 @@ static void process_command(conn *c, char *command)
         process_verbosity_command(c, tokens, ntokens);
 
     }
+    else if (ntokens == 2 &&  (strcmp(tokens[COMMAND_TOKEN].value, "optimize_stat") == 0))
+    {
+        int ret = hs_optimize_stat(store);
+        if (ret >= 0)
+        {
+            char buf[100];
+            sprintf(buf, "running bitcast 0x%x", ret);
+            out_string(c, buf);
+        }
+        else if (ret == -1)
+            out_string(c, "success");
+        else
+            out_string(c, "fail");
+    }
     else if (ntokens >= 2 && ntokens <= 4 && (strcmp(tokens[COMMAND_TOKEN].value, "flush_all") == 0))
     {
 
@@ -2309,7 +2323,7 @@ int main (int argc, char **argv)
     pthread_detach(flush_id);
 
     hs_close(store);
-    log_error("done.");
+    log_notice("close done.");
     log_finish();
 /*
  *

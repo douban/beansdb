@@ -47,7 +47,7 @@ struct t_hstore
     int height, count;
     time_t before;
     int scan_threads;
-    int op_start, op_end, op_limit; // for optimization
+    int op_start, op_end, op_laststat, op_limit; // for optimization
     Mgr* mgr;
     pthread_mutex_t locks[NUM_OF_MUTEX];
     Bitcask* bitcasks[];
@@ -502,15 +502,16 @@ void* do_optimize(void *arg)
 {
     HStore *store = (HStore *) arg;
     time_t st = time(NULL);
-    log_notice("start to optimize from %d to %d, limit %d",
-            store->op_start, store->op_end, store->op_limit);
-    for (; store->op_start < store->op_end; ++(store->op_start))
+    log_notice("start to optimize from 0x%x to 0x%x, limit %d",
+            store->op_start, store->op_end - 1 , store->op_limit);
+    store->op_laststat = 0;
+    for (; store->op_start < store->op_end && store->op_laststat == 0; ++(store->op_start))
     {
-        bc_optimize(store->bitcasks[store->op_start], store->op_limit);
+        store->op_laststat = bc_optimize(store->bitcasks[store->op_start], store->op_limit);
     }
     store->op_start = store->op_end = 0;
-    log_notice("optimization completed in %lld seconds",
-            (long long)(time(NULL) - st));
+    log_notice("optimization %s in %lld seconds",
+           store->op_laststat >=0 ?"completed":"failed",  (long long)(time(NULL) - st));
     return NULL;
 }
 
@@ -532,6 +533,16 @@ bool hs_optimize(HStore *store, int limit)
     }
 
     return true;
+}
+
+    
+//>=0 running; == -1 ok; < -1 err
+int hs_optimize_stat(HStore *store)
+{ 
+    if (store->op_start < store->op_end)
+        return store->op_start;
+    else
+        return store->op_laststat - 1;
 }
 
 bool hs_delete(HStore *store, char *key)
