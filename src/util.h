@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #ifdef HAVE_MALLOC_H
 /* OpenBSD has a malloc.h, but warns to use stdlib.h instead */
@@ -181,4 +182,21 @@ gen_path(char *dst, const char *base, const char *fmt, int i, const size_t max_p
 */
 #define min(a,b) ((a)<(b)?(a):(b))
 
+inline int safe_strtol(const char *str, int base, long *out)
+{
+    if (!out)
+        return 0;
+    errno = 0;
+    *out = 0;
+    char *endptr;
+    long l = strtoul(str, &endptr, base);
+    if (errno == ERANGE)
+        return 0;
+    if (isspace(*endptr) || (*endptr == '\0' && endptr != str))
+    {
+        *out = l;
+        return 1;
+    }
+    return 0;
+}
 #endif

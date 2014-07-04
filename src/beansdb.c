@@ -1267,24 +1267,34 @@ static void process_command(conn *c, char *command)
     }
     else if (ntokens >= 2 && ntokens <= 4 && (strcmp(tokens[COMMAND_TOKEN].value, "flush_all") == 0))
     {
-
         set_noreply_maybe(c, tokens, ntokens);
+        ntokens -= (c->noreply ? 1 : 0);
 
-        int limit = 10000;
-        if (ntokens == (c->noreply ? 4 : 3))
+        long limit = 10000;
+        char *tree = "@";
+
+        if (ntokens >= 3)
         {
-            limit = strtol(tokens[1].value, NULL, 10);
-            if(errno == ERANGE)
+            if (!safe_strtol(tokens[1].value, 10, &limit))
             {
                 out_string(c, "CLIENT_ERROR bad command line format");
                 return;
             }
+            if (ntokens >= 4)
+            {
+                tree = tokens[2].value;
+            }
         }
-
-        hs_optimize(store, limit);
-        out_string(c, "OK");
+        int ret = hs_optimize(store, limit, tree);
+        if (ret == 0)
+            out_string(c, "OK");
+        else if(ret == -1)
+            out_string(c, "ERROR READ_ONLY");
+        else if(ret == -2)
+            out_string(c, "ERROR OPTIMIZE_RUNNING");
+        else if(ret == -3)
+            out_string(c, "CLIENT_ERROR bad command line format");
         return;
-
     }
     else if (stopme && ntokens == 2 && (strcmp(tokens[COMMAND_TOKEN].value, "stopme") == 0))
     {

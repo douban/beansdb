@@ -515,26 +515,53 @@ void* do_optimize(void *arg)
     return NULL;
 }
 
-bool hs_optimize(HStore *store, int limit)
+static bool tree2range(char* tree, int height, int*start, int *end)
 {
-    if (store->before > 0) return false;
-    bool processing = store->op_start < store->op_end;
-    if (processing)
+    int count = 1 << (height * 4);
+    *start = 0;
+    *end = count;
+
+    int len = strlen(tree);
+    int shift = (height - (len - 1))* 4;
+    if (len < 1 || tree[0] != '@' || shift < 0)
     {
-        store->op_start = store->op_end = 0;
-    }
-    else
-    {
-        pthread_t id;
-        store->op_limit = limit;
-        store->op_start = 0;
-        store->op_end = 1 << (store->height * 4);
-        pthread_create(&id, NULL, do_optimize, store);
+        return false;
     }
 
+    if (len > 1)
+    {
+        long n = 0;
+        if (!safe_strtol(tree + 1, 16, &n) || n > count-1  || n < 0)
+        {
+            return false;
+        }
+        *start = n << shift;
+        *end = (n + 1) << shift;
+        if (*start < 0 || *start > count || *end < 0 || *end > count)
+            return false;
+    }
     return true;
 }
 
+int hs_optimize(HStore *store, long limit, char* tree)
+{
+    if (store->before > 0) 
+        return  -1;
+    if (store->op_start < store->op_end)
+        return  -2;
+
+    int start, end;
+    if (!tree2range(tree, store->height, &start, &end))
+        return -3;
+
+    pthread_t id;
+    store->op_limit = limit;
+    store->op_start = start;
+    store->op_end = end;
+    pthread_create(&id, NULL, do_optimize, store);
+
+    return 0;
+}
     
 //>=0 running; == -1 ok; < -1 err
 int hs_optimize_stat(HStore *store)

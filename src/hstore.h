@@ -32,6 +32,6 @@ int64_t hs_incr(HStore *store, char *key, int64_t value);
 bool    hs_delete(HStore *store, char *key);
 uint64_t hs_count(HStore *store, uint64_t *curr);
 void    hs_stat(HStore *store, uint64_t *total, uint64_t *avail);
-bool    hs_optimize(HStore *store, int limit);
+int     hs_optimize(HStore *store, long limit, char* tree);
 int     hs_optimize_stat(HStore *store);
 #endif
