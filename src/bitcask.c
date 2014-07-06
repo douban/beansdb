@@ -42,8 +42,8 @@
 
 #define MAX_BUCKET_COUNT 256
 
+extern struct settings settings;
 const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
-const uint32_t MAX_BUCKET_SIZE = (uint32_t)(4000 << 20); // 4G
 const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
 const int SAVE_HTREE_LIMIT = 5;
@@ -418,7 +418,7 @@ int bc_optimize(Bitcask *bc, int limit)
 
         // last data file size
         uint32_t recoverd = 0;
-        if (last == -1 || last_size + curr_size > MAX_BUCKET_SIZE)
+        if (last == -1 || last_size + curr_size > settings.max_bucket_size)
         {
             ++last;
         }
@@ -428,7 +428,7 @@ int bc_optimize(Bitcask *bc, int limit)
             new_path(ldpath, MAX_PATH_LEN, bc->mgr, DATA_FILE, last);
             new_path(lhpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, last);
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath,
-                                        skipped, MAX_BUCKET_SIZE, last, ldpath, lhpath);
+                                        skipped, settings.max_bucket_size, last, ldpath, lhpath);
             if (recoverd == 0)
             {
                 ++last;
@@ -442,7 +442,7 @@ int bc_optimize(Bitcask *bc, int limit)
         {
             // last == i
             recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath,
-                                        skipped, MAX_BUCKET_SIZE, last, NULL, NULL);
+                                        skipped, settings.max_bucket_size, last, NULL, NULL);
         }
 
         pthread_mutex_lock(&bc->buffer_lock);
@@ -658,7 +658,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
             }
         }
 
-        if (bc->wbuf_start_pos + bc->wbuf_size > MAX_BUCKET_SIZE)
+        if (bc->wbuf_start_pos + bc->wbuf_size > settings.max_bucket_size)
         {
             bc_rotate(bc);
         }
@@ -771,7 +771,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
             free(bc->write_buffer);
             bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
         }
-        if (bc->wbuf_start_pos + bc->wbuf_size > MAX_BUCKET_SIZE)
+        if (bc->wbuf_start_pos + bc->wbuf_size > settings.max_bucket_size)
         {
             bc_rotate(bc);
         }

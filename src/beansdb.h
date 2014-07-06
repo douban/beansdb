@@ -146,6 +146,7 @@ struct settings
     int flush_period;
     int flush_limit;
     int num_threads;        /* number of libevent threads to run */
+    uint32_t max_bucket_size; 
 };
 
 extern struct stats stats;

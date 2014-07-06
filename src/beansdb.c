@@ -141,6 +141,7 @@ static void settings_init(void)
     settings.flush_limit = 1024; // 1M
     settings.flush_period = 60 * 10; // 10 min
     settings.slow_cmd_time = 0.1; // 100ms
+    settings.max_bucket_size  = (uint32_t)(4000 << 20); // 4G
 }
 
 /*
@@ -2067,7 +2068,7 @@ int main (int argc, char **argv)
     setbuf(stderr, NULL);
 
     /* process arguments */
-    while ((c = getopt(argc, argv, "p:c:hivl:dru:P:L:t:b:H:T:m:s:f:n:S")) != -1)
+    while ((c = getopt(argc, argv, "p:c:hivl:dru:P:L:t:b:H:T:m:s:f:F:n:S")) != -1)
     {
         switch (c)
         {
@@ -2121,6 +2122,9 @@ int main (int argc, char **argv)
             break;
         case 'f':
             settings.flush_period = atoi(optarg);
+            break;
+        case 'F':
+            settings.max_bucket_size = (uint32_t) atoll(optarg);
             break;
         case 'n':
             settings.flush_limit = atoi(optarg);
