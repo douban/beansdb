@@ -32,6 +32,14 @@ struct disk_mgr
     int ndisks;
 };
 
+static inline char* simple_basename(const char *path)
+{
+    char *p = path + strlen(path);
+    while (*p != '/' && p >= path)
+        --p;
+    return ++p;
+}
+
 Mgr* mgr_create(const char **disks, int ndisks)
 {
     char *cwd = getcwd(NULL, 0);
@@ -212,10 +220,8 @@ void mgr_rename(const char *oldpath, const char *newpath)
         {
             ropath[n] = 0;
             char *ropath_dup = strdup(ropath);
-            char *newpath_dup = strdup(newpath);
-            sprintf(rnpath, "%s/%s", dirname(ropath_dup), basename(newpath_dup));
+            sprintf(rnpath, "%s/%s", dirname(ropath_dup), simple_basename(newpath));
             free(ropath_dup);
-            free(newpath_dup); 
 
             rename(ropath, rnpath);
             unlink(oldpath);
