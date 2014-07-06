@@ -131,6 +131,7 @@ static inline char *new_path(char *dst, int dst_size, Mgr *mgr, const char *fmt,
         char name[16];
         safe_snprintf(name, 16, fmt, i);
         safe_snprintf(path, dst_size, "%s/%s",  mgr_alloc(mgr, name), name);
+        log_notice("mgr_alloc %s", path);
     }
     return path;
 }

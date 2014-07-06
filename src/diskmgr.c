@@ -151,7 +151,7 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
             return mgr->disks[i];
         }
         uint64_t avail = get_disk_avail(mgr->disks[i], NULL);
-        if (avail > maxa)
+        if (avail > maxa || (avail == maxa && (rand() & 1) == 1) )
         {
             maxa = avail;
             maxi = i;
@@ -179,7 +179,10 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
 void mgr_unlink(const char *path)
 {
     struct stat sb;
-    if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
+    if ( 0 != lstat(path, &sb))
+        return;
+    log_notice("mgr_unlink %s", path);
+    if ((sb.st_mode & S_IFMT) == S_IFLNK)
     {
         char buf[MAX_PATH_LEN];
         int n = readlink(path, buf, MAX_PATH_LEN);
@@ -198,6 +201,7 @@ void mgr_unlink(const char *path)
 
 void mgr_rename(const char *oldpath, const char *newpath)
 {
+    log_notice("mgr_rename %s -> %s", oldpath, newpath);
     struct stat sb;
     char ropath[MAX_PATH_LEN];
     char rnpath[MAX_PATH_LEN];
