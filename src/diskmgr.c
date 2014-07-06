@@ -94,18 +94,53 @@ Mgr* mgr_create(const char **disks, int ndisks)
             safe_snprintf(target, MAX_PATH_LEN, "%s/%s", disks[i], de->d_name);
             if (stat(target, &sb) != 0)
             {
+                mgr_readlink(target, real, MAX_PATH_LEN);
+                log_warn("find empty link in startup %s -> %s, unlink!", target, real);
                 unlink(target);
+                continue;
             }
-            if (i == 0) continue;
+            if (sb.st_size == 0)
+            {
+                log_warn("rm empty file/link in startup %s, unlink!", target);
+                unlink(target);
+                continue;
+            }
+            if (i == 0) 
+            {
+                if (lstat(target, &sb) == 0 
+                        && (sb.st_mode & S_IFMT) == S_IFLNK 
+                    && mgr_readlink(target, real, MAX_PATH_LEN) <= 0)
+                {
+                    log_warn("rm bad link in startup %s, unlink!", target);
+                    unlink(target);
+                }
+                continue;
+            }
             if (lstat(target, &sb) != 0 || (sb.st_mode & S_IFMT) != S_IFREG)
             {
+                log_warn("find non-regular file on non-0 disk  %s, unlink", target);
                 unlink(target);
                 continue;
             }
             safe_snprintf(sym, MAX_PATH_LEN, "%s/%s", disks[0], de->d_name);
-            if (0 == stat(sym, &sb)) continue;
+            if (0 == lstat(sym, &sb)) 
+            {
+                if ((sb.st_mode & S_IFMT) == S_IFLNK
+                        && mgr_readlink(sym, real, MAX_PATH_LEN) > 0
+                        && strncmp(target, real, MAX_PATH_LEN) == 0
+                        && strncmp(simple_basename(target), simple_basename(real), MAX_PATH_LEN) == 0
+                        )
+                {
+                    continue;
+                }
+                else 
+                {
+                    log_fatal("bad link:%s for file %s, exit! ", sym, target);
+                    exit(-1);
+                }
+            }
             int r = 0;
-            if (target[0] != '/')
+            if (target[0] != '/')//TODO: better change all disks at the begining
             {
                 safe_snprintf(real, MAX_PATH_LEN, "%s/%s", cwd, target);
                 r = symlink(real, sym);
@@ -116,8 +151,10 @@ Mgr* mgr_create(const char **disks, int ndisks)
             }
             if (0 != r)
             {
-                log_error("symlink failed %s -> %s", sym, target);
+                log_fatal("symlink failed %s -> %s, exit!", sym, target);
+                exit(-1);
             }
+            log_warn("auto link for %s", target);
         }
         (void) closedir(dp);
         //}
@@ -125,6 +162,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
     free(cwd);
     return mgr;
 }
+
 
 void mgr_destroy(Mgr *mgr)
 {
@@ -227,10 +265,11 @@ void mgr_rename(const char *oldpath, const char *newpath)
     char rnpath[MAX_PATH_LEN];
     if (lstat(oldpath, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
     {
-        int n = readlink(oldpath, ropath, MAX_PATH_LEN);
+        int n = mgr_readlink(oldpath, ropath, MAX_PATH_LEN);
         if (n > 0)
         {
             char *ropath_dup = strdup(ropath);
+            log_notice("mgr_rename real %s -> %s", oldpath, newpath);
             sprintf(rnpath, "%s/%s", dirname(ropath_dup), simple_basename(newpath));
             free(ropath_dup);
 
