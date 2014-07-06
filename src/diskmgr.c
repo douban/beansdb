@@ -34,10 +34,27 @@ struct disk_mgr
 
 static inline char* simple_basename(const char *path)
 {
-    char *p = path + strlen(path);
+    char *p = (char*)path + strlen(path);
     while (*p != '/' && p >= path)
         --p;
     return ++p;
+}
+
+ssize_t mgr_readlink(const char *path, char *buf, size_t bufsiz)
+{
+    int n = readlink(path, buf, bufsiz);
+    if (n < 0)
+    {
+        log_fatal("readlink fail %s", path);
+        return -1;
+    }
+    buf[n] = 0;
+    if (strncmp(simple_basename(path), simple_basename(buf), bufsiz) != 0 )
+    {
+        log_fatal("basename not match %s->%s", path, buf);
+        return -2;
+    }
+    return n;
 }
 
 Mgr* mgr_create(const char **disks, int ndisks)
@@ -193,15 +210,10 @@ void mgr_unlink(const char *path)
     if ((sb.st_mode & S_IFMT) == S_IFLNK)
     {
         char buf[MAX_PATH_LEN];
-        int n = readlink(path, buf, MAX_PATH_LEN);
+        int n = mgr_readlink(path, buf, MAX_PATH_LEN);
         if (n > 0)
         {
-            buf[n] = 0;
             unlink(buf);
-        }
-        else
-        {
-            log_error("readlink failed: %s", path);
         }
     }
     unlink(path);
@@ -218,7 +230,6 @@ void mgr_rename(const char *oldpath, const char *newpath)
         int n = readlink(oldpath, ropath, MAX_PATH_LEN);
         if (n > 0)
         {
-            ropath[n] = 0;
             char *ropath_dup = strdup(ropath);
             sprintf(rnpath, "%s/%s", dirname(ropath_dup), simple_basename(newpath));
             free(ropath_dup);
@@ -227,10 +238,6 @@ void mgr_rename(const char *oldpath, const char *newpath)
             unlink(oldpath);
             if (symlink(rnpath, newpath) != 0)
                 log_error("symlink failed: %s -> %s", rnpath, newpath);
-        }
-        else
-        {
-            log_error("readlink failed: %s", oldpath);
         }
     }
     else
