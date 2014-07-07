@@ -257,6 +257,7 @@ void mgr_unlink(const char *path)
     unlink(path);
 }
 
+//caller guarantee newpath not exist
 void mgr_rename(const char *oldpath, const char *newpath)
 {
     log_notice("mgr_rename %s -> %s", oldpath, newpath);
@@ -273,15 +274,18 @@ void mgr_rename(const char *oldpath, const char *newpath)
             free(ropath_dup);
 
             if (symlink(rnpath, newpath) != 0)
+            {
                 log_error("symlink failed: %s -> %s", rnpath, newpath);
+                exit(-1);
+            }
             log_notice("mgr_rename real %s -> %s", ropath, rnpath);
-            rename(ropath, rnpath);
+            if (rename(ropath, rnpath) != 0) exit; 
             unlink(oldpath);
         }
     }
     else
     {
-        rename(oldpath, newpath);
+        if (rename(oldpath, newpath)) exit;
     }
 }
 
