@@ -767,6 +767,7 @@ static int ht_save2(HTree *tree, FILE* f)
 int ht_save(HTree *tree, const char *path)
 {
     if (!tree || !path) return -1;
+    mgr_unlink(path);
 
     char tmp[MAX_PATH_LEN];
     safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
@@ -782,7 +783,10 @@ int ht_save(HTree *tree, const char *path)
     pthread_mutex_unlock(&tree->lock);
     fclose(f);
 
-    mgr_rename(tmp, path);
+    if (ret == 0)
+        mgr_rename(tmp, path);
+    else
+        mgr_unlink(tmp);
     return ret;
 }
 
