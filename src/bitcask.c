@@ -386,6 +386,14 @@ int bc_optimize(Bitcask *bc, int limit)
             ++last;
             if (last != i)   // rotate data file
             {
+                // update HTree to use new index
+                if (stat(hintpath, &st) != 0)
+                {
+                    log_error("no hint file: %s, skip it", hintpath);
+                    last = i;
+                    continue;
+                }
+
                 char npath[MAX_PATH_LEN];
                 gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
                 if (symlink(datapath, npath) != 0)
@@ -395,13 +403,6 @@ int bc_optimize(Bitcask *bc, int limit)
                     continue;
                 }
 
-                // update HTree to use new index
-                if (stat(hintpath, &st) != 0)
-                {
-                    log_error("no hint file: %s, skip it", hintpath);
-                    last = i;
-                    continue;
-                }
                 HTree *tree = ht_new(bc->depth, bc->pos);
                 scanHintFile(tree, i, hintpath, NULL);
                 struct update_args args;
