@@ -269,14 +269,14 @@ void mgr_rename(const char *oldpath, const char *newpath)
         if (n > 0)
         {
             char *ropath_dup = strdup(ropath);
-            log_notice("mgr_rename real %s -> %s", oldpath, newpath);
             sprintf(rnpath, "%s/%s", dirname(ropath_dup), simple_basename(newpath));
             free(ropath_dup);
 
-            rename(ropath, rnpath);
-            unlink(oldpath);
             if (symlink(rnpath, newpath) != 0)
                 log_error("symlink failed: %s -> %s", rnpath, newpath);
+            log_notice("mgr_rename real %s -> %s", ropath, rnpath);
+            rename(ropath, rnpath);
+            unlink(oldpath);
         }
     }
     else
