@@ -140,11 +140,11 @@ static void skip_empty_file(Bitcask* bc)
 {
     int i, last=0;
     char opath[MAX_PATH_LEN], npath[MAX_PATH_LEN];
-
     const char* base = mgr_base(bc->mgr);
+    struct stat sb;
     for (i=0; i<MAX_BUCKET_COUNT; i++)
     {
-        if (file_exists(gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, i)))
+        if (stat(gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, i), &sb) == 0 && sb.st_size > 0)
         {
             if (i != last)
             {
@@ -158,6 +158,11 @@ static void skip_empty_file(Bitcask* bc)
                 mgr_unlink(gen_path(opath, MAX_PATH_LEN, base, HTREE_FILE, i));
             }
             ++last;
+        }
+        else if (lstat(opath,&sb) == 0)
+        {
+            log_fatal("Bug: find emptylink %s", opath);
+            exit(-1);
         }
     }
 }
