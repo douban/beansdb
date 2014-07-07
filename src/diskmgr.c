@@ -151,7 +151,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
             }
             if (0 != r)
             {
-                log_fatal("symlink failed %s -> %s, exit!", sym, target);
+                log_fatal("symlink failed %s -> %s, err: %s, exit!", sym, target, strerror(errno));
                 exit(-1);
             }
             log_warn("auto link for %s", target);
@@ -257,6 +257,7 @@ void mgr_unlink(const char *path)
     unlink(path);
 }
 
+
 //caller guarantee newpath not exist
 void mgr_rename(const char *oldpath, const char *newpath)
 {
@@ -275,17 +276,25 @@ void mgr_rename(const char *oldpath, const char *newpath)
 
             if (symlink(rnpath, newpath) != 0)
             {
-                log_error("symlink failed: %s -> %s", rnpath, newpath);
+                log_fatal("symlink failed: %s -> %s, err: %s, exit!", rnpath, newpath, strerror(errno));
                 exit(-1);
             }
             log_notice("mgr_rename real %s -> %s", ropath, rnpath);
-            if (rename(ropath, rnpath) != 0) exit; 
+            if (rename(ropath, rnpath) != 0) 
+            {
+                log_error("rename failed: %s -> %s, err: %s, exit!", ropath, rnpath, strerror(errno));
+                exit(-1);
+            }; 
             unlink(oldpath);
         }
     }
     else
     {
-        if (rename(oldpath, newpath)) exit;
+        if (rename(oldpath, newpath) != 0) 
+        {
+            log_error("rename failed: %s -> %s, err:%s, exit!", oldpath, newpath, strerror(errno));
+            exit(-1);
+        }; 
     }
 }
 

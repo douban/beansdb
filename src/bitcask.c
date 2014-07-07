@@ -398,7 +398,7 @@ int bc_optimize(Bitcask *bc, int limit)
                 gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
                 if (symlink(datapath, npath) != 0)
                 {
-                    log_error("symlink failed: %s -> %s", datapath, npath);
+                    log_fatal("symlink failed: %s -> %s, err:%s", datapath, npath, strerror(errno));
                     last = i;
                     continue;
                 }
@@ -468,7 +468,7 @@ int bc_optimize(Bitcask *bc, int limit)
         {
             gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
             if (symlink(opath, npath) != 0)
-                log_error("symlink failed: %s -> %s", opath, npath);
+                log_fatal("symlink failed: %s -> %s, err:%s", opath, npath, strerror(errno));
 
             struct update_args args;
             args.tree = bc->tree;
