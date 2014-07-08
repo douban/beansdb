@@ -2125,6 +2125,9 @@ int main (int argc, char **argv)
             break;
         case 'F':
             settings.max_bucket_size = (uint32_t) atoll(optarg);
+            if (settings.max_bucket_size < 5) 
+                settings.max_bucket_size = 5;
+            settings.max_bucket_size *= (1024 * 1024);
             break;
         case 'n':
             settings.flush_limit = atoi(optarg);
