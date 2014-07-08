@@ -66,6 +66,9 @@ struct bitcask_t
     uint32_t    wbuf_size, wbuf_start_pos, wbuf_curr_pos;
     pthread_mutex_t flush_lock, buffer_lock, write_lock;
     int    optimize_flag;
+    char   *flush_buffer; 
+    uint32_t    fbuf_size, fbuf_start_pos;
+    int     flushing_bucket;
 };
 
 Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
@@ -103,6 +106,10 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     bc->wbuf_size = 1024 * 4;
     bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
     bc->last_flush_time = time(NULL);
+    bc->flush_buffer = NULL;
+    bc->fbuf_start_pos = 0;
+    bc->fbuf_size = 0;
+    bc->flushing_bucket = -1;
     pthread_mutex_init(&bc->buffer_lock, NULL);
     pthread_mutex_init(&bc->write_lock, NULL);
     pthread_mutex_init(&bc->flush_lock, NULL);
@@ -509,13 +516,23 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     }
 
     DataRecord* r = NULL;
-    if (bucket == (uint32_t)(bc->curr))
+    if (bucket == (uint32_t)(bc->curr) || bucket == (uint32_t)(bc->flushing_bucket))     
     {
         pthread_mutex_lock(&bc->buffer_lock);
         if (bucket == (uint32_t)(bc->curr) && pos >= bc->wbuf_start_pos)
         {
             uint32_t p = pos - bc->wbuf_start_pos;
             r = decode_record(bc->write_buffer + p, bc->wbuf_curr_pos - p, true);
+        }
+        else if (bucket == (uint32_t)(bc->flushing_bucket) && pos >= bc->fbuf_start_pos)
+        {
+            if (bc->flush_buffer == NULL)
+            {
+                log_fatal("Bug: flush_buf is NULL");
+                return NULL;
+            }
+            uint32_t p = pos - bc->fbuf_start_pos;
+            r = decode_record(bc->flush_buffer + p, bc->fbuf_size - p, true);
         }
         pthread_mutex_unlock(&bc->buffer_lock);
 
@@ -607,13 +624,42 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
     if (bc->wbuf_curr_pos > limit * 1024 ||
             (now > bc->last_flush_time + flush_period && bc->wbuf_curr_pos > 0))
     {
+        bc->flushing_bucket = bc->curr;
         uint32_t size = bc->wbuf_curr_pos;
-        char * tmp = (char*)safe_malloc(size);
-        memcpy(tmp, bc->write_buffer, size); // safe
+        bc->flush_buffer = (char*)safe_malloc(size);
+        memcpy(bc->flush_buffer, bc->write_buffer, size); // safe
+        bc->fbuf_size = size;
+
+        uint32_t last_pos = bc->wbuf_start_pos;
+        if (bc->wbuf_size < WRITE_BUFFER_SIZE)
+        {
+            bc->wbuf_size *= 2;
+            free(bc->write_buffer);
+            bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
+        }
+        else if (bc->wbuf_size > WRITE_BUFFER_SIZE * 2)
+        {
+            bc->wbuf_size = WRITE_BUFFER_SIZE;
+            free(bc->write_buffer);
+            bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
+        }
+
+        bc->bytes += size;
+        bc->curr_bytes += size;
+        bc->fbuf_start_pos = bc->wbuf_start_pos;
+        bc->wbuf_curr_pos -= size;
+        bc->wbuf_start_pos += size;
+
+        if (bc->wbuf_start_pos + bc->wbuf_size > settings.max_bucket_size)
+        {
+            log_notice("bitcask 0x%x bc_rotate after buffer write : curr %d -> %d, wbuf_size = %d, limit = %d, file size= %d, last_flush =  %d",
+                    bc->pos, bc->curr, bc->curr+1, bc->wbuf_size, limit, bc->wbuf_start_pos, size);
+            bc_rotate(bc);
+        }
         pthread_mutex_unlock(&bc->buffer_lock);
 
         char buf[MAX_PATH_LEN];
-        new_path(buf, MAX_PATH_LEN, bc->mgr, DATA_FILE, bc->curr);
+        new_path(buf, MAX_PATH_LEN, bc->mgr, DATA_FILE, bc->flushing_bucket);
 
         FILE *f = fopen(buf, "ab");
         if (f == NULL)
@@ -622,52 +668,26 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
             exit(1);
         }
         // check file size
-        uint64_t last_pos = ftello(f);
-        if (last_pos > 0 && last_pos != bc->wbuf_start_pos)
+        uint64_t file_size = ftello(f);
+        if (last_pos > 0 && last_pos != file_size)
         {
-            log_error("last pos not match: %"PRIu64" != %d in %s. exit!", last_pos, bc->wbuf_start_pos, buf);
+            log_error("last pos not match: %"PRIu64" != %d in %s. exit!", file_size, last_pos, buf);
             exit(1);
         }
 
-        size_t n = fwrite(tmp, 1, size, f);
+        size_t n = fwrite(bc->flush_buffer, 1, size, f);
         if (n < size)
         {
             log_error("write failed: return %zu. exit!", n);
             exit(1);
         }
-        free(tmp);
         fclose(f);
         bc->last_flush_time = now;
 
         pthread_mutex_lock(&bc->buffer_lock);
-        bc->bytes += n;
-        bc->curr_bytes += n;
-        if (n < bc->wbuf_curr_pos)
-        {
-            memmove(bc->write_buffer, bc->write_buffer + n, bc->wbuf_curr_pos - n);
-        }
-        bc->wbuf_start_pos += n;
-        bc->wbuf_curr_pos -= n;
-        if (bc->wbuf_curr_pos == 0)
-        {
-            if (bc->wbuf_size < WRITE_BUFFER_SIZE)
-            {
-                bc->wbuf_size *= 2;
-                free(bc->write_buffer);
-                bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
-            }
-            else if (bc->wbuf_size > WRITE_BUFFER_SIZE * 2)
-            {
-                bc->wbuf_size = WRITE_BUFFER_SIZE;
-                free(bc->write_buffer);
-                bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
-            }
-        }
-
-        if (bc->wbuf_start_pos + bc->wbuf_size > settings.max_bucket_size)
-        {
-            bc_rotate(bc);
-        }
+        bc->flushing_bucket = -1;
+        free(bc->flush_buffer);
+        bc->flush_buffer = NULL;
     }
 
     pthread_mutex_unlock(&bc->buffer_lock);
@@ -768,7 +788,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
     if (bc->wbuf_curr_pos + rlen > bc->wbuf_size)
     {
         pthread_mutex_unlock(&bc->buffer_lock);
-        bc_flush(bc, 0, 0);
+        bc_flush(bc, 0, 0);//just to clear write_buffer so we can enlarge it 
         pthread_mutex_lock(&bc->buffer_lock);
 
         while (rlen > bc->wbuf_size)
@@ -779,6 +799,8 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
         }
         if (bc->wbuf_start_pos + bc->wbuf_size > settings.max_bucket_size)
         {
+            log_notice("bitcask 0x%x bc_rotate for large record: curr %d -> %d, record size = %d",
+                    bc->pos, bc->curr, bc->curr+1, rlen);
             bc_rotate(bc);
         }
     }
