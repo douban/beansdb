@@ -156,7 +156,7 @@ int dc_load(Codec *dc, const char *buf, int size)
     for (i = 1; i < used; ++i)
     {
         int s = *(unsigned char*)buf++;
-        offset += sizeof(unsigned char*);
+        offset += sizeof(unsigned char);
         if (offset > size) return -1;
         dc->dict[i] = (Fmt*)try_malloc(s);
         if (dc->dict[i] == NULL)
