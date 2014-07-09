@@ -48,9 +48,9 @@ const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
 const int SAVE_HTREE_LIMIT = 5;
 
-const char DATA_FILE[] = "%03d.data";
-const char HINT_FILE[] = "%03d.hint.qlz";
-const char HTREE_FILE[] = "%03d.htree";
+const char DATA_FILE[] = "%s/%03d.data";
+const char HINT_FILE[] = "%s/%03d.hint.qlz";
+const char HTREE_FILE[] = "%s/%03d.htree";
 
 struct bitcask_t
 {
@@ -124,9 +124,7 @@ static inline bool file_exists(const char *path)
 
 static inline char *gen_path(char *dst, int dst_size, const char *base, const char *fmt, int i)
 {
-    char name[16];
-    safe_snprintf(name, 16, fmt, i);
-    safe_snprintf(dst, dst_size , "%s/%s",  base, name);
+    safe_snprintf(dst, dst_size , fmt,  base, i);
     return dst;
 }
 
@@ -136,7 +134,7 @@ static inline char *new_path(char *dst, int dst_size, Mgr *mgr, const char *fmt,
     if (!file_exists(dst))
     {
         char name[16];
-        safe_snprintf(name, 16, fmt, i);
+        safe_snprintf(name, 16, fmt + 3, i);
         safe_snprintf(path, dst_size, "%s/%s",  mgr_alloc(mgr, name), name);
         log_notice("mgr_alloc %s", path);
     }
