@@ -82,6 +82,17 @@ static void split_node(HTree *tree, Node *node);
 static void merge_node(HTree *tree, Node *node);
 static void update_node(HTree *tree, Node *node);
 
+static inline bool check_version(Item *oldit, Item * newit) 
+{
+    if (abs(newit->ver) >= abs(oldit->ver))
+        return true;
+    else
+    {
+        log_error("BUG: bad version, key=%s, oldv=%d, newv=%d", oldit->key, oldit->ver, newit->ver);
+        return false;
+    }
+}
+
 static inline uint32_t get_pos(HTree *tree, Node *node)
 {
     return (node - tree->root) - g_index[(int)node->depth];
@@ -169,7 +180,8 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     for (i=0; i<data->count; ++i)
     {
         if (it->length == p->length &&
-                memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+                memcmp(it->key, p->key, KEYLENGTH(it)) == 0 &&
+                check_version(p, it))
         {
             node->hash += (HASH(it) - HASH(p)) * keyhash;
             node->count += (it->ver > 0);
@@ -256,7 +268,8 @@ static void remove_item(HTree *tree, Node *node, Item *it, uint32_t keyhash)
     for (i=0; i < data->count; ++i)
     {
         if (it->length == p->length &&
-                memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+                memcmp(it->key, p->key, KEYLENGTH(it)) == 0 &&
+                check_version(p, it))
         {
             data->count--;
             data->used -= p->length;
