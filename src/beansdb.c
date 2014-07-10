@@ -689,7 +689,6 @@ typedef struct token_s
 #define COMMAND_TOKEN 0
 #define SUBCOMMAND_TOKEN 1
 #define KEY_TOKEN 1
-#define KEY_MAX_LENGTH 250
 
 #define MAX_TOKENS 8
 
@@ -903,7 +902,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens)
             key = key_token->value;
             nkey = key_token->length;
 
-            if(nkey > KEY_MAX_LENGTH)
+            if(nkey > MAX_KEY_LEN)
             {
                 STATS_LOCK();
                 stats.get_cmds   += stats_get_cmds;
@@ -1025,7 +1024,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
 
     set_noreply_maybe(c, tokens, ntokens);
 
-    if (tokens[KEY_TOKEN].length > KEY_MAX_LENGTH)
+    if (tokens[KEY_TOKEN].length > MAX_KEY_LEN)
     {
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
@@ -1097,7 +1096,7 @@ static void process_arithmetic_command(conn *c, token_t *tokens, const size_t nt
     stats.set_cmds++;
     STATS_UNLOCK();
 
-    if (tokens[KEY_TOKEN].length > KEY_MAX_LENGTH)
+    if (tokens[KEY_TOKEN].length > MAX_KEY_LEN)
     {
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
@@ -1142,7 +1141,7 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
 
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
-    if(nkey > KEY_MAX_LENGTH)
+    if(nkey > MAX_KEY_LEN)
     {
         out_string(c, "CLIENT_ERROR bad command line format");
         return;

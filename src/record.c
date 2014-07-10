@@ -39,6 +39,16 @@ const int32_t CLIENT_COMPRESS_FLAG = 0x00000010;
 const float COMPRESS_RATIO_LIMIT = 0.7;
 const int TRY_COMPRESS_SIZE = 1024 * 10;
 
+static inline bool bad_kv_size(int ksz, int vsz)
+{
+    if (ksz < 0 || ksz > MAX_KEY_LEN || vsz < 0 || vsz > 50 * 1024 * 1024)
+    {
+        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
+        return true;
+    }
+    return false; 
+}
+
 uint32_t gen_hash(char *buf, int len)
 {
     uint32_t hash = len * 97;
@@ -161,11 +171,9 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
 {
     DataRecord *r = (DataRecord *) (buf - sizeof(char*));
     int ksz = r->ksz, vsz = r->vsz;
-    if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024)
-    {
-        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
+    if (bad_kv_size(ksz, vsz))
         return NULL;
-    }
+
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
     {
@@ -206,11 +214,9 @@ DataRecord* read_record(FILE *f, bool decomp)
     }
 
     int ksz = r->ksz, vsz = r->vsz;
-    if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024)
-    {
-        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
+
+    if (bad_kv_size(ksz, vsz))
         goto READ_END;
-    }
 
     uint32_t crc_old = r->crc;
     int read_size = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;
@@ -268,11 +274,9 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
     }
 
     int ksz = r->ksz, vsz = r->vsz;
-    if (ksz < 0 || ksz > 200 || vsz < 0 || vsz > 100 * 1024 * 1024)
-    {
-        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
+
+    if (bad_kv_size(ksz, vsz))
         goto READ_END;
-    }
 
     uint32_t crc_old = r->crc;
     int read_size = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;

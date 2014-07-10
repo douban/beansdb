@@ -29,7 +29,6 @@
 #include "log.h"
 #include "diskmgr.h"
 
-const int MAX_KEY_LENGTH = 200;
 const int BUCKET_SIZE = 16;
 const int SPLIT_LIMIT = 64;
 const int MAX_DEPTH = 8;
@@ -120,8 +119,8 @@ static inline void set_data(Node *node, Data *data)
 
 static inline uint32_t key_hash(HTree *tree, Item* it)
 {
-    char buf[MAX_KEY_LENGTH];
-    int n = dc_decode(tree->dc, buf, MAX_KEY_LENGTH, it->key, KEYLENGTH(it));
+    char buf[KEY_BUF_LEN];
+    int n = dc_decode(tree->dc, buf, KEY_BUF_LEN, it->key, KEYLENGTH(it));
     return fnv1a(buf, n);
 }
 
@@ -450,7 +449,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
     {
         Data *data = get_data(node);
         Item *it = data->head;
-        char pbuf[20], key[255];
+        char pbuf[20], key[KEY_BUF_LEN];
         int prefix_len = 0;
         if (prefix != NULL) prefix_len = strlen(prefix);
         for (i=0; i<data->count; i++, it = (Item*)((char*)it + it->length))
@@ -463,7 +462,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
                     continue;
                 }
             }
-            int l = dc_decode(tree->dc, key, 255, it->key, KEYLENGTH(it));
+            int l = dc_decode(tree->dc, key, KEY_BUF_LEN, it->key, KEYLENGTH(it));
             if (prefix == NULL || (l >= prefix_len && strncmp(key, prefix, prefix_len) == 0))
             {
                 n += safe_snprintf(buf + n, bsize - n, "%s %u %d\n", key, it->hash, it->ver);
@@ -829,7 +828,7 @@ static inline uint32_t keyhash(const char *s, int len)
 bool check_key(HTree *tree, const char* key, int len)
 {
     if (!tree || !key) return false;
-    if (len == 0 || len > MAX_KEY_LENGTH)
+    if (len == 0 || len > MAX_KEY_LEN)
     {
         log_error("bad key len=%d", len);
         return false;

@@ -20,6 +20,7 @@
 
 #define MAX_PATH_LEN (255)
 #define META_BUF_SIZE (256)
-#define MAX_KEY_LEN (255)
+#define MAX_KEY_LEN (250)
+#define KEY_BUF_LEN (256)
 
 #endif
