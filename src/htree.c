@@ -465,12 +465,13 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
             int l = dc_decode(tree->dc, key, KEY_BUF_LEN, it->key, KEYLENGTH(it));
             if (prefix == NULL || (l >= prefix_len && strncmp(key, prefix, prefix_len) == 0))
             {
-                n += safe_snprintf(buf + n, bsize - n, "%s %u %d\n", key, it->hash, it->ver);
-                if (bsize - n < 200)
+                if (bsize - n < KEY_BUF_LEN + 32)
                 {
                     bsize *= 2;
                     buf = (char*)safe_realloc(buf, bsize);
                 }
+
+                n += safe_snprintf(buf + n, bsize - n, "%s %u %d\n", key, it->hash, it->ver);
             }
         }
     }
