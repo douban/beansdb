@@ -1882,15 +1882,16 @@ static void usage(void)
            "-l <ip_addr>  interface to listen on, default is INDRR_ANY\n"
            "-d            run as a daemon\n"
            "-P <file>     save PID in <file>, only used with -d option\n"
-           "-L <file>     log file conf_path, use \"/etc/douban/beansdb/log.conf\" by default\n"
+           "-L <file>     zlog config file path, default is \'beansdb_log.conf\'\n"
            "-r            maximize core file limit\n"
            "-u <username> assume identity of <username> (only when run as root)\n"
            "-c <num>      max simultaneous connections, default is 1024\n"
-           "-t <num>      number of threads to use (include scanning), default 16\n"
+           "-t <num>      number of threads to use (include scanning), default is 16\n"
            "-H <dir>      home of database, default is 'testdb', multi-dir(splitted by ,;:)\n"
            "-T <num>      log of the number of db files(base 16), default is 1(16^1=16)\n"
            "-s <num>      slow command time limit, in ms, default is 100ms\n"
-           "-f <num>      flush period, default is 600 secs\n"
+           "-f <num>      flush period(in secs) , default is 600 secs\n"
+           "-F <num>      max size of a data file(in MB), default and at most 4000(MB), at least 5(MB)\n"
            "-n <num>      flush limit(in KB), default is 1024 (KB)\n"
            "-m <time>     serve data written before <time> (read-only)\n"
            "-v            verbose (print errors/warnings while in event loop)\n"
@@ -2145,8 +2146,10 @@ int main (int argc, char **argv)
         }
     }
 
-    if (!conf_path) conf_path = "/etc/douban/beansdb/log.conf";
-    log_init(conf_path);
+    if (!conf_path) conf_path = "./beansdb_log.conf";
+    if ( 0 != log_init(conf_path))
+        exit(-1);
+
     if (invalid_arg)
     {
         log_fatal("Illegal argument \"%c\"", c);
