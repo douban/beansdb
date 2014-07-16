@@ -42,11 +42,6 @@
 #include <inttypes.h>
 #include <ctype.h>
 
-/* unistd.h is here */
-#if HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
 #if defined(__FreeBSD__) || defined(__APPLE__)

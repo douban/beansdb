@@ -25,13 +25,13 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
-#include "util.h"
-#include "log.h"
-
-/* unistd.h is here */
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+
+
+#include "util.h"
+#include "log.h"
 
 #define MAX_ITEM_FREELIST_LENGTH 4000
 #define INIT_ITEM_FREELIST_LENGTH 500

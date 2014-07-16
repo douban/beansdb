@@ -84,7 +84,6 @@ typedef bool _Bool;
 typedef unsigned char             uint8_t;
 #endif
 
-/* unistd.h is here */
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -268,6 +267,7 @@ int store_item(item *item, int comm);
 
 void thread_init(int nthreads);
 int add_event(int fd, int mask, conn *c);
+int delete_event(int fd);
 void loop_run(int nthreads);
 
 int drive_machine(conn *c);

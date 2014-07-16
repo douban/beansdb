@@ -30,7 +30,10 @@
 #include "diskmgr.h"
 #include "fnv1a.h"
 
-/* unistd.h is here */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif

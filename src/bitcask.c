@@ -27,6 +27,14 @@
 #include <time.h>
 #include <inttypes.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "bitcask.h"
 #include "htree.h"
 #include "record.h"
@@ -35,10 +43,6 @@
 #include "const.h"
 #include "log.h"
 
-/* unistd.h is here */
-#if HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #define MAX_BUCKET_COUNT 256
 
@@ -506,7 +510,8 @@ int bc_optimize(Bitcask *bc, int limit)
     }
     pthread_mutex_unlock(&bc->flush_lock);
     pthread_mutex_unlock(&bc->write_lock);
-    log_notice("bitcask %x optimization done, curr = %d", bc->pos, bc->curr);
+    if (last > 0)
+        log_notice("bitcask %x optimization done, curr = %d, last = %d", bc->pos, bc->curr, last);
     bc->optimize_flag = 0;
     return 0;
 }
@@ -687,7 +692,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
         uint64_t file_size = ftello(f);
         if (last_pos > 0 && last_pos != file_size)
         {
-            log_error("last pos not match: %"PRIu64" != %d in %s. exit!", file_size, last_pos, buf);
+            log_error("last pos not match: %"PRIu64" != %u in %s. exit!", file_size, last_pos, buf);
             exit(1);
         }
 

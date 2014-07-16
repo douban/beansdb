@@ -34,7 +34,7 @@ const int SPLIT_LIMIT = 64;
 const int MAX_DEPTH = 8;
 static const long long g_index[] = {0, 1, 17, 273, 4369, 69905, 1118481, 17895697, 286331153, 4581298449L};
 
-const char VERSION[] = "HTREE001";
+const char HTREE_VERSION[] = "HTREE001";
 #define TREE_BUF_SIZE 512 
 #define max(a,b) ((a)>(b)?(a):(b))
 #define INDEX(it) (0x0f & (keyhash >> ((7 - node->depth - tree->depth) * 4)))
@@ -554,7 +554,7 @@ HTree* ht_new(int depth, int pos)
 
 HTree* ht_open(int depth, int pos, const char *path)
 {
-    char version[sizeof(VERSION)+1] = {0};
+    char version[sizeof(HTREE_VERSION)+1] = {0};
     HTree *tree = NULL;
     Node *root = NULL;
     int pool_used = 0;
@@ -567,8 +567,8 @@ HTree* ht_open(int depth, int pos, const char *path)
         return NULL;
     }
 
-    if (fread(version, sizeof(VERSION), 1, f) != 1
-            || memcmp(version, VERSION, sizeof(VERSION)) != 0)
+    if (fread(version, sizeof(HTREE_VERSION), 1, f) != 1
+            || memcmp(version, HTREE_VERSION, sizeof(HTREE_VERSION)) != 0)
     {
         log_error("the version %s is not expected", version);
         fclose(f);
@@ -579,11 +579,11 @@ HTree* ht_open(int depth, int pos, const char *path)
     if (fread(&fsize, sizeof(fsize), 1, f) != 1 ||
             fseeko(f, 0, 2) != 0 || ftello(f) != fsize)
     {
-        log_error("the size %lld is not expected", fsize);
+        log_error("the size %lld is not expected", (long long int)fsize);
         fclose(f);
         return NULL;
     }
-    fseeko(f, sizeof(VERSION) + sizeof(off_t), 0);
+    fseeko(f, sizeof(HTREE_VERSION) + sizeof(off_t), 0);
 #if _XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L
     if (posix_fadvise(fileno(f), 0, fsize, POSIX_FADV_SEQUENTIAL) != 0)
     {
@@ -710,7 +710,7 @@ FAIL:
 static int ht_save2(HTree *tree, FILE* f)
 {
     off_t pos = 0;
-    if (fwrite(VERSION, sizeof(VERSION), 1, f) != 1 ||
+    if (fwrite(HTREE_VERSION, sizeof(HTREE_VERSION), 1, f) != 1 ||
             fwrite(&pos, sizeof(off_t), 1, f) != 1)
     {
         log_error("write version failed");
@@ -767,7 +767,7 @@ static int ht_save2(HTree *tree, FILE* f)
     free(buf);
 
     pos = ftello(f);
-    fseeko(f, sizeof(VERSION), 0);
+    fseeko(f, sizeof(HTREE_VERSION), 0);
     if (fwrite(&pos, sizeof(off_t), 1, f) != 1)
     {
         log_error("write size failed");

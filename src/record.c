@@ -14,8 +14,18 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <sys/stat.h>
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -593,7 +603,6 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
 
             if (write_record(new_df, r) != 0)
             {
-
                 log_error("write error: %s -> %d, old dst data size = %u", path, last_bucket, old_dstdata_size);
                 free(it);
                 free_record(r);
