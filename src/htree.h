@@ -37,7 +37,6 @@ struct t_item
 typedef struct t_hash_tree HTree;
 typedef void (*fun_visitor) (Item *it, void *param);
 
-uint32_t fnv1a(const char *key, int key_len);
 
 HTree*   ht_new(int depth, int pos);
 void     ht_destroy(HTree *tree);

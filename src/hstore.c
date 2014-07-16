@@ -28,6 +28,7 @@
 #include "htree.h"
 #include "hstore.h"
 #include "diskmgr.h"
+#include "fnv1a.h"
 
 /* unistd.h is here */
 #if HAVE_UNISTD_H
