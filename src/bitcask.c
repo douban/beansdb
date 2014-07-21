@@ -471,7 +471,7 @@ int bc_optimize(Bitcask *bc, int limit)
                 }
                 else
                 {
-                    log_warn("Bug: fail to optimize %s into %d self", datapath, last);
+                    log_warn("Bug: fail to optimize %s into %d self, return", datapath, last);
                     bc->optimize_flag = 0;
                     return -1;
                 }

@@ -577,8 +577,20 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size)
             {
-                log_warn("optimize %s into %s overflow", path, lastdata == NULL?tmp:lastdata);
-                ftruncate(new_df, old_dstdata_size);
+                if (lastdata == NULL)
+                {
+                    log_warn("Bug: optimize %s into  tmp %s overflow, delete it!", path, tmp);
+                }
+                else 
+                {
+                    log_warn("optimize %s into %s overflow, ftruncate to %u", path, lastdata, old_dstdata_size);
+                    fflush(new_df);  
+                    if ( 0 != ftruncate(fileno(new_df), old_dstdata_size))
+                    {
+                        log_error("ftruncate failed for  %s old size = %u", path, old_dstdata_size);
+                    }
+                    rewind(new_df);
+                }
                 err = 1;
                 goto  OPT_FAIL;
             }
@@ -621,6 +633,7 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
 
         mfile_dontneed(f, pos, &last_advise);
     }
+    fseeko(new_df, 0L, SEEK_END);
     *deleted_bytes = f->size - (ftello(new_df) - old_dstdata_size);
 
     close_mfile(f);
