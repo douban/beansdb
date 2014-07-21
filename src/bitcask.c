@@ -427,7 +427,7 @@ int bc_optimize(Bitcask *bc, int limit)
             continue;
         }
 
-        int deleted = count_deleted_record(bc->tree, i, hintpath, &total);
+        int deleted = count_deleted_record(bc->tree, i, hintpath, &total, skipped);
         uint64_t curr_size = data_file_size(bc, i) * (total - deleted/2) / (total+1); // guess
         uint64_t last_size = last >= 0 ? data_file_size(bc, last) : -1;
 

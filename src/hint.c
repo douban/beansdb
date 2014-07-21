@@ -189,7 +189,7 @@ void scanHintFile(HTree* tree, int bucket, const char* path, const char* new_pat
     close_hint(hint);
 }
 
-int count_deleted_record(HTree* tree, int bucket, const char* path, int *total)
+int count_deleted_record(HTree* tree, int bucket, const char* path, int *total, bool skipped)
 {
     *total = 0;
     HintFile *hint = open_hint(path, NULL);
@@ -211,7 +211,8 @@ int count_deleted_record(HTree* tree, int bucket, const char* path, int *total)
         }
         (*total) ++;
         Item *it = ht_get2(tree, r->key, r->ksize);
-        if (it == NULL || it->pos != ((r->pos << 8) | (unsigned int)bucket) || it->ver <= 0)
+        //key not exist || not used || (used && deleted && not skipped)
+        if (it == NULL || it->pos != ((r->pos << 8) | (unsigned int)bucket) || (it->ver <= 0 && !skipped))
         {
             deleted ++;
         }

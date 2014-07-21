@@ -44,6 +44,6 @@ void close_hint(HintFile *hint);
 void scanHintFile(HTree* tree, int bucket, const char* path, const char* new_path);
 void build_hint(HTree* tree, const char* path);
 void write_hint_file(char *buf, int size, const char *path);
-int count_deleted_record(HTree* tree, int bucket, const char* path, int *total);
+int count_deleted_record(HTree* tree, int bucket, const char* path, int *total, bool skipped);
 
 #endif
