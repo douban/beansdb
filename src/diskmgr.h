@@ -23,6 +23,7 @@ typedef struct disk_mgr Mgr;
 
 Mgr* mgr_create(const char **disks, int ndisks);
 void mgr_destroy(Mgr *mgr);
+ssize_t mgr_readlink(const char *path, char *buf, size_t bufsiz); 
 
 const char* mgr_base(Mgr *mgr);
 const char* mgr_alloc(Mgr *mgr, const char *path);

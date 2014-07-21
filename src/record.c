@@ -537,11 +537,31 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
     }
     else
     {
-        safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
+        struct stat sb;
+        if (lstat(path, &sb) == 0)
+        {
+            if ((sb.st_mode & S_IFMT) == S_IFLNK)
+            {
+                if (mgr_readlink(path, tmp, MAX_PATH_LEN) <=  0)
+                {
+                    log_fatal("badlink %s", path);
+                    goto  OPT_FAIL;
+                }
+                strcat(tmp, ".tmp");
+            }
+            else
+            {
+                safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
+            }
+        }
+        else{
+            log_fatal("Bug: file %s should exist", path);
+            goto  OPT_FAIL;
+        }
         new_df = fopen(tmp, "wb");
         if (new_df == NULL)
         {
-            log_error("open new datafile failed");
+            log_error("open tmp datafile failed, %s", tmp);
             goto  OPT_FAIL;
         }
     }
