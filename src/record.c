@@ -484,8 +484,8 @@ void update_items(Item *it, void *args)
     }
 }
 
-uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
-                          bool skipped, uint32_t max_data_size, int last_bucket, const char *lastdata, const char *lasthint)
+int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
+                          bool skipped, uint32_t max_data_size, int last_bucket, const char *lastdata, const char *lasthint, uint32_t *deleted_bytes)
 {
     //FIXME: open a data file but when to close.
     MFile *f = open_mfile(path);
@@ -496,21 +496,18 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     uint32_t hint_used = 0, hint_size = 0, old_data_size = 0;
     if (lastdata != NULL)
     {
-        //open a last data file
         new_df = fopen(lastdata, "ab");
         old_data_size = ftello(new_df);
 
-        // the last data file is not empty.
         if (old_data_size > 0)
         {
-            // open the last hint file.
             HintFile *hint = open_hint(lasthint, NULL);
             if (hint == NULL)
             {
                 log_error("open last hint file %s failed", lasthint);
                 close_mfile(f);
                 fclose(new_df);
-                return 0;
+                return 1;
             }
             hint_size = hint->size * 2;
             if (hint_size < 4096) hint_size = 4096;
@@ -567,13 +564,13 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size)
             {
-                log_warn("optimize %s into %s failed", path, lastdata);
+                log_warn("optimize %s into %s overflow", path, lastdata);
                 free(hintdata);
                 ht_destroy(cur_tree);
                 close_mfile(f);
                 ftruncate(new_df, old_data_size);
                 fclose(new_df);
-                return 0; // overflow
+                return 1; 
             }
 
             uint16_t hash = it->hash;
@@ -616,7 +613,7 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
 
         mfile_dontneed(f, pos, &last_advise);
     }
-    uint32_t deleted_bytes = f->size - (ftello(new_df) - old_data_size);
+    *deleted_bytes = f->size - (ftello(new_df) - old_data_size);
 
     close_mfile(f);
     fclose(new_df);
@@ -633,6 +630,6 @@ uint32_t optimizeDataFile(HTree* tree, int bucket, const char* path, const char*
     free(hintdata);
 
     log_notice("optimize %s -> %d complete, %d records deleted, %u bytes released",
-            path, last_bucket, deleted, deleted_bytes);
-    return deleted_bytes;
+            path, last_bucket, deleted, *deleted_bytes);
+    return 0;
 }

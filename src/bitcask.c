@@ -427,37 +427,55 @@ int bc_optimize(Bitcask *bc, int limit)
         uint64_t curr_size = data_file_size(bc, i) * (total - deleted/2) / (total+1); // guess
         uint64_t last_size = last >= 0 ? data_file_size(bc, last) : -1;
 
-        // last data file size
-        uint32_t recoverd = 0;
+        int ret = 0;
+        uint32_t bytes_deleted= 0;
         if (last == -1 || last_size + curr_size > settings.max_bucket_size)
         {
             ++last;
         }
-        while (last < i)
+        int last0 = last;
+        while (last <= last0 + 1)
         {
-            char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN];
-            new_path(ldpath, MAX_PATH_LEN, bc->mgr, DATA_FILE, last);
-            new_path(lhpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, last);
-            recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath,
-                                        skipped, settings.max_bucket_size, last, ldpath, lhpath);
-            if (recoverd == 0)
+            if (last < i)
             {
-                ++last;
+                char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN];
+                new_path(ldpath, MAX_PATH_LEN, bc->mgr, DATA_FILE, last);
+                new_path(lhpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, last);
+                ret = optimizeDataFile(bc->tree, i, datapath, hintpath,
+                        skipped, settings.max_bucket_size, last, ldpath, lhpath, &bytes_deleted);
             }
             else
             {
+                ret = optimizeDataFile(bc->tree, i, datapath, hintpath,
+                                        skipped, settings.max_bucket_size, last, NULL, NULL, &bytes_deleted);
+            }
+            if (ret == 0)
+            {
                 break;
             }
-        }
-        if (recoverd == 0)
-        {
-            // last == i
-            recoverd = optimizeDataFile(bc->tree, i, datapath, hintpath,
-                                        skipped, settings.max_bucket_size, last, NULL, NULL);
+            else if (ret < 0 )
+            {
+                bc->optimize_flag = 0;
+                return -1;
+            }
+            else
+            {
+                if (last < i)
+                {
+                    log_warn("fail to optimize %s into %d, try next", datapath, last);
+                    last ++;
+                }
+                else
+                {
+                    log_warn("Bug: fail to optimize %s into %d self", datapath, last);
+                    bc->optimize_flag = 0;
+                    return -1;
+                }
+            }
         }
 
         pthread_mutex_lock(&bc->buffer_lock);
-        bc->bytes -= recoverd;
+        bc->bytes -= bytes_deleted;
         pthread_mutex_unlock(&bc->buffer_lock);
     }
 
