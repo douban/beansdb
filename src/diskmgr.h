@@ -19,7 +19,11 @@
 #include <stdint.h>
 #include "util.h"
 
-typedef struct disk_mgr Mgr;
+typedef struct disk_mgr
+{
+    char **disks;
+    int ndisks;
+} Mgr;
 
 Mgr* mgr_create(const char **disks, int ndisks);
 void mgr_destroy(Mgr *mgr);
@@ -33,4 +37,11 @@ void mgr_rename(const char *oldpath, const char *newpath);
 
 void mgr_stat(Mgr *mgr, uint64_t *total, uint64_t *avail);
 
+static inline char* simple_basename(const char *path)
+{
+    char *p = (char*)path + strlen(path);
+    while (*p != '/' && p >= path)
+        --p;
+    return ++p;
+}
 #endif

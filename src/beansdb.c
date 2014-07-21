@@ -137,6 +137,8 @@ static void settings_init(void)
     settings.flush_period = 60 * 10; // 10 min
     settings.slow_cmd_time = 0.1; // 100ms
     settings.max_bucket_size  = (uint32_t)(4000 << 20); // 4G
+    settings.check_file_size = false;
+    settings.autolink = false;
 }
 
 /*
@@ -1886,13 +1888,15 @@ static void usage(void)
            "-T <num>      log of the number of db files(base 16), default is 1(16^1=16)\n"
            "-s <num>      slow command time limit, in ms, default is 100ms\n"
            "-f <num>      flush period(in secs) , default is 600 secs\n"
-           "-F <num>      max size of a data file(in MB), default and at most 4000(MB), at least 5(MB)\n"
            "-n <num>      flush limit(in KB), default is 1024 (KB)\n"
            "-m <time>     serve data written before <time> (read-only)\n"
            "-v            verbose (print errors/warnings while in event loop)\n"
            "-vv           very verbose (also print client commands/reponses)\n"
            "-h            print this help and exit\n"
            "-i            print license info\n"
+           "-F <num>      max size of a data file(in MB), default and at most 4000(MB), at least 5(MB)\n"
+           "-C            check file sizes in startup using buckets.txt for each bitcask\n"
+           "-A            enable autolink\n"
           );
 
     return;
@@ -2063,7 +2067,7 @@ int main (int argc, char **argv)
     setbuf(stderr, NULL);
 
     /* process arguments */
-    while ((c = getopt(argc, argv, "p:c:hivl:dru:P:L:t:b:H:T:m:s:f:F:n:S")) != -1)
+    while ((c = getopt(argc, argv, "p:c:hivl:dru:P:L:t:b:H:T:m:s:f:n:SF:CA")) != -1)
     {
         switch (c)
         {
@@ -2118,12 +2122,6 @@ int main (int argc, char **argv)
         case 'f':
             settings.flush_period = atoi(optarg);
             break;
-        case 'F':
-            settings.max_bucket_size = (uint32_t) atoll(optarg);
-            if (settings.max_bucket_size < 5) 
-                settings.max_bucket_size = 5;
-            settings.max_bucket_size *= (1024 * 1024);
-            break;
         case 'n':
             settings.flush_limit = atoi(optarg);
             break;
@@ -2135,6 +2133,18 @@ int main (int argc, char **argv)
         }
         case 'S':
             stopme = 1;
+            break;
+        case 'F':
+            settings.max_bucket_size = (uint32_t) atoll(optarg);
+            if (settings.max_bucket_size < 5) 
+                settings.max_bucket_size = 5;
+            settings.max_bucket_size *= (1024 * 1024);
+            break;
+        case 'C':
+            settings.check_file_size = true;
+            break;
+        case 'A':
+            settings.autolink = true;
             break;
         default:
             invalid_arg = true;

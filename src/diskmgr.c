@@ -18,7 +18,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <dirent.h>
 #include <libgen.h>
 
 #include "diskmgr.h"
@@ -33,19 +32,6 @@
 
 #include "const.h"
 #include "log.h"
-struct disk_mgr
-{
-    char **disks;
-    int ndisks;
-};
-
-static inline char* simple_basename(const char *path)
-{
-    char *p = (char*)path + strlen(path);
-    while (*p != '/' && p >= path)
-        --p;
-    return ++p;
-}
 
 ssize_t mgr_readlink(const char *path, char *buf, size_t bufsiz)
 {
@@ -66,7 +52,6 @@ ssize_t mgr_readlink(const char *path, char *buf, size_t bufsiz)
 
 Mgr* mgr_create(const char **disks, int ndisks)
 {
-    char *cwd = getcwd(NULL, 0);
     Mgr *mgr = (Mgr*) safe_malloc(sizeof(Mgr));
     mgr->ndisks = ndisks;
     mgr->disks = (char**)safe_malloc(sizeof(char*) * ndisks);
@@ -81,95 +66,9 @@ Mgr* mgr_create(const char **disks, int ndisks)
             return NULL;
         }
         mgr->disks[i] = strdup(disks[i]);
-
-        // auto symlink
-        //if (1) {
-        DIR* dp = opendir(disks[i]);
-        if (dp == NULL)
-        {
-            log_error("opendir failed: %s", disks[i]);
-            continue;
-        }
-        struct dirent *de;
-        char target[MAX_PATH_LEN], sym[MAX_PATH_LEN], real[MAX_PATH_LEN];
-        struct stat sb;
-        while ((de = readdir(dp)) != NULL)
-        {
-            int len = strlen(de->d_name);
-            if (de->d_name[0] == '.') continue;
-            if (len != 8 && len != 9 && len != 12) continue; // .data .htree .hint.qlz
-            safe_snprintf(target, MAX_PATH_LEN, "%s/%s", disks[i], de->d_name);
-            if (stat(target, &sb) != 0)
-            {
-                mgr_readlink(target, real, MAX_PATH_LEN);
-                log_warn("find empty link in startup %s -> %s, unlink!", target, real);
-                unlink(target);
-                continue;
-            }
-            if (sb.st_size == 0)
-            {
-                log_warn("rm empty file/link in startup %s, unlink!", target);
-                unlink(target);
-                continue;
-            }
-            if (i == 0) 
-            {
-                if (lstat(target, &sb) == 0 
-                        && (sb.st_mode & S_IFMT) == S_IFLNK 
-                    && mgr_readlink(target, real, MAX_PATH_LEN) <= 0)
-                {
-                    log_warn("rm bad link in startup %s, unlink!", target);
-                    unlink(target);
-                }
-                continue;
-            }
-            if (lstat(target, &sb) != 0 || (sb.st_mode & S_IFMT) != S_IFREG)
-            {
-                log_warn("find non-regular file on non-0 disk  %s, unlink", target);
-                unlink(target);
-                continue;
-            }
-            safe_snprintf(sym, MAX_PATH_LEN, "%s/%s", disks[0], de->d_name);
-            if (0 == lstat(sym, &sb)) 
-            {
-                if ((sb.st_mode & S_IFMT) == S_IFLNK
-                        && mgr_readlink(sym, real, MAX_PATH_LEN) > 0
-                        && strncmp(target, real, MAX_PATH_LEN) == 0
-                        && strncmp(simple_basename(target), simple_basename(real), MAX_PATH_LEN) == 0
-                        )
-                {
-                    continue;
-                }
-                else 
-                {
-                    log_fatal("bad link:%s for file %s, exit! ", sym, target);
-                    exit(-1);
-                }
-            }
-            int r = 0;
-            if (target[0] != '/')//TODO: better change all disks at the begining
-            {
-                safe_snprintf(real, MAX_PATH_LEN, "%s/%s", cwd, target);
-                r = symlink(real, sym);
-            }
-            else
-            {
-                r = symlink(target, sym);
-            }
-            if (0 != r)
-            {
-                log_fatal("symlink failed %s -> %s, err: %s, exit!", sym, target, strerror(errno));
-                exit(-1);
-            }
-            log_warn("auto link for %s", target);
-        }
-        (void) closedir(dp);
-        //}
     }
-    free(cwd);
     return mgr;
 }
-
 
 void mgr_destroy(Mgr *mgr)
 {

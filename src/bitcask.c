@@ -26,6 +26,7 @@
 #include <math.h>
 #include <time.h>
 #include <inttypes.h>
+#include <dirent.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -73,7 +74,324 @@ struct bitcask_t
     char   *flush_buffer; 
     uint32_t    fbuf_size, fbuf_start_pos;
     int     flushing_bucket;
+    int64_t buckets[256];
 };
+
+static inline bool file_exists(const char *path)
+{
+    struct stat st;
+    return stat(path, &st) == 0;
+}
+
+static inline char *gen_path(char *dst, int dst_size, const char *base, const char *fmt, int i)
+{
+    safe_snprintf(dst, dst_size , fmt,  base, i);
+    return dst;
+}
+
+static inline char *new_path_real(char *dst, int dst_size, Mgr *mgr, const char *fmt, int i)
+{
+    char name[16];
+    safe_snprintf(name, 16, fmt + 3, i);
+    safe_snprintf(dst, dst_size, "%s/%s",  mgr_alloc(mgr, name), name);
+    log_notice("mgr_alloc %s", dst);
+    return dst;
+}
+
+static inline char *new_path(char *dst, int dst_size, Mgr *mgr, const char *fmt, int i)
+{
+    char *path = gen_path(dst, dst_size, mgr_base(mgr), fmt, i);
+    mgr_unlink(path);
+    return new_path_real(dst, dst_size, mgr, fmt, i);
+}
+
+int dump_buckets(Bitcask *bc);
+static inline char *new_data(char *dst, int dst_size, Bitcask *bc, const char *fmt, int i)
+{
+    char *path = gen_path(dst, dst_size, mgr_base(bc->mgr), fmt, i);
+    if (bc->buckets[i] >= 0)
+        return path;
+
+    struct stat st; 
+    if (stat(path, &st) == 0)
+    {
+        log_error("Bug: %s should not exist, exit!", path);
+        exit(-1);
+    }
+    bc->buckets[i] = 0;
+    dump_buckets(bc);
+    return new_path_real(dst, dst_size, bc->mgr, fmt, i);
+}
+
+
+#define MAX_BUCKETS_FILE_SIZE (256 *32)
+int load_buckets(const char* base, int64_t *buckets)
+{
+    char path[MAX_PATH_LEN];
+    safe_snprintf(path, MAX_PATH_LEN, "%s/buckets.txt", base);
+    char buf[MAX_BUCKETS_FILE_SIZE];
+    struct stat  st;
+    if (0 != stat(path, &st))
+    {
+        log_debug("file %s not exist, no data!", path);
+        return 0;
+    }
+    log_notice("loading buckets %s", path);
+    if (st.st_size > MAX_BUCKETS_FILE_SIZE)
+    {
+        log_error("file %s too large", path);
+        return -1;
+    }
+    FILE *f = fopen(path,"r");
+    if (f == NULL)
+    {
+        log_error("fail to open file %s", path);
+        return -1;
+    }
+    int n = fread(buf, 1, st.st_size, f);
+    if (n < st.st_size)
+    {
+        log_error("fail to open file %s", path);
+        return -1;
+    }
+
+    buf[n] = 0;
+    char *p = buf;
+    char *endptr;
+    int last = -1;
+    while(p-buf < n){
+        long bucket = strtol(p,&endptr,10);
+        if (p == endptr) 
+            continue;
+        if (bucket < 0 || bucket > 255 || bucket <= last)
+        {
+            log_fatal("bad bucket: %ld", bucket);
+            return -1;
+        }
+        last = bucket;
+
+        p = endptr +1;
+        long long size = strtoll(p,&endptr,10);
+        if ((size & 255) != 0)
+        {
+            log_fatal("bad file size %s = %lld\n ", path, size);
+            return -1;
+        }
+        if (p == endptr)
+        {
+            log_fatal("bad file %s\n", path);
+            return -1;
+        }
+        log_debug("buckets[%ld] = %lld", bucket, size);
+        buckets[bucket] = size;
+        p = endptr +1;
+    }
+    fclose(f);
+    return 0;
+}
+
+int dump_buckets(Bitcask *bc)
+{
+    char buf[MAX_BUCKETS_FILE_SIZE];
+
+    char *p = buf;
+    int i;
+    for ( i = 0; i<256; i++)
+    {
+        if (bc->buckets[i] >= 0)
+        {
+            int n = sprintf(p, "%d %"PRIi64"\n", i, bc->buckets[i]);
+            p += n;
+        }
+    }
+
+    *p = 0;
+
+    char path[MAX_PATH_LEN];
+    safe_snprintf(path, MAX_PATH_LEN, "%s/buckets.txt", mgr_base(bc->mgr));
+    if (p == buf)
+    {
+        log_debug("no data, delete %s", path);
+        unlink(path);
+        return -1;
+    }
+    log_debug("dumping buckets");
+
+    FILE *f = fopen(path,"w");
+    if (f == NULL)
+    {
+        log_error("fail to open %s", path);
+        return -1;
+    }
+    int n = fwrite(buf, 1, p-buf, f);
+    if (n < p-buf)
+    {
+        log_error("fail to write %s", path);
+        fclose(f);
+        return -1;
+    }
+    fclose(f);
+    return 0;
+}
+
+int get_bucket_by_name(char* dir, char *name, long *bucket)
+{
+    if (name[0] == '.' || strcmp("buckets.txt",name) == 0)
+        return -1;
+
+    const char *types[] = {DATA_FILE, HINT_FILE, HTREE_FILE};
+    char *endptr;
+    errno  = 0;
+    *bucket  = strtol(name, &endptr, 10);
+    if (errno == ERANGE || (endptr - name) != 3 || *bucket > 255 || *bucket < 0)
+    {
+        log_warn("find unexpect file %s/%s", dir, name);
+        return -1;
+    }
+    char *suffix = name + 3;
+    if ( 0==strcmp(name + strlen(name) - 3, "tmp")) 
+    {
+        log_warn("find tmp file %s/%s", dir, name);
+        return -1;
+    }
+    int i;
+    for (i=0; i<3; i++)
+    {
+        if (strcmp(types[i]+ 7, suffix) == 0) 
+        {
+            return i;
+        }
+    }
+    log_warn("find unexpect file %s/%s", dir, name);
+    return -1;
+}
+
+int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
+{
+    char **disks = mgr->disks;
+    struct stat sb;
+    char path[MAX_PATH_LEN], sym[MAX_PATH_LEN], real[MAX_PATH_LEN];
+
+    int i;
+    for (i=0; i<mgr->ndisks; i++)
+    {
+        DIR* dp = opendir(disks[i]);
+        if (dp == NULL)
+        {
+            log_fatal("opendir failed: %s!", disks[i]);
+            return -1;
+        }
+
+        struct dirent *de;
+        while ((de = readdir(dp)) != NULL)
+        {
+            char *name = de->d_name;
+            long bucket = -1;
+            int  type = get_bucket_by_name(disks[i], name, &bucket);
+            if (type < 0)
+                continue;
+
+            safe_snprintf(path, MAX_PATH_LEN, "%s/%s", disks[i], name);
+            lstat(path, &sb);
+            if (i == 0)
+            {
+                if ((sb.st_mode & S_IFMT) == S_IFLNK)
+                {
+                    long bucket_real = -1;
+                    int  type_real;
+                    if (mgr_readlink(path, real, MAX_PATH_LEN) <= 0 
+                            || (type_real = get_bucket_by_name(disks[i], simple_basename(real), &bucket_real)) < 0
+                            || type_real != type || bucket_real != bucket)
+                    {
+                        log_fatal("find bad symlink %s->%s, type = %d, bucket = %ld", path, real, type_real, bucket_real);
+                        return -1;
+                    }
+                    if (stat(real, &sb) != 0)
+                    {
+                        locations[bucket][type] = -2;
+                        log_warn("find empty symlink %s", real);
+                    }
+                    else
+                    {
+                        char real2[MAX_PATH_LEN];
+                        int j;
+                        for (j = 1; j < mgr->ndisks; j++) 
+                        {
+                            safe_snprintf(real2, MAX_PATH_LEN, "%s/%s",  mgr->disks[j], name);
+                            struct stat sb2;
+                            if (stat(real2, &sb2) == 0 && sb2.st_dev == sb.st_dev && sb2.st_ino == sb.st_ino)
+                            {
+                                locations[bucket][type] = j;
+                                break;
+                            }
+                        }
+                        if (-1 == locations[bucket][type]) 
+                        {
+                            log_fatal("find bug symlink %s", path);
+                            return -1;
+                        }
+                    }
+                }
+                else
+                {
+                    locations[bucket][type] = 0;
+                }
+            }
+            else
+            {
+                if ((sb.st_mode & S_IFMT) != S_IFREG)
+                {
+                    log_fatal("find non-regule file on non-zero disk %s/%s", disks[i], name);
+                    return -1;
+                }
+                int old_loc = locations[bucket][type];
+                if (old_loc == -1)
+                {
+                    if (settings.autolink)
+                    {
+                        safe_snprintf(sym, MAX_PATH_LEN, "%s/%s", disks[0], name);
+                        if (symlink(path, sym) != 0)
+                        {
+                            log_fatal("symlink failed %s -> %s, err: %s !", sym, path, strerror(errno));
+                            return -1;
+                        }
+                        else
+                        {
+                            log_warn("auto link for %s", path);
+                        }
+                    }
+                    else
+                    {
+                        log_fatal("file not linked %s!", path);
+                        return -1;
+                    }
+                }
+                else if (old_loc != i) 
+                {
+                    log_fatal("find dup files %s in both %s and %s ",  name, disks[i], disks[old_loc]);
+                    return -1;
+                }
+            }
+            if (type == 0)
+            {
+                if (stat(path, &sb) == 0)
+                {
+                    sizes[bucket] =  sb.st_size;
+                }
+                else
+                {
+                    sizes[bucket] =  0;
+                    //log_warn("find empty link %s, unlink!", path);
+                    //unlink(path);
+                }
+            }
+            //log_debug("bucket = %ld, type = %d, size = %"PRIu64"", bucket, type, sizes[bucket]);
+        }//end while readdir
+        (void) closedir(dp);
+    }
+    return 0;
+}
+
 
 Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
 {
@@ -90,6 +408,78 @@ Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
     Bitcask* bc = bc_open2(mgr, depth, pos, before);
     if (bc != NULL) bc_scan(bc);
     return bc;
+}
+
+static void print_buckets(int64_t *buckets)
+{
+    int i;
+    printf("\n");
+    for (i=0; i<256; i++)
+    {
+        if (buckets[i] >= 0)
+        {
+            printf("%d : %"PRIu64"\n", i, buckets[i]);
+        }
+    }
+    printf("\n");
+}
+
+
+static void init_buckets(Bitcask *bc)
+{
+    memset(bc->buckets, -1, sizeof(int64_t)*256);
+
+    int locations[256][3];
+    memset(locations, -1, sizeof(int)*256*3);
+    if (check_buckets(bc->mgr, bc->buckets, locations) != 0 )
+    {
+        log_fatal("bitcask 0x%x check failed, exit!", bc->pos);
+        exit(-1);
+    }
+    //print_buckets(bc->buckets);
+    if (settings.check_file_size)
+    {
+        int64_t buckets[256];
+        memset(buckets, -1, sizeof(int64_t)*256);
+        if (load_buckets(mgr_base(bc->mgr), buckets) < 0)
+        {
+            log_warn("load_buckets fail, bc %0x, exit", bc->pos);
+            exit(-1);
+        }
+        int last = -1;
+        int i;
+        for (i=255; i>=0; i--)
+        {
+            if (buckets[i] != bc->buckets[i])
+            {
+                if (last < 0 && buckets[i] >= 0 && bc->buckets[i] >= 0)
+                {
+                    last = i;
+                    log_warn("last file size not match (bc %0x, bucket %d)", bc->pos, i);
+                }
+                else
+                {
+                    log_fatal("bucket size not match (bc %0x, bucket %d), exit", bc->pos, i);
+                    exit(1);
+                }
+            }
+        }
+    }
+
+    int i;
+    char path[MAX_PATH_LEN];
+    for ( i=0; i<256; i++)
+    {
+        if ( locations[i][0] < 0) 
+        {
+            if (locations[i][1] != -1)
+                log_warn(" unused file: %s",gen_path(path, MAX_PATH_LEN, mgr_base(bc->mgr), HINT_FILE, i));
+
+            if (locations[i][2] != -1)
+                log_warn(" unused file: %s",gen_path(path, MAX_PATH_LEN, mgr_base(bc->mgr), HTREE_FILE, i));
+        }
+    }
+    //print_buckets(bc->buckets);
 }
 
 Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
@@ -117,32 +507,8 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     pthread_mutex_init(&bc->buffer_lock, NULL);
     pthread_mutex_init(&bc->write_lock, NULL);
     pthread_mutex_init(&bc->flush_lock, NULL);
+    init_buckets(bc);
     return bc;
-}
-
-static inline bool file_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0;
-}
-
-static inline char *gen_path(char *dst, int dst_size, const char *base, const char *fmt, int i)
-{
-    safe_snprintf(dst, dst_size , fmt,  base, i);
-    return dst;
-}
-
-static inline char *new_path(char *dst, int dst_size, Mgr *mgr, const char *fmt, int i)
-{
-    char *path = gen_path(dst, dst_size, mgr_base(mgr), fmt, i);
-    if (!file_exists(dst))
-    {
-        char name[16];
-        safe_snprintf(name, 16, fmt + 3, i);
-        safe_snprintf(path, dst_size, "%s/%s",  mgr_alloc(mgr, name), name);
-        log_notice("mgr_alloc %s", path);
-    }
-    return path;
 }
 
 static void skip_empty_file(Bitcask* bc)
@@ -150,28 +516,51 @@ static void skip_empty_file(Bitcask* bc)
     int i, last=0;
     char opath[MAX_PATH_LEN], npath[MAX_PATH_LEN];
     const char* base = mgr_base(bc->mgr);
-    struct stat sb;
     for (i=0; i<MAX_BUCKET_COUNT; i++)
     {
-        if (stat(gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, i), &sb) == 0 && sb.st_size > 0)
+        int64_t size = bc->buckets[i];
+        gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, i);
+        if (size > 0)
         {
             if (i != last)
             {
                 mgr_rename(opath, gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last));
-
                 if (file_exists(gen_path(opath, MAX_PATH_LEN, base, HINT_FILE, i)))
                 {
                     mgr_rename(opath, gen_path(npath, MAX_PATH_LEN, base, HINT_FILE, last));
                 }
-
                 mgr_unlink(gen_path(opath, MAX_PATH_LEN, base, HTREE_FILE, i));
+                bc->buckets[last] = bc->buckets[i];
+                bc->buckets[i] = -1;
             }
             ++last;
         }
-        else if (lstat(opath,&sb) == 0)
+        else if (size == 0)
         {
-            log_fatal("Bug: find emptylink %s", opath);
-            exit(-1);
+            struct stat sb;
+            if (lstat(opath, &sb) != 0) 
+            {
+                log_warn("%s(either link or file) should exist on disk0 at least, exit", opath);
+                exit(1);
+            }
+            if (stat(opath, &sb) == 0 && sb.st_size > 0)
+            {
+                log_warn("Bug: size of %s should be 0, but is %lld!", opath, (long long)sb.st_size);
+                exit(1);
+            }
+
+            //cases: 
+            //  abnormal empty link/file
+            //      exit() or killed, no chance to flush  
+            //      rotate and no writing
+            //      gc failed
+            //  normal empty file: 
+            //      gc result
+            log_warn("rm empty bucket %s", opath);
+            bc->buckets[i] = -1;
+            mgr_unlink(opath);
+            mgr_unlink(gen_path(opath, MAX_PATH_LEN, base, HINT_FILE, i));
+            mgr_unlink(gen_path(opath, MAX_PATH_LEN, base, HTREE_FILE, i));
         }
     }
 }
@@ -183,6 +572,7 @@ void bc_scan(Bitcask* bc)
     struct stat st, hst;
 
     skip_empty_file(bc);
+    dump_buckets(bc);
 
     const char* base = mgr_base(bc->mgr);
     // load snapshot of htree
@@ -287,6 +677,12 @@ void bc_close(Bitcask *bc)
     pthread_mutex_lock(&bc->write_lock);
 
     bc_flush(bc, 0, 0);
+    struct stat sb;
+    if (stat(gen_path(datapath, MAX_PATH_LEN, mgr_base(bc->mgr), DATA_FILE, bc->curr), &sb) == 0)
+    {
+        bc->buckets[bc->curr] = sb.st_size;
+        dump_buckets(bc);
+    }
 
     if (NULL != bc->curr_tree)
     {
@@ -383,9 +779,21 @@ int bc_optimize(Bitcask *bc, int limit)
         char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
         gen_path(datapath, MAX_PATH_LEN, base, DATA_FILE, i);
         gen_path(hintpath, MAX_PATH_LEN, base, HINT_FILE, i);
-        if (stat(datapath, &st) != 0)
+        if (bc->buckets[i] < 0) 
         {
+            if (stat(datapath, &st) == 0)
+            {
+                log_error("data file: %s should not exist", datapath);
+            }
             continue; // skip empty file
+        }
+        else
+        {
+            if (stat(datapath, &st) != 0)
+            {
+                log_error("data file: %s lost", datapath);
+                return -1;
+            }
         }
         // skip recent modified file
         if (st.st_mtime > limit_time)
@@ -423,6 +831,10 @@ int bc_optimize(Bitcask *bc, int limit)
                 unlink(npath);
                 mgr_rename(datapath, npath);
                 mgr_rename(hintpath, gen_path(npath, MAX_PATH_LEN, base, HINT_FILE, last));
+
+                bc->buckets[last] = bc->buckets[i];
+                bc->buckets[i] = -1;
+                dump_buckets(bc);
             }
             continue;
         }
@@ -440,10 +852,10 @@ int bc_optimize(Bitcask *bc, int limit)
         int last0 = last;
         while (last <= last0 + 1)
         {
+            char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN];
             if (last < i)
             {
-                char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN];
-                new_path(ldpath, MAX_PATH_LEN, bc->mgr, DATA_FILE, last);
+                new_data(ldpath, MAX_PATH_LEN, bc, DATA_FILE, last);
                 new_path(lhpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, last);
                 ret = optimizeDataFile(bc->tree, i, datapath, hintpath,
                         skipped, settings.max_bucket_size, last, ldpath, lhpath, &bytes_deleted);
@@ -453,8 +865,21 @@ int bc_optimize(Bitcask *bc, int limit)
                 ret = optimizeDataFile(bc->tree, i, datapath, hintpath,
                                         skipped, settings.max_bucket_size, last, NULL, NULL, &bytes_deleted);
             }
+            char *p = (last == i ? datapath : ldpath);
             if (ret == 0)
             {
+                struct stat sb;
+                if (stat(p, &sb) == 0)
+                {
+                    bc->buckets[i] = -1;
+                    bc->buckets[last]  = sb.st_size;
+                    dump_buckets(bc);
+                }
+                else{
+                    log_error("last %s not exist after gc:", p);
+                    bc->optimize_flag = 0;
+                    return -1;
+                }
                 break;
             }
             else if (ret < 0 )
@@ -504,8 +929,11 @@ int bc_optimize(Bitcask *bc, int limit)
 
             unlink(npath);
             mgr_rename(opath, npath);
-        }
 
+            bc->buckets[last] = bc->buckets[i];
+            bc->buckets[i] = -1;
+            dump_buckets(bc);
+        }
         bc->curr = last;
     }
     pthread_mutex_unlock(&bc->flush_lock);
@@ -616,7 +1044,7 @@ void* build_thread(void *param)
 void bc_rotate(Bitcask *bc)
 {
     // build in new thread
-    char hintpath[MAX_PATH_LEN];
+    char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
     new_path(hintpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, bc->curr);
     struct build_thread_args *args = (struct build_thread_args*)safe_malloc(
                                          sizeof(struct build_thread_args));
@@ -624,10 +1052,18 @@ void bc_rotate(Bitcask *bc)
     args->path = strdup(hintpath);
     pthread_t build_ptid;
     pthread_create(&build_ptid, NULL, build_thread, args);
+
+    struct stat sb;
+    if (stat(gen_path(datapath, MAX_PATH_LEN, mgr_base(bc->mgr), DATA_FILE, bc->curr), &sb) == 0)
+    {
+        bc->buckets[bc->curr] = sb.st_size;
+        dump_buckets(bc);
+    }
     // next bucket
     bc->curr ++;
     bc->curr_tree = ht_new(bc->depth, bc->pos);
     bc->wbuf_start_pos = 0;
+    bc->curr_bytes = 0;
 }
 
 void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
@@ -680,7 +1116,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
         pthread_mutex_unlock(&bc->buffer_lock);
 
         char buf[MAX_PATH_LEN];
-        new_path(buf, MAX_PATH_LEN, bc->mgr, DATA_FILE, bc->flushing_bucket);
+        new_data(buf, MAX_PATH_LEN, bc, DATA_FILE, bc->flushing_bucket);
 
         FILE *f = fopen(buf, "ab");
         if (f == NULL)
@@ -701,6 +1137,11 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
         {
             log_error("write failed: return %zu. exit!", n);
             exit(1);
+        }
+        bc->buckets[bc->flushing_bucket] = file_size + size;
+        if (file_size == 0 || now - bc->last_flush_time > 3600)
+        {
+            dump_buckets(bc);
         }
         fclose(f);
         bc->last_flush_time = now;

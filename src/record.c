@@ -572,7 +572,7 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
     }
 
     cur_tree = ht_new(0, 0);
-    int deleted = 0, broken = 0;
+    int nrecord = 0, deleted = 0, broken = 0;
     char *p = f->addr, *end = f->addr + f->size;
     size_t last_advise = 0;
     while (p < end)
@@ -590,6 +590,7 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
             p += PADDING;
             continue;
         }
+        nrecord++;
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
         if (it && it->pos  == (pos | bucket) && (it->ver > 0 || skipped))
@@ -670,13 +671,13 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
     write_hint_file(hintdata, hint_used, lasthint ? lasthint : hintpath);
     free(hintdata);
 
-    log_notice("optimize %s (%u B)-> %d (%u B) complete, %d records deleted, %u bytes released",
-                       path, old_srcdata_size, last_bucket, old_dstdata_size, deleted, *deleted_bytes);
+    log_notice("optimize %s -> %d (%u B) complete, %d/%d records deleted, %u/%u bytes released, %d broken",
+                       path,  last_bucket, old_dstdata_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken);
     return 0;
 
 OPT_FAIL:
-    log_notice("optimize %s (%u B)-> %d (%u B) failed,  %d records deleted,  %u bytes released, err = %d",
-            path, old_srcdata_size, last_bucket, old_dstdata_size, deleted, *deleted_bytes, err);
+    log_notice("optimize %s -> %d (%u B) failed,  %d/%d records deleted,  %u/%u bytes released, %d broken, err = %d",
+            path, last_bucket, old_dstdata_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, err);
     if (hintdata) free(hintdata);
     if (cur_tree)  ht_destroy(cur_tree);
     if (f) close_mfile(f);

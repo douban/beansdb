@@ -146,6 +146,8 @@ struct settings
     int flush_limit;
     int num_threads;        /* number of libevent threads to run */
     uint32_t max_bucket_size; 
+    bool check_file_size;
+    bool autolink;
 };
 
 extern struct stats stats;
