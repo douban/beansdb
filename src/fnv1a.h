@@ -20,8 +20,7 @@
 #define FNV_32_INIT 0x811c9dc5
 
 typedef unsigned int uint32_t;
-static uint32_t fnv1a(const char *key, int key_len)
-
+inline static uint32_t fnv1a(const char *key, int key_len)
 {
     uint32_t h = FNV_32_INIT;
     int i;
