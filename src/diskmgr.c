@@ -52,6 +52,7 @@ ssize_t mgr_readlink(const char *path, char *buf, size_t bufsiz)
 
 Mgr* mgr_create(const char **disks, int ndisks)
 {
+    char *cwd = getcwd(NULL, 0);
     Mgr *mgr = (Mgr*) safe_malloc(sizeof(Mgr));
     mgr->ndisks = ndisks;
     mgr->disks = (char**)safe_malloc(sizeof(char*) * ndisks);
@@ -63,10 +64,20 @@ Mgr* mgr_create(const char **disks, int ndisks)
             log_error("access %s failed", disks[i]);
             free(mgr->disks);
             free(mgr);
+            free(cwd);
             return NULL;
         }
-        mgr->disks[i] = strdup(disks[i]);
+        if (disks[i][0] == '/')
+        {
+            mgr->disks[i] = strdup(disks[i]);
+        }
+        else
+        {
+            mgr->disks[i] =  (char*)safe_malloc(strlen(disks[i]) + strlen(cwd) + 2);
+            sprintf(mgr->disks[i], "%s/%s", cwd, disks[i]);
+        }
     }
+    free(cwd);
     return mgr;
 }
 
