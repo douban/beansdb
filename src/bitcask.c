@@ -816,8 +816,8 @@ int bc_optimize(Bitcask *bc, int limit)
                 if (symlink(datapath, npath) != 0)
                 {
                     log_fatal("symlink failed: %s -> %s, err:%s", datapath, npath, strerror(errno));
-                    last = i;
-                    continue;
+                    bc->optimize_flag = 0; 
+                    return -1;
                 }
 
                 HTree *tree = ht_new(bc->depth, bc->pos);
