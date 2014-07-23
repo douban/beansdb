@@ -916,24 +916,28 @@ int bc_optimize(Bitcask *bc, int limit)
         char opath[MAX_PATH_LEN], npath[MAX_PATH_LEN];
         gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, bc->curr);
 
-        if (file_exists(opath))
+        if (bc->buckets[bc->curr] > 0)
         {
             gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
             if (symlink(opath, npath) != 0)
                 log_fatal("symlink failed: %s -> %s, err:%s", opath, npath, strerror(errno));
+        }
 
-            struct update_args args;
-            args.tree = bc->tree;
-            args.index = last;
-            ht_visit(bc->curr_tree, update_item_pos, &args);
+        struct update_args args;
+        args.tree = bc->tree;
+        args.index = last;
+        ht_visit(bc->curr_tree, update_item_pos, &args);
 
+        if (bc->buckets[bc->curr] > 0)
+        {
             unlink(npath);
             mgr_rename(opath, npath);
-
-            bc->buckets[last] = bc->buckets[i];
-            bc->buckets[i] = -1;
-            dump_buckets(bc);
         }
+
+        bc->buckets[last] = bc->buckets[i];
+        bc->buckets[i] = -1;
+        dump_buckets(bc);
+
         bc->curr = last;
     }
     pthread_mutex_unlock(&bc->flush_lock);
