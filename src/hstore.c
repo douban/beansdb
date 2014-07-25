@@ -504,6 +504,7 @@ INCR_END:
 
 void* do_optimize(void *arg)
 {
+    pthread_detach(pthread_self());
     HStore *store = (HStore *) arg;
     time_t st = time(NULL);
     log_notice("start to optimize from 0x%x to 0x%x, limit %d",

@@ -1040,6 +1040,7 @@ struct build_thread_args
 
 void* build_thread(void *param)
 {
+    pthread_detach(pthread_self());
     struct build_thread_args *args = (struct build_thread_args*) param;
     build_hint(args->tree, args->path);
     free(args->path);
