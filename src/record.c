@@ -351,6 +351,7 @@ char* encode_record(DataRecord *r, unsigned int *size)
     memcpy(&data->crc, &r->crc, sizeof(DataRecord) - hs); // safe
     memcpy(data->key, r->key, ksz); // safe
     memcpy(data->key + ksz, r->value, vsz); // safe
+    memset(buf + n, 0, m - n);
     data->crc = crc32(0, (unsigned char*)&data->tstamp, n - sizeof(uint32_t));
 
     *size = m;
