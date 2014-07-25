@@ -854,6 +854,14 @@ int bc_optimize(Bitcask *bc, int limit)
         {
             char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN], lhpath_real[MAX_PATH_LEN];
             gen_path(ldpath, MAX_PATH_LEN, mgr_base(bc->mgr), DATA_FILE, last);
+            struct stat sb;
+            if ( (bc->buckets[last]>= 0) !=  (lstat(ldpath,&sb)==0))
+            {
+                log_fatal("buckets mismatch!");
+                bc->optimize_flag = 0;
+                return -1;
+            }
+
             gen_path(lhpath, MAX_PATH_LEN, mgr_base(bc->mgr), HINT_FILE, last);
             if (mgr_getrealpath(lhpath, lhpath_real, MAX_PATH_LEN) != 0)
             {
