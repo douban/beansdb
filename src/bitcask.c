@@ -865,7 +865,7 @@ int bc_optimize(Bitcask *bc, int limit)
             }
 
             int ret = optimizeDataFile(bc->tree, bc->mgr, i, datapath, hintpath, last, ldpath, lhpath_real, 
-                    settings.max_bucket_size, skipped, bc->buckets[last] >= 0, &bytes_deleted);
+                    settings.max_bucket_size, skipped, (last == i) || (last != i && bc->buckets[last] < 0), &bytes_deleted);
 
             if (ret == 0)
             {

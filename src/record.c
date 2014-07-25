@@ -496,10 +496,10 @@ void update_items(Item *it, void *args)
 
 int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath, 
         int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size, 
-        bool skipped, bool isnewfile, uint32_t *deleted_bytes)
+        bool skipped, bool use_tmp, uint32_t *deleted_bytes)
 {
     int err = -1; 
-    log_notice("begin optimize %s -> %s, isnewfile = %s", path, lastdata, isnewfile?"true":"false");
+    log_notice("begin optimize %s -> %s, use_tmp= %s", path, lastdata, use_tmp?"true":"false");
 
 //to destroy:
     FILE *new_df = NULL;
@@ -515,7 +515,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     uint32_t old_srcdata_size = f->size, old_dstdata_size = 0;
     char tmp[MAX_PATH_LEN] = "";
     uint32_t hint_used = 0, hint_size = 0;
-    if (!isnewfile)
+    if (!use_tmp)
     {
         new_df = fopen(lastdata, "ab");
         old_dstdata_size = ftello(new_df);
@@ -649,7 +649,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     ht_destroy(cur_tree);
 
     mgr_unlink(path);
-    if (isnewfile)
+    if (use_tmp)
     {
         mgr_unlink(lastdata);
         mgr_rename(tmp, lastdata);
@@ -671,6 +671,6 @@ OPT_FAIL:
     if (cur_tree)  ht_destroy(cur_tree);
     if (f) close_mfile(f);
     if (new_df) fclose(new_df);
-    if (isnewfile) mgr_unlink(tmp);
+    if (use_tmp) mgr_unlink(tmp);
     return err;
 }
