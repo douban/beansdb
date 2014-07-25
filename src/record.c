@@ -494,8 +494,9 @@ void update_items(Item *it, void *args)
     }
 }
 
-int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
-                          bool skipped, uint32_t max_data_size, int last_bucket, const char *lastdata, const char *lasthint, uint32_t *deleted_bytes)
+int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath, 
+        int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size, 
+        bool skipped, bool isnewfile, uint32_t *deleted_bytes)
 {
     int err = -1; 
 
@@ -511,19 +512,19 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
     }
 
     uint32_t old_srcdata_size = f->size, old_dstdata_size = 0;
-    char tmp[MAX_PATH_LEN];
+    char tmp[MAX_PATH_LEN] = "";
     uint32_t hint_used = 0, hint_size = 0;
-    if (lastdata != NULL)
+    if (!isnewfile)
     {
         new_df = fopen(lastdata, "ab");
         old_dstdata_size = ftello(new_df);
 
         if (old_dstdata_size > 0)
         {
-            HintFile *hint = open_hint(lasthint, NULL);
+            HintFile *hint = open_hint(lasthint_real, NULL);
             if (hint == NULL)
             {
-                log_error("open last hint file %s failed", lasthint);
+                log_error("open last hint file %s failed", lasthint_real);
                 err = 1;
                 goto  OPT_FAIL;
             }
@@ -537,27 +538,10 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
     }
     else
     {
-        struct stat sb;
-        if (lstat(path, &sb) == 0)
-        {
-            if ((sb.st_mode & S_IFMT) == S_IFLNK)
-            {
-                if (mgr_readlink(path, tmp, MAX_PATH_LEN) <=  0)
-                {
-                    log_fatal("badlink %s", path);
-                    goto  OPT_FAIL;
-                }
-                strcat(tmp, ".tmp");
-            }
-            else
-            {
-                safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
-            }
-        }
-        else{
-            log_fatal("Bug: file %s should exist", path);
-            goto  OPT_FAIL;
-        }
+        strcpy(tmp, lastdata);
+        strcat(tmp, ".tmp");
+        mgr_alloc(mgr, simple_basename(tmp));
+
         new_df = fopen(tmp, "wb");
         if (new_df == NULL)
         {
@@ -598,7 +582,7 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size)
             {
-                if (lastdata == NULL)
+                if (last_bucket == bucket)
                 {
                     log_warn("Bug: optimize %s into  tmp %s overflow, delete it!", path, tmp);
                 }
@@ -664,11 +648,12 @@ int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hint
     ht_destroy(cur_tree);
 
     mgr_unlink(path);
-    if (lastdata == NULL)
-        mgr_rename(tmp, path);
+    if (isnewfile)
+        mgr_rename(tmp, lastdata);
 
-    mgr_unlink(hintpath);
-    write_hint_file(hintdata, hint_used, lasthint ? lasthint : hintpath);
+    if (last_bucket != bucket)
+        mgr_unlink(hintpath);
+    write_hint_file(hintdata, hint_used, lasthint_real);
     free(hintdata);
 
     log_notice("optimize %s -> %d (%u B) complete, %d/%d records deleted, %u/%u bytes released, %d broken",
@@ -682,6 +667,6 @@ OPT_FAIL:
     if (cur_tree)  ht_destroy(cur_tree);
     if (f) close_mfile(f);
     if (new_df) fclose(new_df);
-    if (lasthint == NULL) mgr_unlink(tmp);
+    if (isnewfile) mgr_unlink(tmp);
     return err;
 }

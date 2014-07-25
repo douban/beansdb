@@ -44,4 +44,6 @@ static inline char* simple_basename(const char *path)
         --p;
     return ++p;
 }
+
+int mgr_getrealpath(const char *path, char *buf, size_t bufsiz);
 #endif

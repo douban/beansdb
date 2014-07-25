@@ -50,6 +50,22 @@ ssize_t mgr_readlink(const char *path, char *buf, size_t bufsiz)
     return n;
 }
 
+int mgr_getrealpath(const char *path, char *buf, size_t bufsiz)
+{
+    struct stat sb;
+    if (stat(path, &sb) !=0)
+        return -1;
+
+    if ((sb.st_mode & S_IFMT) == S_IFLNK)
+    {
+        if (mgr_readlink(path, buf, bufsiz) <= 0)
+            return -1;
+    }
+    else
+        strcpy(buf, path);
+    return 0;
+}
+
 Mgr* mgr_create(const char **disks, int ndisks)
 {
     char *cwd = getcwd(NULL, 0);

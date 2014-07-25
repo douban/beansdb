@@ -843,7 +843,6 @@ int bc_optimize(Bitcask *bc, int limit)
         uint64_t curr_size = data_file_size(bc, i) * (total - deleted/2) / (total+1); // guess
         uint64_t last_size = last >= 0 ? data_file_size(bc, last) : -1;
 
-        int ret = 0;
         uint32_t bytes_deleted= 0;
         if (last == -1 || last_size + curr_size > settings.max_bucket_size)
         {
@@ -852,31 +851,28 @@ int bc_optimize(Bitcask *bc, int limit)
         int last0 = last;
         while (last <= last0 + 1)
         {
-            char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN];
-            if (last < i)
+            char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN], lhpath_real[MAX_PATH_LEN];
+            gen_path(ldpath, MAX_PATH_LEN, mgr_base(bc->mgr), DATA_FILE, last);
+            gen_path(lhpath, MAX_PATH_LEN, mgr_base(bc->mgr), HINT_FILE, last);
+            if (mgr_getrealpath(lhpath, lhpath_real, MAX_PATH_LEN) != 0)
             {
-                new_data(ldpath, MAX_PATH_LEN, bc, DATA_FILE, last);
-                new_path(lhpath, MAX_PATH_LEN, bc->mgr, HINT_FILE, last);
-                ret = optimizeDataFile(bc->tree, i, datapath, hintpath,
-                        skipped, settings.max_bucket_size, last, ldpath, lhpath, &bytes_deleted);
+                new_path(lhpath_real, MAX_PATH_LEN, bc->mgr, HINT_FILE, last);
             }
-            else
-            {
-                ret = optimizeDataFile(bc->tree, i, datapath, hintpath,
-                                        skipped, settings.max_bucket_size, last, NULL, NULL, &bytes_deleted);
-            }
-            char *p = (last == i ? datapath : ldpath);
+
+            int ret = optimizeDataFile(bc->tree, bc->mgr, i, datapath, hintpath, last, ldpath, lhpath_real, 
+                    settings.max_bucket_size, skipped, bc->buckets[last] >= 0, &bytes_deleted);
+
             if (ret == 0)
             {
                 struct stat sb;
-                if (stat(p, &sb) == 0)
+                if (stat(ldpath, &sb) == 0)
                 {
                     bc->buckets[i] = -1;
                     bc->buckets[last]  = sb.st_size;
                     dump_buckets(bc);
                 }
                 else{
-                    log_error("last %s not exist after gc:", p);
+                    log_error("last %s not exist after gc:", ldpath);
                     bc->optimize_flag = 0;
                     return -1;
                 }

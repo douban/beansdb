@@ -22,6 +22,7 @@
 
 #include "htree.h"
 #include "util.h"
+#include "diskmgr.h"
 
 
 typedef struct data_record
@@ -53,8 +54,9 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp);
 
 void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpath);
 void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before);
-int optimizeDataFile(HTree* tree, int bucket, const char* path, const char* hintpath,
-                          bool skipped, uint32_t max_data_size, int last_bucket, const char * lastdata, const char *lasthint,  uint32_t *deleted_bytes);
+int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath, 
+        int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size, 
+        bool skipped, bool isnewfile, uint32_t *deleted_bytes);
 void visit_record(const char* path, RecordVisitor visitor, void *arg1, void *arg2, bool decomp);
 
 #endif
