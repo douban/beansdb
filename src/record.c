@@ -499,6 +499,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         bool skipped, bool isnewfile, uint32_t *deleted_bytes)
 {
     int err = -1; 
+    log_notice("begin optimize %s -> %s, isnewfile = %s", path, lastdata, isnewfile?"true":"false");
 
 //to destroy:
     FILE *new_df = NULL;
@@ -649,7 +650,10 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
 
     mgr_unlink(path);
     if (isnewfile)
+    {
+        mgr_unlink(lastdata);
         mgr_rename(tmp, lastdata);
+    }
 
     if (last_bucket != bucket)
         mgr_unlink(hintpath);

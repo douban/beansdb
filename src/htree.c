@@ -267,8 +267,7 @@ static void remove_item(HTree *tree, Node *node, Item *it, uint32_t keyhash)
     for (i=0; i < data->count; ++i)
     {
         if (it->length == p->length &&
-                memcmp(it->key, p->key, KEYLENGTH(it)) == 0 &&
-                check_version(p, it))
+                memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
         {
             data->count--;
             data->used -= p->length;

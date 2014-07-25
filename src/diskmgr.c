@@ -172,12 +172,12 @@ const char* mgr_alloc(Mgr *mgr, const char *name)
     return mgr->disks[maxi];
 }
 
-void mgr_unlink(const char *path)
+void _mgr_unlink(const char *path, const char *file, int line, const char *func)
 {
     struct stat sb;
     if ( 0 != lstat(path, &sb))
         return;
-    log_notice("mgr_unlink %s", path);
+    log_notice("mgr_unlink %s, in %s (%s:%i)", path, func, file, line);
     if ((sb.st_mode & S_IFMT) == S_IFLNK)
     {
         char buf[MAX_PATH_LEN];

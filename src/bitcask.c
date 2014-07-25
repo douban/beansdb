@@ -799,6 +799,7 @@ int bc_optimize(Bitcask *bc, int limit)
         if (st.st_mtime > limit_time)
         {
             skipped = true;
+            log_notice("optimize skip %s", datapath);
 
             ++last;
             if (last != i)   // rotate data file
