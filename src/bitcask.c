@@ -313,6 +313,7 @@ int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
                     }
                     else
                     {
+                        locations[bucket][type] = -2;
                         char real2[MAX_PATH_LEN];
                         int j;
                         for (j = 1; j < mgr->ndisks; j++) 
@@ -324,11 +325,6 @@ int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
                                 locations[bucket][type] = j;
                                 break;
                             }
-                        }
-                        if (-1 == locations[bucket][type]) 
-                        {
-                            log_fatal("find bug symlink %s", path);
-                            return -1;
                         }
                     }
                 }
@@ -468,9 +464,9 @@ static void init_buckets(Bitcask *bc)
 
     int i;
     char path[MAX_PATH_LEN];
-    for ( i=0; i<256; i++)
+    for (i=0; i<256; i++)
     {
-        if ( locations[i][0] < 0) 
+        if (-1 == locations[i][0]) 
         {
             if (locations[i][1] != -1)
                 log_warn(" unused file: %s",gen_path(path, MAX_PATH_LEN, mgr_base(bc->mgr), HINT_FILE, i));
