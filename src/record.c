@@ -512,9 +512,10 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
           goto  OPT_FAIL;
     }
 
-    uint32_t old_srcdata_size = f->size, old_dstdata_size = 0;
+    uint32_t old_srcdata_size = f->size, old_dstdata_size = (last_bucket == bucket) ? old_srcdata_size:0;
     char tmp[MAX_PATH_LEN] = "";
     uint32_t hint_used = 0, hint_size = 0;
+
     if (!use_tmp)
     {
         new_df = fopen(lastdata, "ab");
@@ -583,9 +584,9 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size)
             {
-                if (last_bucket == bucket)
+                if (use_tmp)
                 {
-                    log_warn("Bug: optimize %s into  tmp %s overflow, delete it!", path, tmp);
+                    log_warn("Bug: optimize %s into  tmp %s overflow", path, tmp);
                 }
                 else 
                 {
@@ -621,7 +622,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
 
             if (write_record(new_df, r) != 0)
             {
-                log_error("write error: %s -> %d, old dst data size = %u", path, last_bucket, old_dstdata_size);
+                log_error("write error: %s -> %d", path, last_bucket);
                 free(it);
                 free_record(r);
                 goto  OPT_FAIL;
