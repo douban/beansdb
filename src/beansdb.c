@@ -238,6 +238,19 @@ bool do_conn_add_to_freelist(conn *c)
     return true;
 }
 
+static void conn_getnameinfo(conn *c)
+{
+    struct sockaddr_storage addr;
+    socklen_t addrlen = (socklen_t)sizeof(addr);
+    getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen);
+    char host[NI_MAXHOST], serv[NI_MAXSERV];
+    if (0 != getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host), 
+                serv, sizeof(serv), NI_NUMERICSERV))
+        return;
+    c->remote = (char*)try_malloc(strlen(host) + strlen(serv) + 2);
+    sprintf(c->remote, "%s:%s", host, serv);
+
+}
 conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
 {
     conn *c = conn_from_freelist();
@@ -302,6 +315,9 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
     c->write_and_free = 0;
     c->item = NULL;
     c->noreply = false;
+
+    c->remote = NULL; 
+    conn_getnameinfo(c);
 
     update_event(c, AE_READABLE);
     if (add_event(sfd, AE_READABLE, c) == -1)
@@ -370,6 +386,8 @@ void conn_free(conn *c)
 
 void conn_close(conn *c)
 {
+    free(c->remote);
+    c->remote = NULL;
     assert(c != NULL);
 
     if (settings.verbose > 1)
@@ -1168,7 +1186,6 @@ static void process_verbosity_command(conn *c, token_t *tokens, const size_t nto
 
 static void process_command(conn *c, char *command)
 {
-
     token_t tokens[MAX_TOKENS];
     size_t ntokens;
     int comm;
@@ -1194,6 +1211,8 @@ static void process_command(conn *c, char *command)
     }
 
     clock_gettime(CLOCK_MONOTONIC, &start);
+    char command0[MAX_KEY_LEN*2];
+    strncpy(command0, command, MAX_KEY_LEN*2);
 
     ntokens = tokenize_command(command, tokens, MAX_TOKENS);
     if (ntokens >= 3 &&
@@ -1318,18 +1337,7 @@ static void process_command(conn *c, char *command)
     // access logging
     if (ntokens >= 3)
     {
-        /*
-         *char now[255];
-         *time_t t = time(NULL);
-         *strftime(now, 200, "%Y-%m-%d %H:%M:%S", localtime(&t));
-         */
-        struct sockaddr_storage addr;
-        socklen_t addrlen = (socklen_t)sizeof(addr);
-        getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen);
-        char host[NI_MAXHOST], serv[NI_MAXSERV];
-        getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host), serv, sizeof(serv),
-                    NI_NUMERICSERV);
-        log_info("%s:%s %s %s %.3f", host, serv, command, tokens[1].value, secs * 1000);
+        log_info("%s\t%s\t%.3f", c->remote, command0, secs * 1000);
     }
 
     return;
@@ -2021,7 +2029,7 @@ static void sig_handler(const int sig)
         return;
     }
     daemon_quit = 1;
-    log_error("Signal(%d) received, try to exit daemon gracefully..", sig);
+    log_warn("Signal(%d) received, try to exit daemon gracefully..", sig);
 }
 
 void* do_flush(void *args)
@@ -2031,7 +2039,7 @@ void* do_flush(void *args)
         hs_flush(store, (unsigned int)settings.flush_limit, settings.flush_period);
         sleep(1);
     }
-    log_error("flush thread exit.");
+    log_notice("flush thread exit.");
     return NULL;
 }
 
@@ -2345,12 +2353,12 @@ int main (int argc, char **argv)
     loop_run(settings.num_threads);
 
     /* wait other thread to ends */
-    log_error("waiting for close ... ");
+    log_notice("waiting for close ... ");
     pthread_join(flush_id, NULL);
     pthread_detach(flush_id);
 
     hs_close(store);
-    log_notice("close done.");
+    log_warn("close done.");
     log_finish();
 /*
  *

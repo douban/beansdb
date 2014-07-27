@@ -243,6 +243,7 @@ struct conn
     item   **icurr;
     int    ileft;
 
+    char   *remote;
     conn   *next;     /* Used for generating a list of conn structures */
 };
 
