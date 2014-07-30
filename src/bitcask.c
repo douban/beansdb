@@ -993,6 +993,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
 
         if (r != NULL)
         {
+            r->version = item->ver; 
             free(item);
             return r;
         }
@@ -1018,11 +1019,13 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         // check key
         if (strcmp(key, r->key) != 0)
         {
+
             if (bc->optimize_flag == 0)
                 log_error("Bug: record %s is not expected %s in %u @ %u", r->key, key, bucket, pos);
             free_record(r);
             r = NULL;
         }
+        r->version = item->ver; 
     }
 GET_END:
     if (NULL == r && bc->optimize_flag == 0)
