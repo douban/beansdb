@@ -1005,6 +1005,16 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     int fd = open(datapath, O_RDONLY);
     if (-1 == fd)
     {
+        if (bc->buckets[bucket] > 0)
+        {
+            log_fatal("fail to open %s to read key: %s", datapath, key);
+            free(item);
+            return NULL;
+        }
+        else
+        {
+            log_error("Bug: file %s to read %s not exist", datapath, key);
+        }
         goto GET_END;
     }
 
