@@ -4,10 +4,8 @@ import os.path, re, sys
 import time
 from random import shuffle
 
-try:
-    from cmemcached import Client
-except:
-    from memcache import Client
+from cmemcached import Client  # set_raw/get_raw/get_last_error only supported in python-libmemcached
+
 
 def fnv1a(s):
     prime = 0x01000193
@@ -31,8 +29,26 @@ class MCStore(object):
     def set(self, key, data, rev=0):
         return bool(self.mc.set(key, data, rev))
 
+    def set_raw(self, key, data, rev=0, flag=0):  # interface for sync data
+        if rev < 0:
+            raise str(rev)
+        return self.mc.set_raw(key, data, rev, flag)
+
     def get(self, key):
-        return self.mc.get(key)
+        try:
+            r = self.mc.get(key)
+            if r is None and self.mc.get_last_error() != 0:
+                raise IOError(self.mc.get_last_error())
+            return r
+        except ValueError:
+            self.mc.delete(key)
+
+    def get_raw(self, key):
+        r, flag = self.mc.get_raw(key)
+        if r is None and self.mc.get_last_error() != 0:
+            raise IOError(
+                self.mc.get_last_error(), self.mc.get_last_strerror())
+        return r, flag
 
     def get_multi(self, keys):
         return self.mc.get_multi(keys)

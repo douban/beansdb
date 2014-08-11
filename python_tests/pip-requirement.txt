@@ -1,0 +1,2 @@
+-e git+http://code.dapps.douban.com/python-libmemcached.git#egg=python-libmemcached
+-e git+http://code.dapps.douban.com/douban-corelib.git#egg=DoubanCoreLib-dev
