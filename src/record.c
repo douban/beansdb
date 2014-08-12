@@ -621,6 +621,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
                     sizeof(int32_t) - sizeof(uint16_t), r->key, r->ksz + 1);
             hint_used += hsize;
 
+            r->version = it->ver;
             if (write_record(new_df, r) != 0)
             {
                 log_error("write error: %s -> %d", path, last_bucket);
