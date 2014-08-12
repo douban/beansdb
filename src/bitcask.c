@@ -1221,7 +1221,7 @@ bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, in
 
     uint16_t hash = 0;
     if (ver > 0) 
-        gen_hash(value, vlen);
+        hash = gen_hash(value, vlen);
 
     if (NULL != it && hash == it->hash)
     {
