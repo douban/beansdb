@@ -138,7 +138,7 @@ static void settings_init(void)
     settings.slow_cmd_time = 0.1; // 100ms
     settings.max_bucket_size  = (uint32_t)(4000 << 20); // 4G
     settings.check_file_size = false;
-    settings.autolink = false;
+    settings.autolink = true;
 }
 
 /*
@@ -1904,7 +1904,6 @@ static void usage(void)
            "-i            print license info\n"
            "-F <num>      max size of a data file(in MB), default and at most 4000(MB), at least 5(MB)\n"
            "-C            check file sizes in startup using buckets.txt for each bitcask\n"
-           "-A            enable autolink\n"
           );
 
     return;
@@ -2153,9 +2152,6 @@ int main (int argc, char **argv)
             break;
         case 'C':
             settings.check_file_size = true;
-            break;
-        case 'A':
-            settings.autolink = true;
             break;
         default:
             invalid_arg = true;
