@@ -4,7 +4,7 @@
 import os
 import sys
 import time
-from base import BeansdbInstance, TestBeansdbBase, MCStore
+from base import BeansdbInstance, TestBeansdbBase, MCStore, check_data_hint_integrity
 import unittest
 
 
@@ -52,6 +52,7 @@ class TestGenerateData(TestBeansdbBase):
                 print key, "error", e
                 return self.fail("fail")
         print "done get"
+        check_data_hint_integrity(self.backend1.db_home, 1)
 
 
     def tearDown(self):

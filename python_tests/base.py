@@ -11,13 +11,21 @@ import string
 import random
 import shutil
 from os.path import dirname
+import fnv1a # douban-fnv1a
+import glob
+import quicklz
+import struct
+import re
+import collections
+import binascii
+from nose.tools import eq_
 
 sys.path.insert(0, os.path.join(dirname(dirname(__file__)), "python"))
 from dbclient import MCStore # in  "python" dir
 
 def start_svc(cmd):
     print "start", cmd
-    p = subprocess.Popen(isinstance(cmd, (tuple, list,)) and cmd or shlex.split(cmd) , close_fds=True)
+    p = subprocess.Popen(cmd if isinstance(cmd, (tuple, list,)) else shlex.split(cmd), close_fds=True)
     time.sleep(0.2)
     if p.poll() is not None:
         raise Exception("cannot start %s" % (cmd))
@@ -32,7 +40,7 @@ def stop_svc(popen):
 
 class BeansdbInstance:
 
-    def __init__(self, base_path, port):
+    def __init__(self, base_path, port, accesslog=True):
         self.port = port
         self.popen = None
         self.db_home = os.path.join(base_path, "beansdb_%s" % (self.port))
@@ -40,12 +48,16 @@ class BeansdbInstance:
             os.makedirs(self.db_home)
         top_dir = dirname(dirname(os.path.abspath(__file__)))
         beansdb = os.path.join(top_dir, "src/beansdb")
-        conf = os.path.join(dirname(os.path.abspath(__file__)), "test_log.conf")
+        conf = os.path.join(dirname(os.path.abspath(__file__)), "test_log.conf" if accesslog else 'test_nolog.conf')
         self.cmd = "%s -p %s -H %s -T 1 -L %s" % (beansdb, self.port, self.db_home, conf)
 
 
-    def start(self):
+    def start(self, max_data_size=None):
+        """ max_data_size is MB """
         assert self.popen is None
+        if max_data_size:
+            cmd = self.cmd
+            cmd += " -F %s" % (max_data_size)
         self.popen = start_svc(self.cmd)
         store = MCStore("127.0.0.1:%s" % (self.port))
         while True:
@@ -69,6 +81,240 @@ class BeansdbInstance:
             shutil.rmtree(self.db_home)
 
 
+
+def get_hash(data):
+    _hash = fnv1a.get_hash_beansdb(data)
+    _hash = _hash & 0xffffffff
+    return _hash
+
+def get_data_hash(data):
+    l = len(data)
+    uint32_max = 2 ** 32 - 1
+    hash_ = (l * 97) & uint32_max
+    if len(data) <= 1024:
+        hash_ += get_hash(data)
+        hash_ &= uint32_max
+    else:
+        hash_ += get_hash(data[0:512])
+        hash_ &= uint32_max
+        hash_ *= 97
+        hash_ &= uint32_max
+        hash_ += get_hash(data[l-512:l])
+        hash_ &= uint32_max
+    hash_ &= 0xffff
+    return hash_
+
+
+PADDING = 256
+FLAG_COMPRESS = 0x00010000 # by beansdb
+
+
+def locate_key(dir_, key, ver_):
+    g = glob.glob(os.path.join(dir_, "*.hint.qlz"))
+    for hint_file in g:
+        r = _check_hint_with_key(hint_file, key)
+        if r is not None:
+            pos, ver, hash_ = r
+            data_file = re.sub(r'(.+)\.hint.qlz', r'\1.data', os.path.basename(hint_file))
+            data_file = os.path.join(dir_, data_file)
+            print "file", data_file, "pos", pos, "ver", ver
+            if ver != ver_:
+                continue
+            check_data_with_key(data_file, pos, key, ver_=ver, hash_=hash_)
+            return True
+    raise Exception("cannot locate key %s" % (key))
+
+
+def check_data_with_key(file_path, pos, key, ver_=None, hash_=None):
+    with open(file_path, 'r') as f:
+        print pos
+        f.seek(pos, 0)
+        block = f.read(PADDING)
+        if not block:
+#                print ('%s no existing key' % (file_path))
+            raise Exception("no data at pos %s" % (pos))
+        crc, tstamp, flag, ver, ksz, vsz = struct.unpack("IiiiII", block[:24])
+        if not (0 < ksz < 255 and 0 <= vsz < (50<<20)):
+            raise ValueError('%s header out of bound, ksz %s, vsz %s, offset %s' % (file_path, ksz, vsz, f.tell()))
+        if ver_ is not None and ver_ != ver:
+            raise ValueError('%s key %s expect ver %s != %s', file_path, key, ver_, ver)
+#        rsize = 24 + ksz + vsz
+        rsize = 24 + ksz
+#        if rsize & 0xff:
+#            rsize = ((rsize >> 8) + 1) << 8
+        if rsize > PADDING:
+            block += f.read(rsize-PADDING)
+#        crc32 = binascii.crc32(block[4:24 + ksz + vsz]) & 0xffffffff
+#        if crc != crc32:
+#            raise ValueError('%s crc wrong' % (file_path))
+        key = block[24:24+ksz]
+        value = block[24+ksz:24+ksz+vsz]
+        if flag & FLAG_COMPRESS:
+            value = quicklz.decompress(value)
+            print "decompress"
+        _hash = get_data_hash(value)
+        if hash_ is not None and _hash != hash_:
+            raise ValueError("%s key %s expect hash 0x%x != 0x%x" % (file_path, key, hash_, _hash))
+        return True
+
+
+def _check_hint_with_key(file_path, key):
+    with open(file_path, 'r') as f:
+        hint_data = f.read()
+    if file_path.endswith('.qlz'):
+        hint_data = quicklz.decompress(hint_data)
+    hint_len = len(hint_data)
+    off_s = 0
+    while off_s < hint_len:
+        header = hint_data[off_s:off_s + 10]
+        if not header:
+            raise ValueError('%s error' % (file_path))
+        pos, ver, hash_ = struct.unpack('IiH', header)
+        off_s += 10
+        ksz = pos & 0xff
+        key_ = hint_data[off_s:off_s + ksz]
+        if key_ == key:
+            return pos & 0xffffff00, ver, hash_
+        off_s += ksz + 1
+    return None
+
+def _build_key_list_from_hint(file_path):
+    with open(file_path, 'r') as f:
+        hint_data = f.read()
+    if file_path.endswith('.qlz'):
+        hint_data = quicklz.decompress(hint_data)
+    key_list = list()
+    hint_len = len(hint_data)
+    off_s = 0
+    while off_s < hint_len:
+        header = hint_data[off_s:off_s + 10]
+        if not header:
+            raise ValueError('%s error' % (file_path))
+        pos, ver, hash_ = struct.unpack('IiH', header)
+        off_s += 10
+        ksz = pos & 0xff
+        key = hint_data[off_s:off_s + ksz]
+        key_list.append((pos & 0xffffff00, key, ver, hash_))
+        off_s += ksz + 1
+    key_list.sort(cmp=lambda a, b: cmp(a[0], b[0]))
+    return key_list
+
+
+
+
+def _check_data_with_hint(data_file, hint_file):
+    hint_keys = _build_key_list_from_hint(hint_file)
+    j = 0
+    pos = 0
+    with open(data_file, 'r') as f:
+        while True:
+            block = f.read(PADDING)
+            _pos = PADDING
+            if not block:
+                if j < len(hint_keys):
+                    raise Exception("data is less than hint: %s" % (data_file))
+                print j
+                return
+            crc, tstamp, flag, ver, ksz, vsz = struct.unpack("IiiiII", block[:24])
+            if not (0 < ksz < 255 and 0 <= vsz < (50<<20)):
+                raise ValueError('%s header out of bound, ksz %s, vsz %s, offset %s' % (data_file, ksz, vsz, f.tell()))
+
+            rsize = 24 + ksz
+            if rsize > PADDING:
+                block += f.read(rsize-PADDING)
+                _pos += rsize - PADDING
+            crc32 = binascii.crc32(block[4:24 + ksz + vsz]) & 0xffffffff
+            if crc != crc32:
+                raise ValueError('%s crc wrong, pos=%s' % (data_file, pos))
+            key = block[24:24+ksz]
+            value = block[24+ksz:24+ksz+vsz]
+            hint_key = hint_keys[j]
+            if pos < hint_key[0]:
+                pos += _pos
+                continue
+            elif pos > hint_key[0]:
+                raise Exception('%s pos %s > hint pos %s' % (data_file, pos, hint_key[0]))
+            eq_(hint_key[1], key, data_file)
+            eq_(hint_key[2], ver, data_file)
+
+            if flag & FLAG_COMPRESS:
+                value = quicklz.decompress(value)
+                print "decompress"
+            _hash = get_data_hash(value)
+            eq_(hint_key[3], _hash, data_file)
+            pos += _pos
+            j += 1
+
+def check_data_hint_integrity(db_homes, db_depth):
+    index = _get_all_files_index(db_homes, db_depth)
+    for bucket, num_ext_dict in index.iteritems():
+        nums = map(lambda x: x[0], num_ext_dict.keys())
+        max_num = max(nums)
+        print "bucket", bucket, "max_num", max_num
+        for i in xrange(max_num + 1):
+            data_file = num_ext_dict.get((i, 'data'))
+            hint_file = num_ext_dict.get((i, 'hint.qlz'))
+            if data_file and hint_file:
+                print data_file, hint_file
+                _check_data_with_hint(data_file, hint_file)
+
+
+
+
+def _parse_bucket_from_path(db_depth, file_path):
+    bucket = []
+    path = os.path.dirname(file_path)
+    regx = re.compile(r'^[0-9a-fA-F]$')
+    for i in xrange(db_depth):
+        bucket_level = os.path.basename(path)
+        if not regx.match(bucket_level):
+            raise Exception("%s in %s does not seam to be a bucket" % (bucket_level, file_path))
+        bucket.insert(0, bucket_level)
+        path = os.path.dirname(path)
+    return tuple(bucket)
+
+def _parse_file_no_form_path(filepath):
+    filename = os.path.basename(filepath)
+    om = re.match(r'^(\d+)\..+$', filename)
+    if not om:
+        raise Exception('invalid path %s' % (filepath))
+    number = int(om.group(1), 10)
+    return number
+
+def _get_all_files_index(db_homes, db_depth):
+    file_index = dict()
+    if isinstance(db_homes, basestring):
+        db_homes = [db_homes]
+    for db_home in db_homes:
+        for root, dirs, names in os.walk(db_home):
+            for file_name in names:
+                file_path = os.path.join(root, file_name)
+                if os.path.islink(file_path):
+                    if not os.path.exists(file_path):
+                        raise Exception("bad link", file_path)
+                    target = os.readlink(file_path)
+                    if os.path.islink(target):
+                        raise Exception("double link %s -> %s" % (file_path, target))
+                    continue
+                elif file_path.endswith('.hint.qlz') or file_path.endswith('.data'):
+                    ext = file_path[file_path.index('.') + 1:]
+                    try:
+                        bucket = _parse_bucket_from_path(db_depth, file_path)
+                    except Exception, e:
+                        print str(e)
+                        continue
+                    bucket = tuple(map(lambda x: int(x, 16), bucket))
+                    number = _parse_file_no_form_path(file_path)
+                    if not file_index.has_key(bucket):
+                        file_index[bucket] = dict()
+                    if file_index[bucket].has_key((number, ext)):
+                        raise Exception('double file %s' % (file_path))
+                    file_index[bucket][(number, ext)] = file_path
+    return file_index
+
+
+
+
 class TestBeansdbBase(unittest.TestCase):
 
     data_base_path = os.path.join("/tmp", "beansdb_test")
@@ -85,6 +331,7 @@ class TestBeansdbBase(unittest.TestCase):
     def _clear_dir(self):
         if os.path.exists(self.data_base_path):
             shutil.rmtree(self.data_base_path)
+
 
 
 
