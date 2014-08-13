@@ -19,6 +19,7 @@ import re
 import collections
 import binascii
 from nose.tools import eq_
+import memcache # for stat interface
 
 sys.path.insert(0, os.path.join(dirname(dirname(__file__)), "python"))
 from dbclient import MCStore # in  "python" dir
@@ -80,6 +81,21 @@ class BeansdbInstance:
         if os.path.exists(self.db_home):
             shutil.rmtree(self.db_home)
 
+    def stat(self):
+    #    mc = MCStore(server)  libmemcached not supported
+        mc = memcache.Client(["127.0.0.1:%s" % (self.port)])
+        try:
+            result_dict = mc.get_stats()[0][1]
+        except IndexError:
+            result_dict = None
+        return result_dict
+
+    def item_count(self):
+        s = self.stat()
+        assert s is not None
+        return int(s['total_items'])
+
+
 
 
 def get_hash(data):
@@ -109,53 +125,108 @@ PADDING = 256
 FLAG_COMPRESS = 0x00010000 # by beansdb
 
 
-def locate_key(dir_, key, ver_):
-    g = glob.glob(os.path.join(dir_, "*.hint.qlz"))
+def locate_key_with_hint(db_homes, db_depth, key, ver_=None):
+    """ assume disk0 already have link,
+        if key exists and valid return True, if key not exist return False
+    """
+    if isinstance(db_homes, (list, tuple)):
+        db_home = db_homes[0]
+    else:
+        db_home = db_homes
+    key_hash = get_hash(key)
+    if db_depth == 1:
+        sector = (key_hash >> 28) & 0xff
+        sector_path = "%x" % (sector)
+        g = glob.glob(os.path.join(db_home, sector_path, "*.hint.qlz"))
+    elif db_depth == 2:
+        sector1 = (key_hash >> 28) & 0xff
+        sector2 = (key_hash >> 24) & 0xff
+        sector_path = "%x/%x" % (sector1, sector2)
+        g = glob.glob(os.path.join(db_home, sector_path, "*.hint.qlz"))
+    else:
+        raise NotImplementedError()
     for hint_file in g:
         r = _check_hint_with_key(hint_file, key)
         if r is not None:
             pos, ver, hash_ = r
             data_file = re.sub(r'(.+)\.hint.qlz', r'\1.data', os.path.basename(hint_file))
-            data_file = os.path.join(dir_, data_file)
+            data_file = os.path.join(db_home, sector_path, data_file)
             print "file", data_file, "pos", pos, "ver", ver
-            if ver != ver_:
+            if ver_ is not None and ver != ver_:
                 continue
-            check_data_with_key(data_file, pos, key, ver_=ver, hash_=hash_)
+            check_data_with_key(data_file, key, ver_=ver, hash_=hash_ if ver_ > 0 else None, pos=pos)
             return True
-    raise Exception("cannot locate key %s" % (key))
+    return False
+
+def locate_key_iterate(db_homes, db_depth, key, ver_=None):
+    """ assume disk0 already have link,
+        if key exists and valid return True, if key not exist return False
+    """
+    if isinstance(db_homes, (list, tuple)):
+        db_home = db_homes[0]
+    else:
+        db_home = db_homes
+    key_hash = get_hash(key)
+    if db_depth == 1:
+        sector = (key_hash >> 28) & 0xff
+        sector_path = "%x" % (sector)
+        g = glob.glob(os.path.join(db_home, sector_path, "*.data"))
+    elif db_depth == 2:
+        sector1 = (key_hash >> 28) & 0xff
+        sector2 = (key_hash >> 24) & 0xff
+        sector_path = "%x/%x" % (sector1, sector2)
+        g = glob.glob(os.path.join(db_home, sector_path, "*.data"))
+    else:
+        raise NotImplementedError()
+    for data_file in g:
+        if check_data_with_key(data_file, key, ver_=ver_):
+            return True
+    return False
 
 
-def check_data_with_key(file_path, pos, key, ver_=None, hash_=None):
+
+def check_data_with_key(file_path, key, ver_=None, hash_=None, pos=None):
+    """ if pos is None, iterate data file to match key and ver_,
+        otherwise seek to pos and check key and ver_ and hash_
+    """
     with open(file_path, 'r') as f:
-        print pos
-        f.seek(pos, 0)
-        block = f.read(PADDING)
-        if not block:
-#                print ('%s no existing key' % (file_path))
-            raise Exception("no data at pos %s" % (pos))
-        crc, tstamp, flag, ver, ksz, vsz = struct.unpack("IiiiII", block[:24])
-        if not (0 < ksz < 255 and 0 <= vsz < (50<<20)):
-            raise ValueError('%s header out of bound, ksz %s, vsz %s, offset %s' % (file_path, ksz, vsz, f.tell()))
-        if ver_ is not None and ver_ != ver:
-            raise ValueError('%s key %s expect ver %s != %s', file_path, key, ver_, ver)
-#        rsize = 24 + ksz + vsz
-        rsize = 24 + ksz
-#        if rsize & 0xff:
-#            rsize = ((rsize >> 8) + 1) << 8
-        if rsize > PADDING:
-            block += f.read(rsize-PADDING)
-#        crc32 = binascii.crc32(block[4:24 + ksz + vsz]) & 0xffffffff
-#        if crc != crc32:
-#            raise ValueError('%s crc wrong' % (file_path))
-        key = block[24:24+ksz]
-        value = block[24+ksz:24+ksz+vsz]
-        if flag & FLAG_COMPRESS:
-            value = quicklz.decompress(value)
-            print "decompress"
-        _hash = get_data_hash(value)
-        if hash_ is not None and _hash != hash_:
-            raise ValueError("%s key %s expect hash 0x%x != 0x%x" % (file_path, key, hash_, _hash))
-        return True
+        while True:
+            if pos is not None:
+                f.seek(pos, 0)
+            block = f.read(PADDING)
+            if not block:
+                if pos is not None:
+                    raise Exception("no data at pos %s" % (pos))
+                return False
+            crc, tstamp, flag, ver, ksz, vsz = struct.unpack("IiiiII", block[:24])
+            if not (0 < ksz < 255 and 0 <= vsz < (50<<20)):
+                raise ValueError('%s header out of bound, ksz %s, vsz %s, offset %s' % (file_path, ksz, vsz, f.tell()))
+            rsize = 24 + ksz
+            if rsize > PADDING:
+                block += f.read(rsize-PADDING)
+            crc32 = binascii.crc32(block[4:24 + ksz + vsz]) & 0xffffffff
+            if crc != crc32:
+                raise ValueError('%s crc wrong' % (file_path))
+            key_ = block[24:24+ksz]
+            if pos is not None:
+                eq_(key, key_)
+                if ver_ is not None and ver_ != ver:
+                    raise ValueError('%s key %s expect ver %s != %s', file_path, key, ver_, ver)
+            else:
+                if key != key_:
+                    continue
+                if ver_ is not None and ver_ != ver:
+                    continue
+
+            value = block[24+ksz:24+ksz+vsz]
+            if flag & FLAG_COMPRESS:
+                value = quicklz.decompress(value)
+                print "decompress"
+            _hash = get_data_hash(value)
+            if hash_ is not None and _hash != hash_:
+                raise ValueError("%s key %s expect hash 0x%x != 0x%x" % (file_path, key, hash_, _hash))
+            return True
+    return False
 
 
 def _check_hint_with_key(file_path, key):
@@ -332,10 +403,10 @@ class TestBeansdbBase(unittest.TestCase):
         if os.path.exists(self.data_base_path):
             shutil.rmtree(self.data_base_path)
 
-
-
-
-
+    def _get_version(self, store, key):
+        meta = store.get("?" + key)
+        if meta:
+            return int(meta.split()[0])
 
 #
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 :

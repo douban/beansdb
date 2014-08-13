@@ -3,3 +3,4 @@
 pyrex
 -e git+http://code.dapps.douban.com/pyquicklz.git#egg=pyquicklz
 -e git+http://code.dapps.douban.com/fnv1a.git#egg=fnv1a
+python-memcached

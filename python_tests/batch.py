@@ -53,6 +53,7 @@ class TestGenerateData(TestBeansdbBase):
                 return self.fail("fail")
         print "done get"
         check_data_hint_integrity(self.backend1.db_home, 1)
+        print "check data & hint"
 
 
     def tearDown(self):
