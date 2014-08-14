@@ -51,7 +51,7 @@ class BeansdbInstance:
         top_dir = dirname(dirname(os.path.abspath(__file__)))
         beansdb = os.path.join(top_dir, "src/beansdb")
         conf = os.path.join(dirname(os.path.abspath(__file__)), "test_log.conf" if accesslog else 'test_nolog.conf')
-        self.cmd = "%s -p %s -H %s -T %s -L %s" % (beansdb, self.port, self.db_home, self.db_depth, conf)
+        self.cmd = "%s -C -p %s -H %s -T %s -L %s" % (beansdb, self.port, self.db_home, self.db_depth, conf)
         if max_data_size:
             self.cmd += " -F %s" % (max_data_size)
 

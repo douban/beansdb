@@ -14,7 +14,7 @@ class TestGCMultiple(TestGCBase):
     def setUp(self):
         self._clear_dir()
         self._init_dir()
-        self.backend1 = BeansdbInstance(self.data_base_path, 57901, accesslog=False, max_data_size=10) 
+        self.backend1 = BeansdbInstance(self.data_base_path, 57901, accesslog=False, max_data_size=10)
         # buffer size is 4m, max_data_size set to 10m for data file better reach above 6m
         # turn off accesslog to speed up write
 
@@ -30,7 +30,6 @@ class TestGCMultiple(TestGCBase):
         for key in self.backend1.generate_key(prefix=prefix, count=loop_num, sector=0):
             if not store.delete(key):
                 return self.fail("fail to delete %s" % (key))
-
 
     def _check_data(self, data, prefix='', loop_num=10 * 1024):
         store = MCStore(self.backend1_addr)
@@ -58,7 +57,6 @@ class TestGCMultiple(TestGCBase):
         self.backend1.stop()
         self.backend1.start()
         print "restarted"
-
 
         #5M data file 2
         # data file 3

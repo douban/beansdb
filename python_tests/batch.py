@@ -65,12 +65,10 @@ class TestGenerateData(TestBeansdbBase):
         check_data_hint_integrity(self.backend1.db_home, self.backend1.db_depth)
         self.assertEqual(self.backend1.item_count(), loop_num)
 
-
-
     def tearDown(self):
         self.backend1.stop()
 
-Class TestGenerateData2(TestGenerateData):
+class TestGenerateData2(TestGenerateData):
 
     def setUp(self):
         self._clear_dir()
