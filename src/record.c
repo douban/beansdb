@@ -513,7 +513,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
           goto  OPT_FAIL;
     }
 
-    uint32_t old_srcdata_size = f->size, old_dstdata_size = (last_bucket == bucket) ? old_srcdata_size:0;
+    uint32_t old_srcdata_size = f->size, old_dstdata_size = (last_bucket == bucket) ? old_srcdata_size : 0;
     char tmp[MAX_PATH_LEN] = "";
     uint32_t hint_used = 0, hint_size = 0;
 
@@ -521,6 +521,19 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     {
         new_df = fopen(lastdata, "ab");
         old_dstdata_size = ftello(new_df);
+
+        int end = old_dstdata_size % 256;
+        if (end != 0)
+        {
+            char bytes[256];
+            int size = 256 - end;
+            log_warn("size of %s is 0x%llx, add padding", lastdata, (long long)old_dstdata_size);
+            if (fwrite(bytes, 1, size, new_df) < size)
+            {
+                log_error("write error when padding %s", lastdata);
+                goto  OPT_FAIL;
+            }
+        }
 
         if (old_dstdata_size > 0)
         {

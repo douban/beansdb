@@ -172,11 +172,6 @@ int load_buckets(const char* base, int64_t *buckets)
 
         p = endptr +1;
         long long size = strtoll(p,&endptr,10);
-        if ((size & 255) != 0)
-        {
-            log_fatal("bad file size %s = %lld\n ", path, size);
-            return -1;
-        }
         if (p == endptr)
         {
             log_fatal("bad file %s\n", path);
@@ -374,6 +369,10 @@ int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
                 if (stat(path, &sb) == 0)
                 {
                     sizes[bucket] =  sb.st_size;
+                    if (sb.st_size % 256 != 0) 
+                    {
+                        log_warn("size of %s is 0x%llx, not aligned", path, sb.st_size);
+                    }
                 }
                 else
                 {
