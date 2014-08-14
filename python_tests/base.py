@@ -126,6 +126,31 @@ PADDING = 256
 FLAG_COMPRESS = 0x00010000 # by beansdb
 
 
+def delete_hint_and_htree(db_homes, db_depth):
+
+    if not isinstance(db_homes, (list, tuple)):
+        db_homes = [db_homes]
+    for db_home in db_homes:
+        if db_depth == 1:
+            g = glob.glob(os.path.join(db_home, "*", "*.hint.qlz"))
+        elif db_depth == 2:
+            g = glob.glob(os.path.join(db_home, "*/*", "*.hint.qlz"))
+        else:
+            raise NotImplementedError()
+        for file_ in g:
+            print "rm", file_
+            os.remove(file_)
+        if db_depth == 1:
+            g = glob.glob(os.path.join(db_home, "*", "*.htree"))
+        elif db_depth == 2:
+            g = glob.glob(os.path.join(db_home, "*/*", "*.htree"))
+        for file_ in g:
+            print "rm", file_
+            os.remove(file_)
+    
+
+
+
 def locate_key_with_hint(db_homes, db_depth, key, ver_=None):
     """ assume disk0 already have link,
         if key exists and valid return True, if key not exist return False

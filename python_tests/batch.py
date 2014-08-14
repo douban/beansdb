@@ -4,7 +4,8 @@
 import os
 import sys
 import time
-from base import BeansdbInstance, TestBeansdbBase, MCStore, check_data_hint_integrity
+from base import BeansdbInstance, TestBeansdbBase, MCStore
+from base import check_data_hint_integrity, delete_hint_and_htree
 import unittest
 
 
@@ -52,14 +53,24 @@ class TestGenerateData(TestBeansdbBase):
                 print key, "error", e
                 return self.fail("fail")
         print "done get"
-        check_data_hint_integrity(self.backend1.db_home, self.backend1.db_depth)
         print "check data & hint"
+        check_data_hint_integrity(self.backend1.db_home, self.backend1.db_depth)
+        self.assertEqual(self.backend1.item_count(), loop_num)
+
+        self.backend1.stop()
+        print "delete .hint and .htree, should regenerate"
+        delete_hint_and_htree(self.backend1.db_home, self.backend1.db_depth)
+        self.backend1.start()
+        print "check data & hint"
+        check_data_hint_integrity(self.backend1.db_home, self.backend1.db_depth)
+        self.assertEqual(self.backend1.item_count(), loop_num)
+
 
 
     def tearDown(self):
         self.backend1.stop()
 
-class TestGenerateData2(TestGenerateData):
+Class TestGenerateData2(TestGenerateData):
 
     def setUp(self):
         self._clear_dir()
