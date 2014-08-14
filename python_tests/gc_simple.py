@@ -42,23 +42,20 @@ class TestGCBase(TestBeansdbBase):
 
     def _gen_data(self, data, prefix='', loop_num=10 * 1024):
         store = MCStore(self.backend1_addr)
-        for i in xrange(loop_num):
-            key = prefix + "test%s" % (i)
+        for key in self.backend1.generate_key(prefix=prefix, count=loop_num):
             if not store.set(key, data):
                 return self.fail("fail to set %s" % (key))
 
     def _delete_data(self, prefix='', loop_num=10 * 1024):
         store = MCStore(self.backend1_addr)
-        for i in xrange(loop_num):
-            key = prefix + "test%s" % (i)
+        for key in self.backend1.generate_key(prefix=prefix, count=loop_num):
             if not store.delete(key):
                 return self.fail("fail to delete %s" % (key))
 
 
     def _check_data(self, data, prefix='', loop_num=10 * 1024):
         store = MCStore(self.backend1_addr)
-        for i in xrange(loop_num):
-            key = prefix + "test%s" % (i)
+        for key in self.backend1.generate_key(prefix=prefix, count=loop_num):
             try:
                 self.assertEqual(store.get(key), data)
             except Exception, e:

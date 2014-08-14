@@ -41,7 +41,7 @@ def stop_svc(popen):
 
 class BeansdbInstance:
 
-    def __init__(self, base_path, port, accesslog=True, db_depth=1):
+    def __init__(self, base_path, port, accesslog=True, db_depth=1, max_data_size=None):
         self.port = port
         self.popen = None
         self.db_depth = db_depth
@@ -52,14 +52,13 @@ class BeansdbInstance:
         beansdb = os.path.join(top_dir, "src/beansdb")
         conf = os.path.join(dirname(os.path.abspath(__file__)), "test_log.conf" if accesslog else 'test_nolog.conf')
         self.cmd = "%s -p %s -H %s -T %s -L %s" % (beansdb, self.port, self.db_home, self.db_depth, conf)
+        if max_data_size:
+            self.cmd += " -F %s" % (max_data_size)
 
 
-    def start(self, max_data_size=None):
+    def start(self):
         """ max_data_size is MB """
         assert self.popen is None
-        if max_data_size:
-            cmd = self.cmd
-            cmd += " -F %s" % (max_data_size)
         self.popen = start_svc(self.cmd)
         store = MCStore("127.0.0.1:%s" % (self.port))
         while True:
@@ -97,7 +96,31 @@ class BeansdbInstance:
         return int(s['total_items'])
 
 
+    def generate_key(self, prefix='', count=16 * 1024, sector=None):
+        i = 0
+        j = 0
+        while j < count: 
+            key = prefix + "test%s" % (i)
+            if sector is not None:
+                if sector == get_key_sector(key, self.db_depth):
+                    j += 1
+                    yield key
+            else:
+                j += 1
+                yield key
+            i += 1 
+                
 
+def get_key_sector(key, db_depth):
+    hash_ = get_hash(key)
+    if db_depth == 1:
+        return (hash_ >> 28) & 0xf
+    elif db_depth == 2:
+        sector1 = (hash_ >> 28) & 0xf
+        sector2 = (hash_ >> 24) & 0xf
+        return (sector1, sector2)
+    else:
+        raise NotImplementedError()
 
 def get_hash(data):
     _hash = fnv1a.get_hash_beansdb(data)
