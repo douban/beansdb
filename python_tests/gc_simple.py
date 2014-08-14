@@ -96,8 +96,8 @@ class TestGCSimple(TestGCBase):
         self.backend1.start()
         
         print "deleted key should exists in data"
-        assert locate_key_iterate(self.backend1.db_home, db_depth=1, key="delete_group" + "test0", ver_=1)
-        assert locate_key_with_hint(self.backend1.db_home, db_depth=1, key="delete_group" + "test0", ver_=-2)
+        assert locate_key_iterate(self.backend1.db_home, db_depth=self.backend1.db_depth, key="delete_group" + "test0", ver_=1)
+        assert locate_key_with_hint(self.backend1.db_home, db_depth=self.backend1.db_depth, key="delete_group" + "test0", ver_=-2)
         print "done set data to 2"
         self._start_gc(0)
         print "gc started"
@@ -117,16 +117,23 @@ class TestGCSimple(TestGCBase):
         store = MCStore(self.backend1_addr)
         self.assertEqual(self._get_version(store, ver_key), 3) # version 3 should be in data
         print "check test key version, old version should not exist"
-        assert locate_key_with_hint(self.backend1.db_home, db_depth=1, key=ver_key, ver_=3)
-        assert not locate_key_iterate(self.backend1.db_home, db_depth=1, key=ver_key, ver_=1)
+        assert locate_key_with_hint(self.backend1.db_home, db_depth=self.backend1.db_depth, key=ver_key, ver_=3)
+        assert not locate_key_iterate(self.backend1.db_home, db_depth=self.backend1.db_depth, key=ver_key, ver_=1)
         print "check data & hint"
-        check_data_hint_integrity(self.backend1.db_home, db_depth=1)
+        check_data_hint_integrity(self.backend1.db_home, db_depth=self.backend1.db_depth)
 
         print "deleted key got deleted from data file during gc"
-        assert not locate_key_iterate(self.backend1.db_home, db_depth=1, key="delete_group" + "test0")
+        assert not locate_key_iterate(self.backend1.db_home, db_depth=self.backend1.db_depth, key="delete_group" + "test0")
         self.assertEqual(self.backend1.item_count(), 10241)
 
         self.backend1.stop()
+
+class TestGCSimple2(TestGCSimple):
+
+    def setUp(self):
+        self._clear_dir()
+        self._init_dir()
+        self.backend1 = BeansdbInstance(self.data_base_path, 57901, db_depth=2)
 
 if __name__ == '__main__':
     unittest.main()

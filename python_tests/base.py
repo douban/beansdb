@@ -41,16 +41,17 @@ def stop_svc(popen):
 
 class BeansdbInstance:
 
-    def __init__(self, base_path, port, accesslog=True):
+    def __init__(self, base_path, port, accesslog=True, db_depth=1):
         self.port = port
         self.popen = None
+        self.db_depth = db_depth
         self.db_home = os.path.join(base_path, "beansdb_%s" % (self.port))
         if not os.path.exists(self.db_home):
             os.makedirs(self.db_home)
         top_dir = dirname(dirname(os.path.abspath(__file__)))
         beansdb = os.path.join(top_dir, "src/beansdb")
         conf = os.path.join(dirname(os.path.abspath(__file__)), "test_log.conf" if accesslog else 'test_nolog.conf')
-        self.cmd = "%s -p %s -H %s -T 1 -L %s" % (beansdb, self.port, self.db_home, conf)
+        self.cmd = "%s -p %s -H %s -T %s -L %s" % (beansdb, self.port, self.db_home, self.db_depth, conf)
 
 
     def start(self, max_data_size=None):
@@ -135,12 +136,12 @@ def locate_key_with_hint(db_homes, db_depth, key, ver_=None):
         db_home = db_homes
     key_hash = get_hash(key)
     if db_depth == 1:
-        sector = (key_hash >> 28) & 0xff
+        sector = (key_hash >> 28) & 0xf
         sector_path = "%x" % (sector)
         g = glob.glob(os.path.join(db_home, sector_path, "*.hint.qlz"))
     elif db_depth == 2:
-        sector1 = (key_hash >> 28) & 0xff
-        sector2 = (key_hash >> 24) & 0xff
+        sector1 = (key_hash >> 28) & 0xf
+        sector2 = (key_hash >> 24) & 0xf
         sector_path = "%x/%x" % (sector1, sector2)
         g = glob.glob(os.path.join(db_home, sector_path, "*.hint.qlz"))
     else:
@@ -168,17 +169,18 @@ def locate_key_iterate(db_homes, db_depth, key, ver_=None):
         db_home = db_homes
     key_hash = get_hash(key)
     if db_depth == 1:
-        sector = (key_hash >> 28) & 0xff
+        sector = (key_hash >> 28) & 0xf
         sector_path = "%x" % (sector)
         g = glob.glob(os.path.join(db_home, sector_path, "*.data"))
     elif db_depth == 2:
-        sector1 = (key_hash >> 28) & 0xff
-        sector2 = (key_hash >> 24) & 0xff
+        sector1 = (key_hash >> 28) & 0xf
+        sector2 = (key_hash >> 24) & 0xf
         sector_path = "%x/%x" % (sector1, sector2)
         g = glob.glob(os.path.join(db_home, sector_path, "*.data"))
     else:
         raise NotImplementedError()
     for data_file in g:
+        print data_file
         if check_data_with_key(data_file, key, ver_=ver_):
             return True
     return False

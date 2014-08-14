@@ -21,7 +21,7 @@ class TestGenerateData(TestBeansdbBase):
     def test_gen_data(self):
         self.backend1.start()
         store = MCStore(self.backend1_addr)
-        loop_num = 10 * 1024
+        loop_num = 16 * 1024
         for i in xrange(loop_num):
             key = "test%s" % (i)
             if not store.set(key, 1):
@@ -52,13 +52,19 @@ class TestGenerateData(TestBeansdbBase):
                 print key, "error", e
                 return self.fail("fail")
         print "done get"
-        check_data_hint_integrity(self.backend1.db_home, 1)
+        check_data_hint_integrity(self.backend1.db_home, self.backend1.db_depth)
         print "check data & hint"
 
 
     def tearDown(self):
         self.backend1.stop()
 
+class TestGenerateData2(TestGenerateData):
+
+    def setUp(self):
+        self._clear_dir()
+        self._init_dir()
+        self.backend1 = BeansdbInstance(self.data_base_path, 57901, db_depth=2)
 
 if __name__ == '__main__':
     unittest.main()
