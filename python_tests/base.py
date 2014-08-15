@@ -273,7 +273,6 @@ def check_data_with_key(file_path, key, ver_=None, hash_=None, pos=None):
             value = block[24+ksz:24+ksz+vsz]
             if flag & FLAG_COMPRESS:
                 value = quicklz.decompress(value)
-                print "decompress"
             _hash = get_data_hash(value)
             if hash_ is not None and _hash != hash_:
                 raise ValueError("%s key %s expect hash 0x%x != 0x%x" % (file_path, key, hash_, _hash))
@@ -336,7 +335,6 @@ def _check_data_with_hint(data_file, hint_file):
             if not block:
                 if j < len(hint_keys):
                     raise Exception("data is less than hint: %s" % (data_file))
-                print j
                 return
             crc, tstamp, flag, ver, ksz, vsz = struct.unpack("IiiiII", block[:24])
             if not (0 < ksz < 255 and 0 <= vsz < (50<<20)):
@@ -364,7 +362,6 @@ def _check_data_with_hint(data_file, hint_file):
 
             if flag & FLAG_COMPRESS:
                 value = quicklz.decompress(value)
-                print "decompress"
             _hash = get_data_hash(value)
             eq_(hint_key[3], _hash, "%s: %s, hash 0x%x != 0x%x" % (data_file, key, _hash, hint_key[3]))
             pos += _pos

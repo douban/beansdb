@@ -73,6 +73,12 @@ class TestGCMultiple(TestGCBase):
         print "test append some junk data to file, simulate incomplete data file got gc"
         with open(os.path.join(self.backend1.db_home, "0/001.data"), 'a') as f:
             f.write("junkdatasdfsdfsdfdfdf")
+
+        buckets_txt_path = os.path.join(self.backend1.db_home, "0/buckets.txt")
+        if os.path.exists(buckets_txt_path):
+            print "rm", buckets_txt_path
+            os.remove(buckets_txt_path)
+        
         self.backend1.start()
 
         time.sleep(1)
