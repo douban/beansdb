@@ -5,8 +5,10 @@ import os
 import sys
 import time
 from base import BeansdbInstance, TestBeansdbBase, MCStore
-from base import check_data_hint_integrity, delete_hint_and_htree
+from base import check_data_hint_integrity, delete_hint_and_htree, random_string
 import unittest
+
+string_large = random_string(10*1024*1024)
 
 
 class TestGenerateData(TestBeansdbBase):
@@ -22,6 +24,9 @@ class TestGenerateData(TestBeansdbBase):
     def test_gen_data(self):
         self.backend1.start()
         store = MCStore(self.backend1_addr)
+        self.assert_(store.set("largekey", string_large))
+        self.assert_(store.get("largekey") == string_large)
+
         loop_num = 16 * 1024
         for i in xrange(loop_num):
             key = "test%s" % (i)
@@ -55,7 +60,7 @@ class TestGenerateData(TestBeansdbBase):
         print "done get"
         print "check data & hint"
         check_data_hint_integrity(self.backend1.db_home, self.backend1.db_depth)
-        self.assertEqual(self.backend1.item_count(), loop_num)
+        self.assertEqual(self.backend1.item_count(), loop_num + 1)
 
         self.backend1.stop()
         print "delete .hint and .htree, should regenerate"
@@ -63,7 +68,7 @@ class TestGenerateData(TestBeansdbBase):
         self.backend1.start()
         print "check data & hint"
         check_data_hint_integrity(self.backend1.db_home, self.backend1.db_depth)
-        self.assertEqual(self.backend1.item_count(), loop_num)
+        self.assertEqual(self.backend1.item_count(), loop_num + 1)
 
     def tearDown(self):
         self.backend1.stop()

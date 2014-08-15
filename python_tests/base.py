@@ -251,7 +251,9 @@ def check_data_with_key(file_path, key, ver_=None, hash_=None, pos=None):
             crc, tstamp, flag, ver, ksz, vsz = struct.unpack("IiiiII", block[:24])
             if not (0 < ksz < 255 and 0 <= vsz < (50<<20)):
                 raise ValueError('%s header out of bound, ksz %s, vsz %s, offset %s' % (file_path, ksz, vsz, f.tell()))
-            rsize = 24 + ksz
+            rsize = 24 + ksz + vsz
+            if rsize & 0xff:
+                rsize = ((rsize >> 8) + 1) << 8
             if rsize > PADDING:
                 block += f.read(rsize-PADDING)
             crc32 = binascii.crc32(block[4:24 + ksz + vsz]) & 0xffffffff
@@ -340,7 +342,9 @@ def _check_data_with_hint(data_file, hint_file):
             if not (0 < ksz < 255 and 0 <= vsz < (50<<20)):
                 raise ValueError('%s header out of bound, ksz %s, vsz %s, offset %s' % (data_file, ksz, vsz, f.tell()))
 
-            rsize = 24 + ksz
+            rsize = 24 + ksz + vsz
+            if rsize & 0xff:
+                rsize = ((rsize >> 8) + 1) << 8
             if rsize > PADDING:
                 block += f.read(rsize-PADDING)
                 _pos += rsize - PADDING
@@ -355,14 +359,14 @@ def _check_data_with_hint(data_file, hint_file):
                 continue
             elif pos > hint_key[0]:
                 raise Exception('%s pos %s > hint pos %s' % (data_file, pos, hint_key[0]))
-            eq_(hint_key[1], key, data_file)
-            eq_(hint_key[2], ver, data_file)
+            eq_(hint_key[1], key, "%s: %s" % (data_file, key))
+            eq_(hint_key[2], ver, "%s: %s" % (data_file, key))
 
             if flag & FLAG_COMPRESS:
                 value = quicklz.decompress(value)
                 print "decompress"
             _hash = get_data_hash(value)
-            eq_(hint_key[3], _hash, data_file)
+            eq_(hint_key[3], _hash, "%s: %s, hash 0x%x != 0x%x" % (data_file, key, _hash, hint_key[3]))
             pos += _pos
             j += 1
 
@@ -433,6 +437,12 @@ def _get_all_files_index(db_homes, db_depth):
                     file_index[bucket][(number, ext)] = file_path
     return file_index
 
+def random_string(n):
+    s = string.ascii_letters
+    result = ""
+    for i in xrange(n):
+        result += random.choice(s)
+    return result
 
 
 

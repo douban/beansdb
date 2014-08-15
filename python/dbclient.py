@@ -18,7 +18,7 @@ def fnv1a(s):
 class MCStore(object):
     def __init__(self, server):
         self.server = server
-        self.mc = Client([server])
+        self.mc = Client([server], do_split=0)
 
     def __repr__(self):
         return '<MCStore(server=%s)>' % repr(self.server)
