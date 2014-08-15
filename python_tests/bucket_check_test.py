@@ -132,6 +132,58 @@ class TestBucketTxt(TestBeansdbBase):
         self.backend1.start()
         self.assertEqual(self.backend1.item_count(), 16 * 3 * 1024)
         print "test item count ok"
+
+    def test_buckets_txt3(self):
+        self.backend1.start()
+        self._gen_data(1, prefix='group1_', loop_num=16 * 1024)
+        #5M data file 1
+        self._gen_data(2, prefix='group1_', loop_num=16 * 1024)
+        print 'group1'
+        
+        self.backend1.stop()
+        self.backend1.start()
+        print "restarted"
+
+        self._gen_data(1, prefix='group2_', loop_num=16 * 1024)
+        self._gen_data(2, prefix='group2_', loop_num=16 * 1024)
+
+        self.backend1.stop()
+        self.backend1.start()
+        print "restarted"
+
+        self._gen_data(1, prefix='group3_', loop_num=16 * 1024)
+        self._gen_data(2, prefix='group3_', loop_num=16 * 1024)
+        
+        self.assertEqual(self.backend1.item_count(), 16 * 3 * 1024)
+        self.backend1.stop()
+        sector0_exp = os.path.join(self.backend1.db_home, "0/*.data")
+        print "sector0 files", len(glob.glob(sector0_exp))
+        self.assertEqual(len(glob.glob(sector0_exp)), 3)
+        
+        buckets_txt = os.path.join(self.backend1.db_home, "0/buckets.txt")
+        with open(buckets_txt, 'r') as f:
+            bucket_data = f.read()
+        print bucket_data 
+        bucket_arr = bucket_data.split("\n")
+        for i in xrange(len(bucket_arr)):
+            if bucket_arr[i] and bucket_arr[i][0] == '1':
+                size = int(bucket_arr[i].split()[1])
+                size += 1024
+                bucket_arr[i] = "1 %s" % (size)  # size have to be multiply of 256 
+                break
+        with open(buckets_txt, 'w') as f:
+            f.write("\n".join(bucket_arr))
+        print "changed the buckets.txt file size which not the last, shouldnot start"
+        with open(buckets_txt, 'r') as f:
+            bucket_data = f.read()
+            print bucket_data 
+
+        with self.assertRaisesRegexp(Exception, '^cannot start'):
+            self.backend1.start()
+ 
+        
+
+
         
     def tearDown(self):
         self.backend1.stop()
