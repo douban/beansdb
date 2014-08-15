@@ -66,8 +66,14 @@ class TestGCMultiple(TestGCBase):
 
         sector0_exp = os.path.join(self.backend1.db_home, "0/*.data")
 
-        print "sector0 files", len(glob.glob(sector0_exp))
-        self.assert_(len(glob.glob(sector0_exp)) >= 2)
+        print "sector0 files", glob.glob(sector0_exp)
+        self.assertEqual(len(glob.glob(sector0_exp)), 3)
+
+        self.backend1.stop()
+        print "test append some junk data to file, simulate incomplete data file got gc"
+        with open(os.path.join(self.backend1.db_home, "0/001.data"), 'a') as f:
+            f.write("junkdatasdfsdfsdfdfdf")
+        self.backend1.start()
 
         time.sleep(1)
         self._start_gc(0)
@@ -86,8 +92,8 @@ class TestGCMultiple(TestGCBase):
                 self.fail(status)
 
         self.assertEqual(self.backend1.item_count(), 32 * 1024 + 512)
-        self._check_data(2, prefix='group1_', loop_num=8 * 1024)
-        self._check_data(2, prefix='group2_', loop_num=512)
+        self._check_data(2, prefix='group1_', loop_num=16 * 1024)
+        self._check_data(2, prefix='group2_', loop_num=16 * 1024)
         self._check_data(2, prefix='group3_', loop_num=512)
         for key in self.backend1.generate_key(prefix="group1_", count=2, sector=0):
             print key
