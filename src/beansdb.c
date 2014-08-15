@@ -1903,7 +1903,7 @@ static void usage(void)
            "-h            print this help and exit\n"
            "-i            print license info\n"
            "-F <num>      max size of a data file(in MB), default and at most 4000(MB), at least 5(MB)\n"
-           "-C            check file sizes in startup using buckets.txt for each bitcask\n"
+           "-C            check file sizes in startup using buckets.txt for each bitcask if it exists\n"
           );
 
     return;

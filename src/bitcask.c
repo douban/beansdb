@@ -125,7 +125,7 @@ static inline char *new_data(char *dst, int dst_size, Bitcask *bc, const char *f
 
 
 #define MAX_BUCKETS_FILE_SIZE (256 *32)
-int load_buckets(const char* base, int64_t *buckets)
+int load_buckets(const char* base, int64_t *buckets, int *last)
 {
     char path[MAX_PATH_LEN];
     safe_snprintf(path, MAX_PATH_LEN, "%s/buckets.txt", base);
@@ -158,20 +158,19 @@ int load_buckets(const char* base, int64_t *buckets)
     buf[n] = 0;
     char *p = buf;
     char *endptr;
-    int last = -1;
     while(p-buf < n){
-        long bucket = strtol(p,&endptr,10);
+        long bucket = strtol(p, &endptr, 10);
         if (p == endptr) 
             continue;
-        if (bucket < 0 || bucket > 255 || bucket <= last)
+        if (bucket < 0 || bucket > 255 || bucket <= *last)
         {
             log_fatal("bad bucket: %ld", bucket);
             return -1;
         }
-        last = bucket;
+        *last = bucket;
 
-        p = endptr +1;
-        long long size = strtoll(p,&endptr,10);
+        p = endptr + 1;
+        long long size = strtoll(p, &endptr, 10);
         if (p == endptr)
         {
             log_fatal("bad file %s\n", path);
@@ -179,10 +178,10 @@ int load_buckets(const char* base, int64_t *buckets)
         }
         log_debug("buckets[%ld] = %lld", bucket, size);
         buckets[bucket] = size;
-        p = endptr +1;
+        p = endptr + 1;
     }
     fclose(f);
-    return 0;
+    return 1;
 }
 
 int dump_buckets(Bitcask *bc)
@@ -371,7 +370,7 @@ int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
                     sizes[bucket] =  sb.st_size;
                     if (sb.st_size % 256 != 0) 
                     {
-                        log_warn("size of %s is 0x%llx, not aligned", path, sb.st_size);
+                        log_warn("size of %s is 0x%llx, not aligned", path, (long long)sb.st_size);
                     }
                 }
                 else
@@ -437,26 +436,36 @@ static void init_buckets(Bitcask *bc)
     {
         int64_t buckets[256];
         memset(buckets, -1, sizeof(int64_t)*256);
-        if (load_buckets(mgr_base(bc->mgr), buckets) < 0)
+        int last  = -1;
+        int ret = load_buckets(mgr_base(bc->mgr), buckets, &last);
+        if (ret < 0)
         {
-            log_warn("load_buckets fail, bc %0x, exit", bc->pos);
-            exit(-1);
+            log_error("load_buckets fail, bc %0x, exit", bc->pos);
+            exit(1);
         }
-        int last = -1;
-        int i;
-        for (i=255; i>=0; i--)
+        else if (ret == 0 )
         {
-            if (buckets[i] != bc->buckets[i])
+            if (bc->buckets[0] >= 0)
             {
-                if (last < 0 && buckets[i] >= 0 && bc->buckets[i] >= 0)
+                log_warn("bucket.txt not exist , bc %0x", bc->pos);
+            }
+        }
+        else 
+        {
+            int i;
+            for (i=255; i>=0; i--)
+            {
+                if (buckets[i] != bc->buckets[i])
                 {
-                    last = i;
-                    log_warn("last file size not match (bc %0x, bucket %d)", bc->pos, i);
-                }
-                else
-                {
-                    log_fatal("bucket size not match (bc %0x, bucket %d), exit", bc->pos, i);
-                    exit(1);
+                    if (i == last && buckets[i] >= 0 && bc->buckets[i] >= 0)
+                    {
+                        log_warn("last file size not match (bc %0x, bucket %d)", bc->pos, i);
+                    }
+                    else
+                    {
+                        log_fatal("bucket size not match (bc %0x, bucket %d), exit", bc->pos, i);
+                        exit(1);
+                    }
                 }
             }
         }
