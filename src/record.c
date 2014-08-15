@@ -585,7 +585,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
             {
                 // TODO: delete broken keys from htree
                 log_error("unexpected broken data in %s at %ld", path, p - f->addr - broken * PADDING);
-                break;
+                goto  OPT_FAIL;
             }
             p += PADDING;
             continue;
