@@ -87,7 +87,11 @@ static inline bool check_version(Item *oldit, Item * newit)
         return true;
     else
     {
-        log_error("BUG: bad version, key=%s, oldv=%d, newv=%d", oldit->key, oldit->ver, newit->ver);
+        char key[MAX_KEY_LEN];
+        int ksz = KEYLENGTH(oldit);
+        memcpy(key, oldit->key, min(ksz, MAX_KEY_LEN));
+        key[ksz] = '\0';
+        log_warn("BUG: bad version, key=%s, oldv=%d, newv=%d", key, oldit->ver, newit->ver);
         return false;
     }
 }
@@ -179,9 +183,9 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     for (i=0; i<data->count; ++i)
     {
         if (it->length == p->length &&
-                memcmp(it->key, p->key, KEYLENGTH(it)) == 0 &&
-                check_version(p, it))
+                memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
         {
+            check_version(p, it);
             node->hash += (HASH(it) - HASH(p)) * keyhash;
             node->count += (it->ver > 0);
             node->count -= (p->ver > 0);
