@@ -513,21 +513,22 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
           goto  OPT_FAIL;
     }
 
-    uint32_t old_srcdata_size = f->size, old_dstdata_size = (last_bucket == bucket) ? old_srcdata_size : 0;
+    uint32_t old_srcdata_size = f->size;
+    uint32_t new_df_orig_size =  0;
     char tmp[MAX_PATH_LEN] = "";
     uint32_t hint_used = 0, hint_size = 0;
 
     if (!use_tmp)
     {
         new_df = fopen(lastdata, "ab");
-        old_dstdata_size = ftello(new_df);
+        new_df_orig_size = ftello(new_df);
 
-        int end = old_dstdata_size % 256;
+        int end = new_df_orig_size % 256;
         if (end != 0)
         {
             char bytes[256];
             int size = 256 - end;
-            log_warn("size of %s is 0x%llx, add padding", lastdata, (long long)old_dstdata_size);
+            log_warn("size of %s is 0x%llx, add padding", lastdata, (long long)new_df_orig_size);
             if (fwrite(bytes, 1, size, new_df) < size)
             {
                 log_error("write error when padding %s", lastdata);
@@ -535,7 +536,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
             }
         }
 
-        if (old_dstdata_size > 0)
+        if (new_df_orig_size > 0)
         {
             HintFile *hint = open_hint(lasthint_real, NULL);
             if (hint == NULL)
@@ -604,11 +605,11 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
                 }
                 else 
                 {
-                    log_warn("optimize %s into %s overflow, ftruncate to %u", path, lastdata, old_dstdata_size);
+                    log_warn("optimize %s into %s overflow, ftruncate to %u", path, lastdata, new_df_orig_size);
                     fflush(new_df);  
-                    if ( 0 != ftruncate(fileno(new_df), old_dstdata_size))
+                    if ( 0 != ftruncate(fileno(new_df), new_df_orig_size))
                     {
-                        log_error("ftruncate failed for  %s old size = %u", path, old_dstdata_size);
+                        log_error("ftruncate failed for  %s old size = %u", path, new_df_orig_size);
                     }
                     rewind(new_df);
                 }
@@ -656,7 +657,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         mfile_dontneed(f, pos, &last_advise);
     }
     fseeko(new_df, 0L, SEEK_END);
-    *deleted_bytes = f->size - (ftello(new_df) - old_dstdata_size);
+    *deleted_bytes = f->size - (ftello(new_df) - new_df_orig_size);
 
     close_mfile(f);
     fclose(new_df);
@@ -677,12 +678,12 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     free(hintdata);
 
     log_notice("optimize %s -> %d (%u B) complete, %d/%d records deleted, %u/%u bytes released, %d broken",
-                       path,  last_bucket, old_dstdata_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken);
+                       path,  last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken);
     return 0;
 
 OPT_FAIL:
     log_notice("optimize %s -> %d (%u B) failed,  %d/%d records deleted,  %u/%u bytes released, %d broken, err = %d",
-            path, last_bucket, old_dstdata_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, err);
+            path, last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size , deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, err);
     if (hintdata) free(hintdata);
     if (cur_tree)  ht_destroy(cur_tree);
     if (f) close_mfile(f);
