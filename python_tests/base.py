@@ -97,6 +97,9 @@ class BeansdbInstance:
 
 
     def generate_key(self, prefix='', count=16 * 1024, sector=None):
+        """ sector express in 0 or (0, 0) """
+        if sector is not None:
+            assert isinstance(sector, int) or (isinstance(sector, (tuple, list)) and len(sector) == 2)
         i = 0
         j = 0
         while j < count: 
@@ -109,7 +112,7 @@ class BeansdbInstance:
                 j += 1
                 yield key
             i += 1 
-                
+ 
 
 def get_key_sector(key, db_depth):
     hash_ = get_hash(key)

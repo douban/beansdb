@@ -25,9 +25,15 @@ class TestGCBase(TestBeansdbBase):
         self._init_dir()
         self.backend1 = BeansdbInstance(self.data_base_path, 57901)
 
-    def _start_gc(self, ignore_recent=0):
+    def _start_gc(self, ignore_recent=0, bucket=None):
+        """ bucket must be in 0 or 00 string """
+        if bucket is not None:
+            assert isinstance(bucket, basestring) and len(bucket) <= 2
         t = telnetlib.Telnet("127.0.0.1", self.backend1.port)
-        t.write('flush_all {}\n'.format(ignore_recent))
+        if bucket is None:
+            t.write('flush_all {}\n'.format(ignore_recent))
+        else:
+            t.write('flush_all %s @%s\n' % (ignore_recent, bucket))
         t.read_until('OK')
         t.write('quit\n')
         t.close()
