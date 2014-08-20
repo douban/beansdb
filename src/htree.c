@@ -71,6 +71,9 @@ struct t_hash_tree
     Codec *dc;
     pthread_mutex_t lock;
     char buf[TREE_BUF_SIZE];
+
+    uint32_t updating_bucket;
+    HTree * updating_tree;
 };
 
 
@@ -522,6 +525,7 @@ HTree* ht_new(int depth, int pos)
     tree->depth = depth;
     tree->pos = pos;
     tree->height = 1;
+    tree->updating_bucket = -1;
 
     int pool_size = g_index[tree->height];
     Node *root = (Node*)safe_malloc(sizeof(Node) * pool_size);
@@ -948,3 +952,69 @@ void ht_visit(HTree *tree, fun_visitor visitor, void *param)
     visit_node(tree, tree->root, visitor, param);
     pthread_mutex_unlock(&tree->lock);
 }
+
+void ht_visit2(HTree *tree, fun_visitor visitor, void *param)
+{
+    visit_node(tree, tree->root, visitor, param);
+}
+
+void ht_set_updating_bucket(HTree *tree, int bucket, HTree *updating_tree)
+{
+
+    log_notice("htree 0x%x for bucket %d, ", tree->pos, bucket);
+    pthread_mutex_lock(&tree->lock);
+    tree->updating_bucket = bucket;
+    tree->updating_tree = updating_tree;
+    pthread_mutex_unlock(&tree->lock);
+}
+
+Item* ht_get_withbuf(HTree* tree, const char* key, int len, char * buf, bool lock)
+{
+    if (!check_key(tree, key, len)) return NULL;
+
+    Item *it = (Item*)buf; 
+    int n = dc_encode(tree->dc, it->key, TREE_BUF_SIZE - (sizeof(Item) - ITEM_PADDING) , key, len);
+    it->length = sizeof(Item) + n - ITEM_PADDING;
+
+    if (lock)
+        pthread_mutex_lock(&tree->lock);
+    Item *r = get_item_hash(tree, tree->root, it, keyhash(key, len));
+    if (r != NULL)
+    {
+        memcpy(it, r, it->length); // safe
+        buf[it->length] = 0; // c-str
+        r = it; 
+    }
+    if (lock)
+        pthread_mutex_unlock(&tree->lock);
+    return r;
+}
+
+
+Item* ht_get_maybe_tmp(HTree *tree, const char* key, int* is_tmp, char* buf)
+{
+    *is_tmp = 0;
+    Item* item = ht_get_withbuf(tree, key, strlen(key), buf, true);
+    if (NULL != item)
+    {
+        uint32_t bucket = item->pos & 0xff;
+        if (tree->updating_bucket == bucket)
+        {
+            pthread_mutex_lock(&tree->lock);
+            if (tree->updating_bucket == bucket)
+            {
+                log_debug("get tmp for %s", key);
+                *is_tmp = 1;
+                item = ht_get_withbuf(tree->updating_tree, key, strlen(key), buf, false);
+            }
+            else
+            {
+                log_notice("get again for %s", key);
+                item = ht_get_withbuf(tree, key, strlen(key), buf, false);
+            }
+            pthread_mutex_unlock(&tree->lock);
+        }
+    }
+    return item;
+}
+

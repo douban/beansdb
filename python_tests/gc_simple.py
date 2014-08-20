@@ -107,7 +107,7 @@ class TestGCSimple(TestGCBase):
         while True:
             status = self._gc_status()
             if status.find('running') >= 0:
-                time.sleep(1)
+                self._check_data(2)
                 continue
             elif status == 'success':
                 print "done gc"

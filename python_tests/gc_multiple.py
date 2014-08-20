@@ -84,6 +84,10 @@ class TestGCMultiple(TestGCBase):
             os.remove(buckets_txt_path)
         
         self.backend1.start()
+        def check_data():
+            self._check_data(2, prefix='group1_', loop_num=16 * 1024)
+            self._check_data(2, prefix='group2_', loop_num=16 * 1024)
+            self._check_data(2, prefix='group3_', loop_num=512)
 
         time.sleep(1)
         self._start_gc(0, bucket="0")
@@ -91,7 +95,7 @@ class TestGCMultiple(TestGCBase):
         while True:
             status = self._gc_status()
             if status.find('running') >= 0:
-                time.sleep(1)
+                check_data()
                 continue
             elif status == 'success':
                 print "done gc"
@@ -102,9 +106,7 @@ class TestGCMultiple(TestGCBase):
                 self.fail(status)
 
         self.assertEqual(self.backend1.item_count(), 32 * 1024 + 512 + 16 * 1024)
-        self._check_data(2, prefix='group1_', loop_num=16 * 1024)
-        self._check_data(2, prefix='group2_', loop_num=16 * 1024)
-        self._check_data(2, prefix='group3_', loop_num=512)
+        check_data()
         for key in self.backend1.generate_key(prefix="group1_", count=2, sector=0):
             print key
             self.assert_(not check_data_with_key(os.path.join(self.backend1.db_home, "0/000.data"), key, ver_=1))
@@ -193,6 +195,11 @@ class TestGCMultiple2(TestGCBase):
         self.assertEqual(len(glob.glob(sector10_exp)), 1)
 
         self.backend1.stop()
+        def check_data():
+            self._check_data(2, prefix='group1_', loop_num=16 * 1024)
+            self._check_data(2, prefix='group2_', loop_num=16 * 1024)
+            self._check_data(2, prefix='group3_', loop_num=512)
+
 
 
         self.backend1.start()
@@ -201,7 +208,7 @@ class TestGCMultiple2(TestGCBase):
         while True:
             status = self._gc_status()
             if status.find('running') >= 0:
-                time.sleep(1)
+                check_data()
                 continue
             elif status == 'success':
                 print "done gc"
@@ -228,7 +235,7 @@ class TestGCMultiple2(TestGCBase):
         while True:
             status = self._gc_status()
             if status.find('running') >= 0:
-                time.sleep(1)
+                check_data()
                 continue
             elif status == 'success':
                 print "done gc"
@@ -239,9 +246,7 @@ class TestGCMultiple2(TestGCBase):
                 self.fail(status)
 
         self.assertEqual(self.backend1.item_count(), 64 * 1024 + 512)
-        self._check_data(2, prefix='group1_', loop_num=16 * 1024)
-        self._check_data(2, prefix='group2_', loop_num=16 * 1024)
-        self._check_data(2, prefix='group3_', loop_num=512)
+        check_data()
         print "group1 got gc"
         for key in self.backend1.generate_key(prefix="group1_", count=2, sector=(0, 0)):
             print key

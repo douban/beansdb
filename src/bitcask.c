@@ -960,21 +960,21 @@ int bc_optimize(Bitcask *bc, int limit)
 
 DataRecord* bc_get(Bitcask *bc, const char* key)
 {
-    Item *item = ht_get(bc->tree, key);
+    int maybe_tmp = 0;
+    char buf[512];
+    Item *item = ht_get_maybe_tmp(bc->tree, key, &maybe_tmp, buf);
     if (NULL == item) return NULL;
-    if (item->ver < 0)
-    {
-        free(item);
-        return NULL;
-    }
 
     uint32_t bucket = item->pos & 0xff;
     uint32_t pos = item->pos & 0xffffff00;
+
+    if (item->ver < 0)
+        return NULL;
+
     if (bucket > (uint32_t)(bc->curr))
     {
         log_error("Bug: invalid bucket %d > %d, bitcask %x, key = %s", bucket, bc->curr, bc->pos, key);
         ht_remove(bc->tree, key);
-        free(item);
         return NULL;
     }
 
@@ -1002,56 +1002,94 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         if (r != NULL)
         {
             r->version = item->ver; 
-            free(item);
             return r;
         }
     }
 
     char datapath[MAX_PATH_LEN];
-    const char * base= mgr_base(bc->mgr);
-    gen_path(datapath, MAX_PATH_LEN, base,  DATA_FILE, bucket);
-    int fd = open(datapath, O_RDONLY);
+    gen_path(datapath, MAX_PATH_LEN, mgr_base(bc->mgr), DATA_FILE, bucket);
+    if (maybe_tmp) 
+    { 
+        char tmp_path[MAX_PATH_LEN];
+        sprintf(tmp_path, "%s.tmp", datapath);
+        int tmp_fd = open(tmp_path, O_RDONLY);
+        if (-1 != tmp_fd)
+        {
+            log_debug("success to open TMP file %s (to get %s)", tmp_path, key);
+            r = fast_read_record(tmp_fd, pos, true);
+            close(tmp_fd);
+            if (NULL == r || strcmp(key, r->key) != 0)
+            {
+                goto READ_FAIL;
+            }
+            else
+            {
+                r->version = item->ver; 
+                return r;
+            }
+        }
+        else
+        {
+            log_warn("fail to open TMP file %s (to get %s), will try to read the non-tmp", tmp_path, key);
+        }
+    }
+
+    int fd = -1;
+RETRY_READ:
+    fd = open(datapath, O_RDONLY);
     if (-1 == fd)
     {
         if (bc->buckets[bucket] > 0)
-        {
-            log_fatal("fail to open %s to read key: %s", datapath, key);
-            free(item);
-            return NULL;
-        }
+            log_error("fail to open %s, which should exist (to get key: %s)", datapath, key);
         else
-        {
-            log_error("Bug: file %s to read %s not exist", datapath, key);
-        }
-        goto GET_END;
+           log_error("Bug: try read non-exist file %s (to get key %s)", datapath, key);
+    }
+    else 
+    {
+        r = fast_read_record(fd, pos, true);
+        close(fd);
     }
 
-    r = fast_read_record(fd, pos, true);
-    if (NULL == r)
+    //get old pos before updating, but read file after updating, may happen if file is small
+    if(!maybe_tmp && (NULL == r || strcmp(key, r->key) != 0))
     {
-        if (bc->optimize_flag == 0)
-            log_error("Bug: get %s failed in %s %u %u", key, base, bucket, pos);
-    }
-    else
-    {
-        // check key
-        if (strcmp(key, r->key) != 0)
+        item = ht_get_withbuf(bc->tree, key, strlen(key), buf, true);
+        if (NULL != item) 
         {
-            if (bc->optimize_flag == 0)
-                log_error("Bug: record %s is not expected %s in %u @ %u", r->key, key, bucket, pos);
-            free_record(r);
-            r = NULL;
+            int new_pos = item->pos & 0xffffff00;
+            if (new_pos != pos)  
+            {
+                pos = new_pos;
+                log_warn("get new pos, retry read %s (key %s)", datapath, key);
+                goto RETRY_READ;
+            }
+            else
+            {
+                log_error("Bug: get same pos = %d, path = %s, key = %s, ", item->pos, datapath, key);
+            }
         }
         else
         {
-            r->version = item->ver; 
+            log_warn("Bug: retry %s key = %s, get NULL", datapath, key);
         }
     }
-GET_END:
-    if (NULL == r && bc->optimize_flag == 0)
+
+READ_FAIL:
+    if (NULL == r) 
+    {
+        log_error("Bug: get %s failed in %s @ %u", key, datapath, pos);
+    }
+    else if (strcmp(key, r->key) != 0)
+    {
+        log_error("Bug: record %s is not expected %s in %s @ %u", r->key, key, datapath, pos);
+        free_record(r);
+        r = NULL;
+    }
+
+    if (r != NULL)
+        r->version = item->ver; 
+    else 
         ht_remove(bc->tree, key);
-    if (fd != -1) close(fd);
-    free(item);
     return r;
 }
 

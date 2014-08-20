@@ -48,11 +48,16 @@ uint32_t ht_get_hash(HTree *tree, const char *key, unsigned int *count);
 char*    ht_list(HTree *tree, const char *dir, const char *prefix);
 void     ht_visit(HTree *tree, fun_visitor visitor, void *param);
 
-HTree*     ht_open(int depth, int pos, const char *path);
-int     ht_save(HTree *tree, const char *path);
+HTree*   ht_open(int depth, int pos, const char *path);
+int      ht_save(HTree *tree, const char *path);
+
+void     ht_set_updating_bucket(HTree *tree, int bucket, HTree *updating_tree);
+Item*    ht_get_maybe_tmp(HTree *tree, const char* key, int *is_tmp, char* buf);
+Item*    ht_get_withbuf(HTree* tree, const char* key, int len, char * buf, bool lock);
 
 // not thread safe
 void     ht_add2(HTree *tree, const char* key, int ksz, uint32_t pos, uint16_t hash, int32_t ver);
 void     ht_remove2(HTree *tree, const char *key, int ksz);
+void     ht_visit2(HTree *tree, fun_visitor visitor, void *param);
 
 #endif /* __HTREE_H__ */

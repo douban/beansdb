@@ -41,6 +41,10 @@
 #include "util.h"
 #include "const.h"
 #include "log.h"
+#include "time.h"
+#ifndef CLOCK_MONOTONIC
+#include "clock_gettime_stub.c"
+#endif
 
 
 const int PADDING = 256;
@@ -279,7 +283,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
     {
-        log_error("read record faied");
+        log_error("read record faied, file size = %lld", (long long)lseek(fd, 0L, SEEK_END));
         goto READ_END;
     }
 
@@ -499,6 +503,10 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size, 
         bool skipped, bool use_tmp, uint32_t *deleted_bytes)
 {
+
+    struct timespec opt_start, opt_end, update_start, update_end;
+    clock_gettime(CLOCK_MONOTONIC, &opt_start);
+
     int err = -1; 
     log_notice("begin optimize %s -> %s, use_tmp= %s", path, lastdata, use_tmp?"true":"false");
 
@@ -662,28 +670,42 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     close_mfile(f);
     fclose(new_df);
 
-    ht_visit(cur_tree, update_items, tree);
-    ht_destroy(cur_tree);
-
-    mgr_unlink(path);
-    if (use_tmp)
+    clock_gettime(CLOCK_MONOTONIC, &update_start);
+    if (bucket == last_bucket)
     {
+        ht_set_updating_bucket(tree, bucket, cur_tree);
+        ht_visit2(cur_tree, update_items, tree);
         mgr_unlink(lastdata);
         mgr_rename(tmp, lastdata);
+        ht_set_updating_bucket(tree, -1, NULL);
     }
+    else 
+    {
+        if (use_tmp)
+            mgr_rename(tmp, lastdata);
+        ht_visit(cur_tree, update_items, tree);
+        mgr_unlink(path);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &update_end);
+
+    ht_destroy(cur_tree);
 
     if (last_bucket != bucket)
         mgr_unlink(hintpath);
     write_hint_file(hintdata, hint_used, lasthint_real);
     free(hintdata);
 
-    log_notice("optimize %s -> %d (%u B) complete, %d/%d records deleted, %u/%u bytes released, %d broken",
-                       path,  last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken);
+
+    clock_gettime(CLOCK_MONOTONIC, &opt_end);
+    float update_secs = (update_end.tv_sec - update_start.tv_sec) + (update_end.tv_nsec - update_start.tv_nsec) / 1e9;
+    float opt_secs = (opt_end.tv_sec - opt_start.tv_sec) + (opt_end.tv_nsec - opt_start.tv_nsec) / 1e9;
+    log_notice("optimize %s -> %d (%u B) complete, %d/%d records deleted, %u/%u bytes released, %d broken, use %fs/%fs",
+                       path,  last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, update_secs, opt_secs);
     return 0;
 
 OPT_FAIL:
-    log_notice("optimize %s -> %d (%u B) failed,  %d/%d records deleted,  %u/%u bytes released, %d broken, err = %d",
-            path, last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size , deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, err);
+    log_notice("optimize %s -> %d (%u B) failed,  %d/%d records deleted,  %u/%u bytes released, %d broken, err = %d, use %fs/%fs",
+            path, last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size , deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, err, update_secs, opt_secs);
     if (hintdata) free(hintdata);
     if (cur_tree)  ht_destroy(cur_tree);
     if (f) close_mfile(f);
