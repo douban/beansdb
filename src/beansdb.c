@@ -242,7 +242,11 @@ static void conn_getnameinfo(conn *c)
 {
     struct sockaddr_storage addr;
     socklen_t addrlen = (socklen_t)sizeof(addr);
-    getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen);
+    if (0 != getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen))
+    {
+        log_error("getpeername error %s", strerror(errno));
+        return;
+    }
     char host[NI_MAXHOST], serv[NI_MAXSERV];
     if (0 != getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host), 
                 serv, sizeof(serv), NI_NUMERICSERV))
@@ -317,7 +321,8 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
     c->noreply = false;
 
     c->remote = NULL; 
-    conn_getnameinfo(c);
+    if (init_state == conn_read)
+        conn_getnameinfo(c);
 
     update_event(c, AE_READABLE);
     if (add_event(sfd, AE_READABLE, c) == -1)
