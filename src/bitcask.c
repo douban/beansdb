@@ -992,6 +992,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
             if (bc->flush_buffer == NULL)
             {
                 log_fatal("Bug: flush_buf is NULL");
+                pthread_mutex_unlock(&bc->buffer_lock);
                 return NULL;
             }
             uint32_t p = pos - bc->fbuf_start_pos;
