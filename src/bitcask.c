@@ -357,7 +357,7 @@ int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
                         }
                         else
                         {
-                            log_warn("auto link for %s", path);
+                            log_debug("auto link for %s", path);
                             locations[bucket][type] = i;
                         }
                     }
