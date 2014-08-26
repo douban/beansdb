@@ -328,7 +328,7 @@ int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
             log_error("invalid fmt index: %d", idx);
             for (idx = 0; idx < len; ++idx)
             {
-                sprintf(key_hex_buf + 2 * idx, "%x", src[idx]);
+                sprintf(key_hex_buf + 2 * idx, "%x", src[idx]); //safe
             }
             free(key_hex_buf);
             log_error("invalid key: %s", key_hex_buf);

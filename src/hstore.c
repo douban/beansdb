@@ -174,6 +174,11 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads)
     {
         if (npath >= MAX_PATHS) return NULL;
         path = paths[npath];
+        if (strlen(path) > MAX_HOME_PATH_LEN)
+        {
+            log_error("path %s logger then %d", path, MAX_HOME_PATH_LEN);
+            return NULL;
+        }
         if (0 != access(path, F_OK) && 0 != mkdir(path, 0755))
         {
             log_error("mkdir %s failed", path);

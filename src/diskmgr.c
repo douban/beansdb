@@ -90,7 +90,7 @@ Mgr* mgr_create(const char **disks, int ndisks)
         else
         {
             mgr->disks[i] =  (char*)safe_malloc(strlen(disks[i]) + strlen(cwd) + 2);
-            sprintf(mgr->disks[i], "%s/%s", cwd, disks[i]);
+            sprintf(mgr->disks[i], "%s/%s", cwd, disks[i]);  //safe
         }
     }
     free(cwd);
@@ -204,7 +204,7 @@ void mgr_rename(const char *oldpath, const char *newpath)
         if (n > 0)
         {
             char *ropath_dup = strdup(ropath);
-            sprintf(rnpath, "%s/%s", dirname(ropath_dup), simple_basename(newpath));
+            safe_snprintf(rnpath, MAX_PATH_LEN, "%s/%s", dirname(ropath_dup), simple_basename(newpath));
             free(ropath_dup);
 
             if (symlink(rnpath, newpath) != 0)

@@ -252,7 +252,7 @@ static void conn_getnameinfo(conn *c)
                 serv, sizeof(serv), NI_NUMERICSERV))
         return;
     c->remote = (char*)try_malloc(strlen(host) + strlen(serv) + 2);
-    sprintf(c->remote, "%s:%s", host, serv);
+    sprintf(c->remote, "%s:%s", host, serv); //safe
 
 }
 conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)

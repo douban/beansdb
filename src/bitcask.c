@@ -124,7 +124,7 @@ static inline char *new_data(char *dst, int dst_size, Bitcask *bc, const char *f
 }
 
 
-#define MAX_BUCKETS_FILE_SIZE (256 *32)
+#define MAX_BUCKETS_FILE_SIZE (256 * 32)
 int load_buckets(const char* base, int64_t *buckets, int *last)
 {
     char path[MAX_PATH_LEN];
@@ -194,7 +194,7 @@ int dump_buckets(Bitcask *bc)
     {
         if (bc->buckets[i] >= 0)
         {
-            int n = sprintf(p, "%d %"PRIi64"\n", i, bc->buckets[i]);
+            int n = safe_snprintf(p, buf + MAX_BUCKETS_FILE_SIZE - p ,"%d %"PRIi64"\n", i, bc->buckets[i]);
             p += n;
         }
     }
@@ -1012,7 +1012,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     if (maybe_tmp) 
     { 
         char tmp_path[MAX_PATH_LEN];
-        sprintf(tmp_path, "%s.tmp", datapath);
+        safe_snprintf(tmp_path,  MAX_PATH_LEN, "%s.tmp", datapath);
         int tmp_fd = open(tmp_path, O_RDONLY);
         if (-1 != tmp_fd)
         {
