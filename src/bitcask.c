@@ -233,13 +233,23 @@ int get_bucket_by_name(char* dir, char *name, long *bucket)
     if (name[0] == '.' || strcmp("buckets.txt",name) == 0)
         return -1;
 
+    if (strlen(name) + strlen(dir) > MAX_PATH_LEN) 
+    {
+        log_warn("find long name %s/%s", dir, name);
+        return -1;
+    }
+
     const char *types[] = {DATA_FILE, HINT_FILE, HTREE_FILE};
     char *endptr;
     errno  = 0;
     *bucket  = strtol(name, &endptr, 10);
     if (errno == ERANGE || (endptr - name) != 3 || *bucket > 255 || *bucket < 0)
     {
-        log_warn("find unexpect file %s/%s", dir, name);
+        struct stat sb;
+        char tmp[MAX_PATH_LEN];
+        snprintf(tmp, MAX_PATH_LEN, "%s/%s", dir, name);
+        if (0 != stat(tmp, &sb) || ((sb.st_mode & S_IFMT) != S_IFDIR))
+            log_warn("find unexpect file %s/%s", dir, name);
         return -1;
     }
     char *suffix = name + 3;
