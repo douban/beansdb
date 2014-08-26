@@ -1047,12 +1047,14 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     if (tokens[KEY_TOKEN].length > MAX_KEY_LEN)
     {
         out_string(c, "CLIENT_ERROR bad command line format");
+        log_warn("CLIENT_ERROR key %s too long", tokens[KEY_TOKEN].value);
         return;
     }
 
     key = tokens[KEY_TOKEN].value;
     nkey = tokens[KEY_TOKEN].length;
 
+    errno = 0;
     flags = strtoul(tokens[2].value, NULL, 10);
     exptime = strtol(tokens[3].value, NULL, 10);
     vlen = strtol(tokens[4].value, NULL, 10);
@@ -1061,6 +1063,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
             || vlen < 0)
     {
         out_string(c, "CLIENT_ERROR bad command line format");
+        log_warn("CLIENT_ERROR %s %s %s %s %s", tokens[0].value, tokens[1].value, tokens[2].value, tokens[3].value, tokens[4].value);
         return;
     }
 
@@ -1119,6 +1122,7 @@ static void process_arithmetic_command(conn *c, token_t *tokens, const size_t nt
     if (tokens[KEY_TOKEN].length > MAX_KEY_LEN)
     {
         out_string(c, "CLIENT_ERROR bad command line format");
+        log_warn("CLIENT_ERROR key %s too long", tokens[KEY_TOKEN].value);
         return;
     }
 
@@ -1128,6 +1132,7 @@ static void process_arithmetic_command(conn *c, token_t *tokens, const size_t nt
     if (!safe_strtoull(tokens[2].value, &delta))
     {
         out_string(c, "CLIENT_ERROR invalid numeric delta argument");
+        log_warn("CLIENT_ERROR invalid numeric delta argument %s", tokens[2].value);
         return;
     }
 
@@ -1164,6 +1169,7 @@ static void process_delete_command(conn *c, token_t *tokens, const size_t ntoken
     if(nkey > MAX_KEY_LEN)
     {
         out_string(c, "CLIENT_ERROR bad command line format");
+        log_warn("CLIENT_ERROR key %s too long", tokens[KEY_TOKEN].value);
         return;
     }
 
@@ -1178,6 +1184,7 @@ static void process_verbosity_command(conn *c, token_t *tokens, const size_t nto
 
     set_noreply_maybe(c, tokens, ntokens);
 
+    errno = 0;
     level = strtoul(tokens[1].value, NULL, 10);
     if(errno == ERANGE)
     {
