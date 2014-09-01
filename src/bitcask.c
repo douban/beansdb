@@ -995,7 +995,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         if (bucket == (uint32_t)(bc->curr) && pos >= bc->wbuf_start_pos)
         {
             uint32_t p = pos - bc->wbuf_start_pos;
-            r = decode_record(bc->write_buffer + p, bc->wbuf_curr_pos - p, true);
+            r = decode_record(bc->write_buffer + p, bc->wbuf_curr_pos - p, true, "bc_get", "wbuf", pos, key);
         }
         else if (bucket == (uint32_t)(bc->flushing_bucket) && pos >= bc->fbuf_start_pos)
         {
@@ -1006,7 +1006,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
                 return NULL;
             }
             uint32_t p = pos - bc->fbuf_start_pos;
-            r = decode_record(bc->flush_buffer + p, bc->fbuf_size - p, true);
+            r = decode_record(bc->flush_buffer + p, bc->fbuf_size - p, true, "bc_get", "fbuf", pos, key);
         }
         pthread_mutex_unlock(&bc->buffer_lock);
 
@@ -1027,7 +1027,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
         if (-1 != tmp_fd)
         {
             log_debug("success to open TMP file %s (to get %s)", tmp_path, key);
-            r = fast_read_record(tmp_fd, pos, true);
+            r = fast_read_record(tmp_fd, pos, true, tmp_path, key);
             close(tmp_fd);
             if (NULL == r || strcmp(key, r->key) != 0)
             {
@@ -1057,7 +1057,7 @@ RETRY_READ:
     }
     else 
     {
-        r = fast_read_record(fd, pos, true);
+        r = fast_read_record(fd, pos, true, datapath, key);
         close(fd);
     }
 
@@ -1076,7 +1076,7 @@ RETRY_READ:
             }
             else
             {
-                log_error("Bug: get same pos = %d, path = %s, key = %s, ", item->pos, datapath, key);
+                log_debug("get same pos = %d, path = %s, key = %s, ", item->pos, datapath, key);
             }
         }
         else
@@ -1188,7 +1188,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
 
         if (bc->wbuf_start_pos + bc->wbuf_size > settings.max_bucket_size)
         {
-            log_notice("bitcask 0x%x bc_rotate after buffer write : curr %d -> %d, wbuf_size = %d, limit = %d, file size= %d, last_flush =  %d",
+            log_notice("bitcask 0x%x bc_rotate after buffer write : curr %d -> %d, wbuf_size = %d, limit = %d, file size= %u, last_flush =  %d",
                     bc->pos, bc->curr, bc->curr+1, bc->wbuf_size, limit, bc->wbuf_start_pos, size);
             bc_rotate(bc);
         }

@@ -55,12 +55,7 @@ const int TRY_COMPRESS_SIZE = 1024 * 10;
 
 static inline bool bad_kv_size(int ksz, int vsz)
 {
-    if (ksz < 0 || ksz > MAX_KEY_LEN || vsz < 0 || vsz > 50 * 1024 * 1024)
-    {
-        log_error("invalid ksz=: %d, vsz=%d", ksz, vsz);
-        return true;
-    }
-    return false; 
+    return  (ksz < 0 || ksz > MAX_KEY_LEN || vsz < 0 || vsz > 50 * 1024 * 1024);
 }
 
 uint32_t gen_hash(char *buf, int len)
@@ -181,23 +176,26 @@ DECOMP_END:
     return NULL;
 }
 
-DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
+DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* caller,  const char* path, uint32_t pos, const char* key)
 {
     DataRecord *r = (DataRecord *) (buf - sizeof(char*));
     int ksz = r->ksz, vsz = r->vsz;
     if (bad_kv_size(ksz, vsz))
+    {
+        log_error("invalid ksz=%d, vsz=%d, %s @%u, caller = %s, key = (%s)", ksz, vsz, path, pos, caller, key);
         return NULL;
+    }
 
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
     {
-        log_error("not enough data in buffer: %d < %d", size, need);
+        log_error("not enough data in buffer %d < %d, %s @%u, caller = %s, key = (%s) ", size, need, path, pos, caller, key);
         return NULL;
     }
     uint32_t crc = crc32(0, (unsigned char*)buf + sizeof(uint32_t),  need - sizeof(uint32_t));
     if (r->crc != crc)
     {
-        log_error("CRC checksum failed");
+        log_error("CHECKSUM %u != %u, %s @%u, caller = %s, key to read (%s) got (%s)", crc, r->crc,  path, pos, caller, key, r->key);
         return NULL;
     }
 
@@ -216,21 +214,23 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp)
 }
 
 
-DataRecord* read_record(FILE *f, bool decomp)
+DataRecord* read_record(FILE *f, bool decomp, const char* path, const char* key)
 {
     DataRecord *r = (DataRecord*) safe_malloc(PADDING + sizeof(char*));
     r->value = NULL;
 
     if (fread(&r->crc, 1, PADDING, f) != PADDING)
     {
-        log_error("read record faied");
+        log_error("read file fail, %s @%lld, key = (%s)",  path, (long long int)ftello(f), key);
         goto READ_END;
     }
 
     int ksz = r->ksz, vsz = r->vsz;
 
     if (bad_kv_size(ksz, vsz))
+    {
         goto READ_END;
+    }
 
     uint32_t crc_old = r->crc;
     int read_size = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;
@@ -250,7 +250,7 @@ DataRecord* read_record(FILE *f, bool decomp)
         if (need > 0 && need != (ret=fread(r->value + read_size, 1, need, f)))
         {
             r->key[ksz] = 0; // c str
-            log_error("read record %s faied: %d < %d @%lld", r->key, ret, need, (long long int)ftello(f));
+            log_error("PREAD %d < %d, %s @%lld, key = (%s)", ret, need, path, (long long int)ftello(f), key);
             goto READ_END;
         }
     }
@@ -261,7 +261,7 @@ DataRecord* read_record(FILE *f, bool decomp)
     crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
-        log_error("%s @%lld crc32 check failed %d != %d", r->key, (long long int)ftello(f), crc, r->crc);
+        log_error("CHECKSUM %u != %u, %s @%lld, key to read (%s) got(%s)", crc, r->crc, path, (long long int)ftello(f), key, r->key);
         goto READ_END;
     }
 
@@ -276,21 +276,24 @@ READ_END:
     return NULL;
 }
 
-DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
+DataRecord* fast_read_record(int fd, off_t offset, bool decomp, const char* path, const char* key)
 {
     DataRecord *r = (DataRecord*) safe_malloc(PADDING + sizeof(char*));
     r->value = NULL;
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
     {
-        log_error("read record faied, file size = %lld", (long long)lseek(fd, 0L, SEEK_END));
+        log_error("read file fail, %s @%lld, file size = %lld, key = %s",  path, offset, (long long)lseek(fd, 0L, SEEK_END), key);
         goto READ_END;
     }
 
     int ksz = r->ksz, vsz = r->vsz;
 
     if (bad_kv_size(ksz, vsz))
+    {
+        log_error("invalid ksz=%d, vsz=%d, %s @%lld, key = (%s)", ksz, vsz, path, offset, key);
         goto READ_END;
+    }
 
     uint32_t crc_old = r->crc;
     int read_size = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;
@@ -310,7 +313,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
         if (need > 0 && need != (ret=pread(fd, r->value + read_size, need, offset+PADDING)))
         {
             r->key[ksz] = 0; // c str
-            log_error("read record %s faied: %d < %d @%lld", r->key, ret, need,(long long int) offset);
+            log_error("PREAD %d < %d, %s @%lld, key to read (%s) got(%s)", ret, need, path, (long long int) offset, key, r->key);
             goto READ_END;
         }
     }
@@ -321,7 +324,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp)
     crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
-        log_error("%s @%lld crc32 check failed %d != %d", r->key, (long long int)offset, crc, r->crc);
+        log_error("CHECKSUM %u != %u, %s @%lld, key to read (%s) got(%s)", crc, r->crc, path, (long long int)offset, key, r->key);
         goto READ_END;
     }
 
@@ -388,7 +391,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = decode_record(p, end-p, false);
+        DataRecord *r = decode_record(p, end-p, false,  "scan", path, p - (f->addr), "nokey");
 
         if (r != NULL)
         {
@@ -435,7 +438,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = decode_record(p, end-p, false);
+        DataRecord *r = decode_record(p, end-p, false,  "scanbf", path, p - (f->addr), "nokey");
         if (r != NULL)
         {
             if (r->tstamp >= before )
@@ -586,7 +589,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = decode_record(p, end-p, false);
+        DataRecord *r = decode_record(p, end-p, false,  "optimize", path, p - (f->addr), "nokey");
         if (r == NULL)
         {
             broken ++;
