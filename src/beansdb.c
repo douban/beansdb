@@ -244,7 +244,7 @@ static void conn_getnameinfo(conn *c)
     socklen_t addrlen = (socklen_t)sizeof(addr);
     if (0 != getpeername(c->sfd, (struct sockaddr*)&addr, &addrlen))
     {
-        log_error("getpeername error %s", strerror(errno));
+        log_debug("getpeername error %s", strerror(errno));
         return;
     }
     char host[NI_MAXHOST], serv[NI_MAXSERV];

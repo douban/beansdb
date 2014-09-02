@@ -53,9 +53,9 @@ const int32_t CLIENT_COMPRESS_FLAG = 0x00000010;
 const float COMPRESS_RATIO_LIMIT = 0.7;
 const int TRY_COMPRESS_SIZE = 1024 * 10;
 
-static inline bool bad_kv_size(int ksz, int vsz)
+static inline bool bad_kv_size(uint32_t ksz, uint32_t vsz)
 {
-    return  (ksz < 0 || ksz > MAX_KEY_LEN || vsz < 0 || vsz > 50 * 1024 * 1024);
+    return  (ksz == 0 || ksz > MAX_KEY_LEN || vsz > 50 * 1024 * 1024);
 }
 
 uint32_t gen_hash(char *buf, int len)
@@ -176,26 +176,26 @@ DECOMP_END:
     return NULL;
 }
 
-DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* caller,  const char* path, uint32_t pos, const char* key)
+DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* path, uint32_t pos, const char* key)
 {
     DataRecord *r = (DataRecord *) (buf - sizeof(char*));
-    int ksz = r->ksz, vsz = r->vsz;
+    uint32_t ksz = r->ksz, vsz = r->vsz;
     if (bad_kv_size(ksz, vsz))
     {
-        log_error("invalid ksz=%d, vsz=%d, %s @%u, caller = %s, key = (%s)", ksz, vsz, path, pos, caller, key);
+        log_error("invalid ksz=%u, vsz=%u, %s @%u, key = (%s)", ksz, vsz, path, pos, key);
         return NULL;
     }
 
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
     {
-        log_error("not enough data in buffer %d < %d, %s @%u, caller = %s, key = (%s) ", size, need, path, pos, caller, key);
+        log_error("not enough data in buffer %d < %d, %s @%u,  key = (%s) ", size, need, path, pos, key);
         return NULL;
     }
     uint32_t crc = crc32(0, (unsigned char*)buf + sizeof(uint32_t),  need - sizeof(uint32_t));
     if (r->crc != crc)
     {
-        log_error("CHECKSUM %u != %u, %s @%u, caller = %s, key to read (%s) got (%s)", crc, r->crc,  path, pos, caller, key, r->key);
+        log_error("CHECKSUM %u != %u, %s @%u, get (%s) got (%s)", crc, r->crc,  path, pos, key, r->key);
         return NULL;
     }
 
@@ -213,6 +213,49 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* cal
     return r2;
 }
 
+static inline DataRecord* scan_record(char* begin, char* end,  char** curr,
+        const char* path, int* num_broken_total)
+{
+    int num_broken_curr = 0;
+    while (*curr <  end)
+    {
+        char *p = *curr;
+        DataRecord *r = decode_record(p, end-p, false,  path, p - begin, "nokey");
+        if (r != NULL)
+        {
+            if (num_broken_curr > 0)
+            {
+                log_error("END_BROKEN in %s after %d PADDING, total %d", path, num_broken_curr, *num_broken_total);
+                num_broken_curr = 0;
+            }
+            return r;
+        }
+        else
+        {
+            if (num_broken_curr == 0)
+            {
+                log_error("START_BROKEN in %s at %ld", path, p - begin);
+            }
+
+            num_broken_curr++;
+            (*num_broken_total)++;
+            if (num_broken_curr > 40960)   // 10M
+            {
+                // TODO: delete broken keys from htree
+                log_error("GIVEUP_BROKEN in %s after %d PADDING, total %d", path, num_broken_curr, *num_broken_total);
+                break;
+            }
+            *curr += PADDING;
+        }
+    }
+    if (*curr >= end && num_broken_curr > 0)
+    {
+        log_error("FILE_END_BROKEN in %s after %d PADDING, total %d", path, num_broken_curr, *num_broken_total);
+    }
+    return NULL;
+}
+
+
 
 DataRecord* read_record(FILE *f, bool decomp, const char* path, const char* key)
 {
@@ -225,7 +268,7 @@ DataRecord* read_record(FILE *f, bool decomp, const char* path, const char* key)
         goto READ_END;
     }
 
-    int ksz = r->ksz, vsz = r->vsz;
+    uint32_t ksz = r->ksz, vsz = r->vsz;
 
     if (bad_kv_size(ksz, vsz))
     {
@@ -261,7 +304,7 @@ DataRecord* read_record(FILE *f, bool decomp, const char* path, const char* key)
     crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
-        log_error("CHECKSUM %u != %u, %s @%lld, key to read (%s) got(%s)", crc, r->crc, path, (long long int)ftello(f), key, r->key);
+        log_error("CHECKSUM %u != %u, %s @%lld, get key (%s) got(%s)", crc, r->crc, path, (long long int)ftello(f), key, r->key);
         goto READ_END;
     }
 
@@ -283,15 +326,15 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp, const char* path
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
     {
-        log_error("read file fail, %s @%lld, file size = %lld, key = %s",  path, offset, (long long)lseek(fd, 0L, SEEK_END), key);
+        log_error("read file fail, %s @%lld, file size = %lld, key = %s",  path, (long long)offset, (long long)lseek(fd, 0L, SEEK_END), key);
         goto READ_END;
     }
 
-    int ksz = r->ksz, vsz = r->vsz;
+    uint32_t ksz = r->ksz, vsz = r->vsz;
 
     if (bad_kv_size(ksz, vsz))
     {
-        log_error("invalid ksz=%d, vsz=%d, %s @%lld, key = (%s)", ksz, vsz, path, offset, key);
+        log_error("invalid ksz=%u, vsz=%u, %s @%lld, key = (%s)", ksz, vsz, path, (long long)offset, key);
         goto READ_END;
     }
 
@@ -313,7 +356,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp, const char* path
         if (need > 0 && need != (ret=pread(fd, r->value + read_size, need, offset+PADDING)))
         {
             r->key[ksz] = 0; // c str
-            log_error("PREAD %d < %d, %s @%lld, key to read (%s) got(%s)", ret, need, path, (long long int) offset, key, r->key);
+            log_error("PREAD %d < %d, %s @%lld, get key (%s) got(%s)", ret, need, path, (long long int) offset, key, r->key);
             goto READ_END;
         }
     }
@@ -324,7 +367,7 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp, const char* path
     crc = crc32(crc, (unsigned char*)r->value, vsz);
     if (crc != crc_old)
     {
-        log_error("CHECKSUM %u != %u, %s @%lld, key to read (%s) got(%s)", crc, r->crc, path, (long long int)offset, key, r->key);
+        log_error("CHECKSUM %u != %u, %s @%lld, get key (%s) got(%s)", crc, r->crc, path, (long long int)offset, key, r->key);
         goto READ_END;
     }
 
@@ -379,6 +422,7 @@ int write_record(FILE *f, DataRecord *r)
     return 0;
 }
 
+
 void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpath)
 {
     MFile *f = open_mfile(path);
@@ -387,42 +431,29 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     log_warn("scan datafile %s", path);
     HTree *cur_tree = ht_new(0, 0);
     char *p = f->addr, *end = f->addr + f->size;
-    int broken = 0;
+    int num_broken_total = 0;
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = decode_record(p, end-p, false,  "scan", path, p - (f->addr), "nokey");
-
-        if (r != NULL)
+        DataRecord *r = scan_record(f->addr, end, &p, path, &num_broken_total);
+        if (r == NULL)
+            break;
+        uint32_t pos = p - f->addr;
+        p += record_length(r);
+        r = decompress_record(r);
+        uint16_t hash = gen_hash(r->value, r->vsz);
+        if (r->version > 0)
         {
-            uint32_t pos = p - f->addr;
-            p += record_length(r);
-            r = decompress_record(r);
-            uint16_t hash = gen_hash(r->value, r->vsz);
-            if (r->version > 0)
-            {
-                ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
-            }
-            else
-            {
-                ht_remove2(tree, r->key, r->ksz);
-            }
-            ht_add2(cur_tree, r->key, r->ksz, pos | bucket, hash, r->version);
-            free_record(r);
+            ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
         }
         else
         {
-            broken ++;
-            if (broken > 40960)   // 10M
-            {
-                log_error("unexpected broken data in %s at %ld", path, p - f->addr - broken * PADDING);
-                break;
-            }
-            p += PADDING;
+            ht_remove2(tree, r->key, r->ksz);
         }
-         mfile_dontneed(f, p - f->addr, &last_advise);
+        ht_add2(cur_tree, r->key, r->ksz, pos | bucket, hash, r->version);
+        free_record(r);
+        mfile_dontneed(f, p - f->addr, &last_advise);
     }
-
     close_mfile(f);
     build_hint(cur_tree, hintpath);
 }
@@ -434,45 +465,31 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
 
     log_error("scan datafile %s before %ld", path, before);
     char *p = f->addr, *end = f->addr + f->size;
-    int broken = 0;
+    int num_broken_total = 0;
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = decode_record(p, end-p, false,  "scanbf", path, p - (f->addr), "nokey");
-        if (r != NULL)
+        DataRecord *r = scan_record(f->addr, end, &p, path, &num_broken_total);
+        if (r == NULL)
+            break;
+        if (r->tstamp >= before )
+            break;
+        uint32_t pos = p - f->addr;
+        p += record_length(r);
+        r = decompress_record(r);
+        /*uint16_t hash = gen_hash(r->value, r->vsz);*/
+        if (r->version > 0)
         {
-            if (r->tstamp >= before )
-            {
-                break;
-            }
-            uint32_t pos = p - f->addr;
-            p += record_length(r);
-            r = decompress_record(r);
-            /*uint16_t hash = gen_hash(r->value, r->vsz);*/
-            if (r->version > 0)
-            {
-                uint16_t hash = gen_hash(r->value, r->vsz);
-                ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
-            }
-            else
-            {
-                ht_remove2(tree, r->key, r->ksz);
-            }
-            free_record(r);
+            uint16_t hash = gen_hash(r->value, r->vsz);
+            ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
         }
         else
         {
-            broken ++;
-            if (broken > 40960)   // 10M
-            {
-                log_error("unexpected broken data in %s at %ld", path, p - f->addr - broken * PADDING);
-                break;
-            }
-            p += PADDING;
+            ht_remove2(tree, r->key, r->ksz);
         }
-         mfile_dontneed(f, p - f->addr, &last_advise);
+        free_record(r);
+        mfile_dontneed(f, p - f->addr, &last_advise);
     }
-
     close_mfile(f);
 }
 
@@ -501,7 +518,6 @@ void update_items(Item *it, void *args)
         ht_add(tree, it->key, it->pos, it->hash, it->ver);
     }
 }
-
 int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath, 
         int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size, 
         bool skipped, bool use_tmp, uint32_t *deleted_bytes)
@@ -589,19 +605,14 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = decode_record(p, end-p, false,  "optimize", path, p - (f->addr), "nokey");
+        DataRecord *r = scan_record(f->addr, end, &p, path, &broken);
         if (r == NULL)
         {
-            broken ++;
-            if (broken > 40960)   // 10M
-            {
-                // TODO: delete broken keys from htree
-                log_error("unexpected broken data in %s at %ld", path, p - f->addr - broken * PADDING);
+            if (p < end)
                 goto  OPT_FAIL;
-            }
-            p += PADDING;
-            continue;
+            break;
         }
+
         nrecord++;
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
