@@ -48,7 +48,6 @@
 #define MAX_BUCKET_COUNT 256
 
 extern struct settings settings;
-const uint32_t MAX_RECORD_SIZE = 50 << 20; // 50M
 const uint32_t WRITE_BUFFER_SIZE = 2 << 20; // 2M
 
 const int SAVE_HTREE_LIMIT = 5;
@@ -1237,10 +1236,15 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
 
 bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, int version)
 {
-    if ((version < 0 && vlen > 0) || vlen > MAX_RECORD_SIZE)
+    if ((version < 0 && vlen > 0) || vlen > MAX_VALUE_LEN) 
     {
-        log_error("invalid set cmd");
+        log_error("invalid set cmd, key %s, version %d, vlen %ld", key, version, vlen);
         return false;
+    }
+    else 
+    { 
+        if (vlen > MAX_VALUE_LEN_WARN)
+            log_warn("set large value for key %s, version %d, vlen %ld", key, version, vlen);
     }
 
     bool suc = false;

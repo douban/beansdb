@@ -960,8 +960,7 @@ void ht_visit2(HTree *tree, fun_visitor visitor, void *param)
 
 void ht_set_updating_bucket(HTree *tree, int bucket, HTree *updating_tree)
 {
-
-    log_notice("htree 0x%x for bucket %d, ", tree->pos, bucket);
+    log_notice("updating bucket %d for htree 0x%x", bucket, tree->pos);
     pthread_mutex_lock(&tree->lock);
     tree->updating_bucket = bucket;
     tree->updating_tree = updating_tree;

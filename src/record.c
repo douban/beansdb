@@ -55,7 +55,7 @@ const int TRY_COMPRESS_SIZE = 1024 * 10;
 
 static inline bool bad_kv_size(uint32_t ksz, uint32_t vsz)
 {
-    return  (ksz == 0 || ksz > MAX_KEY_LEN || vsz > 50 * 1024 * 1024);
+    return ((ksz == 0 || ksz > MAX_KEY_LEN)|| vsz > MAX_VALUE_LEN);
 }
 
 uint32_t gen_hash(char *buf, int len)
@@ -185,6 +185,7 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* pat
         log_error("invalid ksz=%u, vsz=%u, %s @%u, key = (%s)", ksz, vsz, path, pos, key);
         return NULL;
     }
+
 
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
@@ -472,7 +473,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
         DataRecord *r = scan_record(f->addr, end, &p, path, &num_broken_total);
         if (r == NULL)
             break;
-        if (r->tstamp >= before )
+        if (r->tstamp >= before)
             break;
         uint32_t pos = p - f->addr;
         p += record_length(r);

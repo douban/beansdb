@@ -24,4 +24,7 @@
 #define MAX_KEY_LEN (250)
 #define KEY_BUF_LEN (256)
 
+#define MAX_VALUE_LEN (100* 1024 * 1024)
+#define MAX_VALUE_LEN_WARN  (50 * 1024 * 1024)
+
 #endif
