@@ -90,7 +90,7 @@ static inline bool check_version(Item *oldit, Item * newit)
         return true;
     else
     {
-        char key[MAX_KEY_LEN];
+        char key[KEY_BUF_LEN];
         int ksz = KEYLENGTH(oldit);
         memcpy(key, oldit->key, min(ksz, MAX_KEY_LEN));
         key[ksz] = '\0';

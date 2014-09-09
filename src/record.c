@@ -603,6 +603,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     cur_tree = ht_new(0, 0);
     int nrecord = 0, deleted = 0, broken = 0;
     char *p = f->addr, *end = f->addr + f->size;
+    char *newp = p;
     size_t last_advise = 0;
     while (p < end)
     {
@@ -614,6 +615,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
             break;
         }
 
+        newp = p + record_length(r);
         nrecord++;
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
@@ -624,7 +626,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
             {
                 if (use_tmp)
                 {
-                    log_warn("Bug: optimize %s into  tmp %s overflow", path, tmp);
+                    log_warn("Bug: optimize %s into tmp %s overflow", path, tmp);
                 }
                 else 
                 {
@@ -674,7 +676,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
             deleted ++;
         }
         if (it) free(it);
-        p += record_length(r);
+        p = newp;
         free_record(r);
 
         mfile_dontneed(f, pos, &last_advise);
