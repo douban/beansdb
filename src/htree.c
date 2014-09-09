@@ -84,7 +84,7 @@ static void split_node(HTree *tree, Node *node);
 static void merge_node(HTree *tree, Node *node);
 static void update_node(HTree *tree, Node *node);
 
-static inline bool check_version(Item *oldit, Item * newit) 
+static inline bool check_version(Item *oldit, Item * newit, uint32_t keyhash) 
 {
     if (abs(newit->ver) >= abs(oldit->ver))
         return true;
@@ -94,7 +94,7 @@ static inline bool check_version(Item *oldit, Item * newit)
         int ksz = KEYLENGTH(oldit);
         memcpy(key, oldit->key, min(ksz, MAX_KEY_LEN));
         key[ksz] = '\0';
-        log_warn("BUG: bad version, key=%s, oldv=%d, newv=%d", key, oldit->ver, newit->ver);
+        log_warn("BUG: bad version, oldv=%d, newv=%d, key=%s, keyhash = 0x%x, oldpos = %u",  oldit->ver, newit->ver, key, keyhash, oldit->pos);
         return false;
     }
 }
@@ -188,7 +188,7 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
         if (it->length == p->length &&
                 memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
         {
-            check_version(p, it);
+            check_version(p, it, keyhash);
             node->hash += (HASH(it) - HASH(p)) * keyhash;
             node->count += (it->ver > 0);
             node->count -= (p->ver > 0);
