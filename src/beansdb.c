@@ -2173,6 +2173,7 @@ int main (int argc, char **argv)
     if (!conf_path) conf_path = "./beansdb_log.conf";
     if ( 0 != log_init(conf_path))
         exit(-1);
+    log_notice("ZLOG inited");
 
     if (invalid_arg)
     {
