@@ -28,6 +28,10 @@
 #include "const.h"
 #include "log.h"
 #include "diskmgr.h"
+#ifndef CLOCK_MONOTONIC
+#include "clock_gettime_stub.c"
+#endif
+#include <inttypes.h>
 
 const int BUCKET_SIZE = 16;
 const int SPLIT_LIMIT = 64;
@@ -84,17 +88,15 @@ static void split_node(HTree *tree, Node *node);
 static void merge_node(HTree *tree, Node *node);
 static void update_node(HTree *tree, Node *node);
 
-static inline bool check_version(Item *oldit, Item * newit, uint32_t keyhash) 
+static inline bool check_version(Item *oldit, Item * newit, HTree *tree, uint32_t keyhash) 
 {
     if (abs(newit->ver) >= abs(oldit->ver))
         return true;
     else
     {
         char key[KEY_BUF_LEN];
-        int ksz = KEYLENGTH(oldit);
-        memcpy(key, oldit->key, min(ksz, MAX_KEY_LEN));
-        key[ksz] = '\0';
-        log_warn("BUG: bad version, oldv=%d, newv=%d, key=%s, keyhash = 0x%x, oldpos = %u",  oldit->ver, newit->ver, key, keyhash, oldit->pos);
+        int l = dc_decode(tree->dc, key, KEY_BUF_LEN, oldit->key, KEYLENGTH(oldit));
+        log_warn("BUG: bad version, oldv=%d, newv=%d, key=%s, keyhash = 0x%x, oldpos = %u",  oldit->ver, newit->ver, oldit->key, keyhash, oldit->pos);
         return false;
     }
 }
@@ -188,7 +190,7 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
         if (it->length == p->length &&
                 memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
         {
-            check_version(p, it, keyhash);
+            check_version(p, it, tree, keyhash);
             node->hash += (HASH(it) - HASH(p)) * keyhash;
             node->count += (it->ver > 0);
             node->count -= (p->ver > 0);
@@ -798,13 +800,28 @@ int ht_save(HTree *tree, const char *path)
         log_error("open %s failed", tmp);
         return -1;
     }
+
+    uint64_t file_size = 0;
+    struct timespec save_start, save_end;
+    clock_gettime(CLOCK_MONOTONIC, &save_start);
+
     pthread_mutex_lock(&tree->lock);
     int ret = ht_save2(tree, f);
     pthread_mutex_unlock(&tree->lock);
+    if (ret == 0)
+    {
+        fseeko(f, 0, SEEK_END);
+        file_size = ftello(f);
+    }
     fclose(f);
 
     if (ret == 0)
+    {
+        clock_gettime(CLOCK_MONOTONIC, &save_end);
+        float save_secs = (save_end.tv_sec - save_start.tv_sec) + (save_end.tv_nsec - save_start.tv_nsec) / 1e9;
+        log_notice("save HTree to %s, size = %"PRIu64", in %f secs", path, file_size, save_secs);
         mgr_rename(tmp, path);
+    }
     else
         mgr_unlink(tmp);
     return ret;
