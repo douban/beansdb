@@ -2358,11 +2358,12 @@ int main (int argc, char **argv)
 
     /* enter the event loop */
     printf("all ready.\n");
-    log_notice("all ready.");
+    log_notice("all ready. rss = %"PRIu64"", get_maxrss());
+
     loop_run(settings.num_threads);
 
     /* wait other thread to ends */
-    log_notice("waiting for close ... ");
+    log_notice("waiting for close, rss = %"PRIu64"", get_maxrss());
     pthread_join(flush_id, NULL);
     pthread_detach(flush_id);
 

@@ -601,7 +601,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     }
 
     cur_tree = ht_new(0, 0);
-    int nrecord = 0, deleted = 0, broken = 0;
+    int nrecord = 0, deleted = 0, broken = 0, released = 0;
     char *p = f->addr, *end = f->addr + f->size;
     char *newp = p;
     size_t last_advise = 0;
@@ -672,8 +672,11 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         else
         {
             if (it && it->pos == (pos | bucket) && it->ver < 0)
+            {
+                deleted ++;
                 ht_add2(cur_tree, r->key, r->ksz, 0, it->hash, it->ver);
-            deleted ++;
+            }
+            released++;
         }
         if (it) free(it);
         p = newp;
@@ -716,13 +719,13 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     clock_gettime(CLOCK_MONOTONIC, &opt_end);
     float update_secs = (update_end.tv_sec - update_start.tv_sec) + (update_end.tv_nsec - update_start.tv_nsec) / 1e9;
     float opt_secs = (opt_end.tv_sec - opt_start.tv_sec) + (opt_end.tv_nsec - opt_start.tv_nsec) / 1e9;
-    log_notice("optimize %s -> %d (%u B) complete, %d/%d records deleted, %u/%u bytes released, %d broken, use %fs/%fs",
-                       path,  last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size, deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, update_secs, opt_secs);
+    log_notice("optimize %s -> %d (%u B) complete, %d/%d records released, %d deleted, %u/%u bytes released, %d bytes broken, use %fs/%fs",
+            path, last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size, released, nrecord, deleted, *deleted_bytes, old_srcdata_size, broken, update_secs, opt_secs);
     return 0;
 
 OPT_FAIL:
-    log_notice("optimize %s -> %d (%u B) failed,  %d/%d records deleted,  %u/%u bytes released, %d broken, err = %d, use %fs/%fs",
-            path, last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size , deleted, nrecord, *deleted_bytes, old_srcdata_size, broken, err, update_secs, opt_secs);
+    log_notice("optimize %s -> %d (%u B) failed,   %d/%d records released, %d deleted, %u/%u bytes released, %d bytes broken, use %fs/%fs, err = %d",
+            path, last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size, released, nrecord, deleted, *deleted_bytes, old_srcdata_size, broken, update_secs, opt_secs, err);
     if (hintdata) free(hintdata);
     if (cur_tree)  ht_destroy(cur_tree);
     if (f) close_mfile(f);

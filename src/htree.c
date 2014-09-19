@@ -150,6 +150,8 @@ static void enlarge_pool(HTree *tree)
     int old_size = g_index[tree->height];
     int new_size = g_index[tree->height + 1];
 
+    log_notice("enlarge pool %d -> %d, new_height = %d", old_size, new_size, tree->height + 1);
+
     tree->root = (Node*)safe_realloc(tree->root, sizeof(Node) * new_size);
     memset(tree->root + old_size, 0, sizeof(Node) * (new_size - old_size));
     for (i=old_size; i<new_size; i++)

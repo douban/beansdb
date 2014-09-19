@@ -98,6 +98,7 @@ int do_item_add_to_freelist(item *it)
         if (new_freeitem)
         {
             freeitemtotal *= 2;
+            log_notice("freeitemtotal doubled to %d", freeitemtotal);
             freeitem = new_freeitem;
             freeitem[freeitemcurr++] = it;
             return 0;
