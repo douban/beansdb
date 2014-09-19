@@ -95,8 +95,8 @@ static inline bool check_version(Item *oldit, Item * newit, HTree *tree, uint32_
     else
     {
         char key[KEY_BUF_LEN];
-        int l = dc_decode(tree->dc, key, KEY_BUF_LEN, oldit->key, KEYLENGTH(oldit));
-        log_warn("BUG: bad version, oldv=%d, newv=%d, key=%s, keyhash = 0x%x, oldpos = %u",  oldit->ver, newit->ver, oldit->key, keyhash, oldit->pos);
+        dc_decode(tree->dc, key, KEY_BUF_LEN, oldit->key, KEYLENGTH(oldit));
+        log_warn("BUG: bad version, oldv=%d, newv=%d, key=%s, keyhash = 0x%x, oldpos = %u",  oldit->ver, newit->ver, key, keyhash, oldit->pos);
         return false;
     }
 }
