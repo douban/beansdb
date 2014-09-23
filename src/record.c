@@ -442,6 +442,11 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
         uint32_t pos = p - f->addr;
         p += record_length(r);
         r = decompress_record(r);
+        if (r == NULL)
+        {
+            log_error("decompress_record fail, %s @%ld", path, p - f->addr);
+            continue;
+        }
         uint16_t hash = gen_hash(r->value, r->vsz);
         if (r->version > 0)
         {
@@ -478,6 +483,11 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
         uint32_t pos = p - f->addr;
         p += record_length(r);
         r = decompress_record(r);
+        if (r == NULL)
+        {
+            log_error("decompress_record fail, %s @%ld", path, p - f->addr);
+            continue;
+        }
         /*uint16_t hash = gen_hash(r->value, r->vsz);*/
         if (r->version > 0)
         {
