@@ -990,11 +990,12 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
     DataRecord* r = NULL;
     if (bucket == (uint32_t)(bc->curr) || bucket == (uint32_t)(bc->flushing_bucket))     
     {
+        int bad_reason = -1;
         pthread_mutex_lock(&bc->buffer_lock);
         if (bucket == (uint32_t)(bc->curr) && pos >= bc->wbuf_start_pos)
         {
             uint32_t p = pos - bc->wbuf_start_pos;
-            r = decode_record(bc->write_buffer + p, bc->wbuf_curr_pos - p, true, "wbuf", pos, key);
+            r = decode_record(bc->write_buffer + p, bc->wbuf_curr_pos - p, true, "wbuf", pos, key, &bad_reason);
         }
         else if (bucket == (uint32_t)(bc->flushing_bucket) && pos >= bc->fbuf_start_pos)
         {
@@ -1005,7 +1006,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key)
                 return NULL;
             }
             uint32_t p = pos - bc->fbuf_start_pos;
-            r = decode_record(bc->flush_buffer + p, bc->fbuf_size - p, true, "fbuf", pos, key);
+            r = decode_record(bc->flush_buffer + p, bc->fbuf_size - p, true, "fbuf", pos, key, &bad_reason);
         }
         pthread_mutex_unlock(&bc->buffer_lock);
 

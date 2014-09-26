@@ -176,13 +176,15 @@ DECOMP_END:
     return NULL;
 }
 
-DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* path, uint32_t pos, const char* key)
+DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* path, uint32_t pos, const char* key, int* reason)
 {
     DataRecord *r = (DataRecord *) (buf - sizeof(char*));
     uint32_t ksz = r->ksz, vsz = r->vsz;
     if (bad_kv_size(ksz, vsz))
     {
-        log_error("invalid ksz=%u, vsz=%u, %s @%u, key = (%s)", ksz, vsz, path, pos, key);
+        if (*reason)
+            log_error("invalid ksz=%u, vsz=%u, %s @%u, key = (%s)", ksz, vsz, path, pos, key);
+        *reason = BAD_REC_SIZE;
         return NULL;
     }
 
@@ -190,13 +192,17 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* pat
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
     {
-        log_error("not enough data in buffer %d < %d, %s @%u,  key = (%s) ", size, need, path, pos, key);
+        if (*reason)
+            log_error("not enough data in buffer %d < %d, %s @%u,  key = (%s) ", size, need, path, pos, key);
+        *reason = BAD_REC_END;
         return NULL;
     }
     uint32_t crc = crc32(0, (unsigned char*)buf + sizeof(uint32_t),  need - sizeof(uint32_t));
     if (r->crc != crc)
     {
-        log_error("CHECKSUM %u != %u, %s @%u, get (%s) got (%s)", crc, r->crc,  path, pos, key, r->key);
+        if (*reason)
+            log_error("CHECKSUM %u != %u, %s @%u, get (%s) got (%s)", crc, r->crc,  path, pos, key, r->key);
+        *reason = BAD_REC_CRC;
         return NULL;
     }
 
@@ -210,18 +216,24 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* pat
     if (decomp)
     {
         r2 = decompress_record(r2);
+        if (r2 == NULL)
+           *reason = BAD_REC_DECOMPRESS;
     }
     return r2;
 }
 
 static inline DataRecord* scan_record(char* begin, char* end,  char** curr,
-        const char* path, int* num_broken_total)
+        const char* path, int* num_broken_total, HTree* tree)
 {
     int num_broken_curr = 0;
     while (*curr <  end)
     {
         char *p = *curr;
-        DataRecord *r = decode_record(p, end-p, false,  path, p - begin, "nokey");
+        int bad_reason = -1;
+        if (num_broken_curr > 1000)
+            bad_reason = 0;
+
+        DataRecord *r = decode_record(p, end-p, false,  path, p - begin, "nokey", &bad_reason);
         if (r != NULL)
         {
             if (num_broken_curr > 0)
@@ -235,12 +247,42 @@ static inline DataRecord* scan_record(char* begin, char* end,  char** curr,
         {
             if (num_broken_curr == 0)
             {
+                DataRecord *ro = (DataRecord *) (p - sizeof(char*));
                 log_error("START_BROKEN in %s at %ld", path, p - begin);
+                uint32_t ksz = ro->ksz;
+                if ( ksz > 0 && ksz <= MAX_KEY_LEN && sizeof(DataRecord) - sizeof(char*) + ksz < end - p)
+                {
+                    log_error("REMOVE_BROKEN key %s in %s at %ld", ro->key, path, p - begin);
+                    Item *it = ht_get2(tree, ro->key, ksz);
+                    if (it && (it->pos & 0xffffff00) == (p - begin))
+                        ht_remove2(tree, ro->key, ksz);
+
+                }
+                if (bad_reason == BAD_REC_CRC) 
+                {
+                    char *oldp = p;
+                    int jump = record_length(ro);
+                    p += jump;
+                    DataRecord *rn = decode_record(p, end-p, false,  path, p - begin, "nokey", &bad_reason);
+                    if (rn != NULL)
+                    {
+                        *curr = p;
+                        jump /= PADDING;
+                        num_broken_curr += jump;
+                        (*num_broken_total) += jump;
+                        log_error("JUMP_BROKEN in %s, jump %d PADDING, total %d", path, jump, *num_broken_total);
+                        return rn;
+                    }
+                    else 
+                    {
+                        p = oldp;
+                    }
+                }
             }
 
             num_broken_curr++;
             (*num_broken_total)++;
-            if (num_broken_curr > 40960)   // 10M
+            if (num_broken_curr > MAX_VALUE_LEN/PADDING)   // 100M
             {
                 // TODO: delete broken keys from htree
                 log_error("GIVEUP_BROKEN in %s after %d PADDING, total %d", path, num_broken_curr, *num_broken_total);
@@ -434,9 +476,11 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     char *p = f->addr, *end = f->addr + f->size;
     int num_broken_total = 0;
     size_t last_advise = 0;
+
     while (p < end)
     {
-        DataRecord *r = scan_record(f->addr, end, &p, path, &num_broken_total);
+        int badksz = 0;
+        DataRecord *r = scan_record(f->addr, end, &p, path, &num_broken_total, tree);
         if (r == NULL)
             break;
         uint32_t pos = p - f->addr;
@@ -475,7 +519,7 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = scan_record(f->addr, end, &p, path, &num_broken_total);
+        DataRecord *r = scan_record(f->addr, end, &p, path, &num_broken_total, tree);
         if (r == NULL)
             break;
         if (r->tstamp >= before)
@@ -617,7 +661,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     size_t last_advise = 0;
     while (p < end)
     {
-        DataRecord *r = scan_record(f->addr, end, &p, path, &broken);
+        DataRecord *r = scan_record(f->addr, end, &p, path, &broken, tree);
         if (r == NULL)
         {
             if (p < end)

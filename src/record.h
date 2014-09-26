@@ -24,6 +24,10 @@
 #include "util.h"
 #include "diskmgr.h"
 
+#define BAD_REC_SIZE  1
+#define BAD_REC_END  2
+#define BAD_REC_CRC  3 
+#define BAD_REC_DECOMPRESS 4
 
 typedef struct data_record
 {
@@ -47,7 +51,7 @@ uint32_t gen_hash(char* buf, int size);
 
 char* record_value(DataRecord *r);
 void free_record(DataRecord *r);
-DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* path, uint32_t pos, const char* key);
+DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* path, uint32_t pos, const char* key, int *bad_reason);
 char* encode_record(DataRecord* r, unsigned int* size);
 DataRecord* read_record(FILE *f, bool decomp, const char* path, const char* key);
 DataRecord* fast_read_record(int fd, off_t offset, bool decomp, const char* path, const char* key);
