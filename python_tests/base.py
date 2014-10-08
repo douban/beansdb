@@ -39,6 +39,11 @@ def stop_svc(popen):
     popen.wait()
 
 
+class CRCError(Exception):
+
+    pass
+
+
 class BeansdbInstance:
 
     def __init__(self, base_path, port, accesslog=True, db_depth=1, max_data_size=None):
@@ -166,6 +171,9 @@ def delete_hint_and_htree(db_homes, db_depth):
         for file_ in g:
             print "rm", file_
             os.remove(file_)
+        if not g:
+            print "no hint to delete"
+
         if db_depth == 1:
             g = glob.glob(os.path.join(db_home, "*", "*.htree"))
         elif db_depth == 2:
@@ -173,6 +181,8 @@ def delete_hint_and_htree(db_homes, db_depth):
         for file_ in g:
             print "rm", file_
             os.remove(file_)
+        if not g:
+            print "no htree to delete"
     
 
 
@@ -206,9 +216,59 @@ def locate_key_with_hint(db_homes, db_depth, key, ver_=None):
             print "file", data_file, "pos", pos, "ver", ver
             if ver_ is not None and ver != ver_:
                 continue
-            check_data_with_key(data_file, key, ver_=ver, hash_=hash_ if ver_ > 0 else None, pos=pos)
+            assert check_data_with_key(data_file, key, ver_=ver, hash_=hash_ if ver_ > 0 else None, pos=pos)
             return True
     return False
+
+
+def temper_with_key_value(db_homes, db_depth, key, ver_=None, delete_hint=True):
+    """ require hint file prsent.
+        if found key to modify, return True, otherwise False """
+    if isinstance(db_homes, (list, tuple)):
+        db_home = db_homes[0]
+    else:
+        db_home = db_homes
+    key_hash = get_hash(key)
+    if db_depth == 1:
+        sector = (key_hash >> 28) & 0xf
+        sector_path = "%x" % (sector)
+        g = glob.glob(os.path.join(db_home, sector_path, "*.hint.qlz"))
+    elif db_depth == 2:
+        sector1 = (key_hash >> 28) & 0xf
+        sector2 = (key_hash >> 24) & 0xf
+        sector_path = "%x/%x" % (sector1, sector2)
+        g = glob.glob(os.path.join(db_home, sector_path, "*.hint.qlz"))
+    else:
+        raise NotImplementedError()
+    for hint_file in g:
+        r = _check_hint_with_key(hint_file, key)
+        if r is not None:
+            pos, ver, hash_ = r
+            data_file = re.sub(r'(.+)\.hint.qlz', r'\1.data', os.path.basename(hint_file))
+            data_file = os.path.join(db_home, sector_path, data_file)
+            assert ver > 0
+            assert check_data_with_key(data_file, key, ver_=ver, hash_=hash_ if ver_ > 0 else None, pos=pos)
+            print "temper_with_value : file", data_file, "pos", pos, "key", key
+            # the value we modified must contain data
+            with open(data_file, 'r+') as f:
+                f.seek(pos, 0)
+                buf = f.read(24)
+                buf = f.read(len(key))
+                eq_(buf, key)
+                buf = f.read(1)
+                f.seek(-1, 1) # move back and replace with another byte
+                f.write(chr(255 - ord(buf)))
+            try:
+                check_data_with_key(data_file, key, ver_=ver, pos=pos)
+                raise Exception("no expected error raised")
+            except CRCError, e:
+                print "catch expected %s" % (e)
+                if delete_hint:
+                    print "rm ", hint_file
+                    os.remove(hint_file)
+                return True
+    return False
+
 
 def locate_key_iterate(db_homes, db_depth, key, ver_=None):
     """ assume disk0 already have link,
@@ -261,7 +321,7 @@ def check_data_with_key(file_path, key, ver_=None, hash_=None, pos=None):
                 block += f.read(rsize-PADDING)
             crc32 = binascii.crc32(block[4:24 + ksz + vsz]) & 0xffffffff
             if crc != crc32:
-                raise ValueError('%s crc wrong' % (file_path))
+                raise CRCError('%s crc wrong with key %s' % (file_path, key))
             key_ = block[24:24+ksz]
             if pos is not None:
                 eq_(key, key_)

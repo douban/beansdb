@@ -20,6 +20,9 @@ class MCStore(object):
         self.server = server
         self.mc = Client([server], do_split=0)
 
+    def __del__(self):
+        self.close()
+
     def __repr__(self):
         return '<MCStore(server=%s)>' % repr(self.server)
 
@@ -55,6 +58,11 @@ class MCStore(object):
 
     def delete(self, key):
         return bool(self.mc.delete(key))
+
+    def close(self):
+        if self.mc is not None:
+            self.mc.close()
+            self.mc = None
 
 
 class WriteFailedError(Exception):
