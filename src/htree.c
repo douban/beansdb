@@ -615,6 +615,7 @@ HTree* ht_open(int depth, int pos, const char *path)
     memset(tree, 0, sizeof(HTree));
     tree->depth = depth;
     tree->pos = pos;
+    tree->updating_bucket = -1;
 
     if (fread(&tree->height, sizeof(int), 1, f) != 1 ||
             tree->height + depth < 0 || tree->height + depth > 9)
