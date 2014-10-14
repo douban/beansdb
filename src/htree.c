@@ -530,6 +530,7 @@ HTree* ht_new(int depth, int pos)
     tree->pos = pos;
     tree->height = 1;
     tree->updating_bucket = -1;
+    tree->updating_tree = NULL;
 
     int pool_size = g_index[tree->height];
     Node *root = (Node*)safe_malloc(sizeof(Node) * pool_size);
