@@ -33,7 +33,7 @@ void       bc_flush(Bitcask *bc, unsigned int limit, int period);
 void       bc_close(Bitcask *bc);
 void       bc_merge(Bitcask *bc);
 int        bc_optimize(Bitcask *bc, int limit);
-DataRecord* bc_get(Bitcask *bc, const char* key);
+DataRecord* bc_get(Bitcask *bc, const char* key, uint32_t* ret_pos, int* ret_ver);
 bool       bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, int version);
 bool       bc_delete(Bitcask *bc, const char* key);
 uint16_t   bc_get_hash(Bitcask *bc, const char * pos, unsigned int *count);

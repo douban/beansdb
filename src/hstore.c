@@ -384,23 +384,31 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
         return r;
     }
 
-    bool info = false;
+    int info = 0;
     if (key[0] == '?')
     {
-        info = true;
-        ++key;
+        info = 1;
+        if (strlen(key) > 1 && key[1] == '?')
+            info = 2;
+        key += info;
     }
     int index = get_index(store, key);
-    DataRecord *r = bc_get(store->bitcasks[index], key);
-    if (r == NULL)
-    {
+    uint32_t ret_pos = 0;
+    int ret_ver= 0;
+    DataRecord *r = bc_get(store->bitcasks[index], key, &ret_pos, &ret_ver);
+    if ((r == NULL && info != 2) || ret_ver == 0)
         return NULL;
-    }
 
     char *res = NULL;
     if (info)
     {
         res = (char*)try_malloc(META_BUF_SIZE);
+
+        if (r == NULL)
+        {
+            r = (DataRecord*)(safe_calloc(1, sizeof(DataRecord)));
+            r->version = ret_ver;
+        }
 
         if (!res)
         {
@@ -413,8 +421,13 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
         {
             hash = gen_hash(r->value, r->vsz);
         }
-        *vlen = (size_t)safe_snprintf(res, META_BUF_SIZE, "%d %u %u %u %u", r->version,
+        if (info == 2)
+            *vlen = (size_t)safe_snprintf(res, META_BUF_SIZE, "%d %u %u %u %u %u %u", r->version,
+                         hash, r->flag, r->vsz, r->tstamp, ret_pos & 0xff, ret_pos & 0xffffff00);
+        else
+            *vlen = (size_t)safe_snprintf(res, META_BUF_SIZE, "%d %u %u %u %u", r->version,
                          hash, r->flag, r->vsz, r->tstamp);
+
         *flag = 0;
     }
     else if (r->version > 0)
