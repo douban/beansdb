@@ -157,7 +157,8 @@ int load_buckets(const char* base, int64_t *buckets, int *last)
     buf[n] = 0;
     char *p = buf;
     char *endptr;
-    while(p-buf < n){
+    while(p-buf < n)
+    {
         long bucket = strtol(p, &endptr, 10);
         if (p == endptr) 
             continue;
@@ -466,7 +467,11 @@ static void init_buckets(Bitcask *bc)
             {
                 if (buckets[i] != bc->buckets[i])
                 {
-                    if (i == last && buckets[i] >= 0 && bc->buckets[i] >= 0)
+                    if (i > last && bc->buckets[i] >= 0) //buckets[last] = -1
+                    {
+                        log_warn("last file not in buckets.txt (bc %0x, bucket %d)", bc->pos, i);
+                    }
+                    else if (i == last && buckets[i] >= 0 && bc->buckets[i] >= 0)
                     {
                         log_warn("last file size not match (bc %0x, bucket %d)", bc->pos, i);
                     }
