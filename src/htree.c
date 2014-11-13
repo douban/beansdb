@@ -44,15 +44,21 @@ const char HTREE_VERSION[] = "HTREE001";
 #define INDEX(it) (0x0f & (keyhash >> ((7 - node->depth - tree->depth) * 4)))
 #define KEYLENGTH(it) ((it)->length-sizeof(Item)+ITEM_PADDING)
 #define HASH(it) ((it)->hash * ((it)->ver>0))
+#define DATA_file_start(data) (&((data)->size))
+#define DATA_HEAD_SIZE (int)(((char*)&(((Data*)0)->head)) - (char*)(0)) 
+#define DATA_BLOCK_SIZE 256 
+#define DATA_BLOCK_SIZE_SMALL 128
 
 typedef struct t_data Data;
 struct t_data
 {
-    int size;
-    int used;
+    Data *next;
+    int size; 
+    int used; 
     int count;
     Item head[0];
 };
+
 
 typedef struct t_node Node;
 struct t_node
@@ -71,6 +77,7 @@ struct t_hash_tree
     int depth;
     int pos;
     int height;
+    int block_size;
     Node *root;
     Codec *dc;
     pthread_mutex_t lock;
@@ -112,6 +119,14 @@ static inline Node *get_child(HTree *tree, Node *node, int b)
     return tree->root + i;
 }
 
+static inline void init_data(Data* data, int size)
+{
+    data->next = NULL;
+    data->count = 0;
+    data->used = DATA_HEAD_SIZE;
+    data->size = size;
+ }
+
 static inline Data* get_data(Node *node)
 {
     return node->data;
@@ -119,12 +134,22 @@ static inline Data* get_data(Node *node)
 
 static inline void set_data(Node *node, Data *data)
 {
-    if (data != node->data)
-    {
-        if (node->data) free(node->data);
-        node->data = data;
-    }
+   node->data = data;
 }
+
+static inline void free_data(Node* node)
+{
+    Data *d, *d0;
+    for (d = node->data; d != NULL; )
+    {
+        d0 = d;
+        d = d->next;
+        free(d0);
+    }
+    node->data = NULL;
+}
+
+
 
 static inline uint32_t key_hash(HTree *tree, Item* it)
 {
@@ -165,9 +190,7 @@ static void enlarge_pool(HTree *tree)
 static void clear(Node *node)
 {
     Data* data = (Data*)safe_malloc(64);
-    data->size = 64;
-    data->used = sizeof(Data);
-    data->count = 0;
+    init_data(data, 64);
     set_data(node, data);
 
     node->is_node = 0;
@@ -184,36 +207,57 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
         node = get_child(tree, node, INDEX(it));
     }
 
-    Data *data = get_data(node);
-    Item *p = data->head;
-    int i;
-    for (i=0; i<data->count; ++i)
+    Data *data0 = get_data(node);
+    Data* data;
+    for (data = data0; data != NULL;  data = data->next)
     {
-        if (it->length == p->length &&
-                memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+        Item *p = data->head;
+        int i;
+        for (i=0; i<data->count; ++i)
         {
-            check_version(p, it, tree, keyhash);
-            node->hash += (HASH(it) - HASH(p)) * keyhash;
-            node->count += (it->ver > 0);
-            node->count -= (p->ver > 0);
-            memcpy(p, it, sizeof(Item)); // safe
-            return;
+            if (it->length == p->length &&
+                    memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+            {
+                check_version(p, it, tree, keyhash);
+                node->hash += (HASH(it) - HASH(p)) * keyhash;
+                node->count += (it->ver > 0);
+                node->count -= (p->ver > 0);
+                memcpy(p, it, sizeof(Item)); // safe
+                return;
+            }
+            p = (Item*)((char*)p + p->length);
         }
-        p = (Item*)((char*)p + p->length);
     }
 
-    if (data->size < data->used + it->length)
+    Data * last = NULL;
+    Data * llast = NULL;
+    for (data = data0; data != NULL && data->size < data->used + it->length ; llast = last, last = data, data = data->next)
+        ;
+
+    if (data == NULL)
     {
-        int size = max(data->used + it->length, data->size + 64);
-        int pos = (char*)p - (char*)data;
-        Data *new_data = (Data*)safe_malloc(size);
-        safe_memcpy(new_data, size, data, data->used);
-        data = new_data;
-        set_data(node, data);
-        data->size = size;
-        p = (Item *)((char*)data + pos);
+        if (last->used + it->length > tree->block_size)
+        {
+            int size = max(DATA_HEAD_SIZE + it->length, 64);
+            data = (Data*)safe_malloc(size);
+            init_data(data, size);
+            last->next = data;
+        }
+        else
+        {
+            int size = max(last->used + it->length, last->size + 64);
+            size = min(size, tree->block_size);
+            data = (Data*)safe_realloc(last, size);
+            data->size = size;
+
+            if (llast)
+                llast->next = data;
+            else
+                set_data(node, data);
+        }
     }
 
+    Item *p = (Item*)(((char*)data) + data->used);
     safe_memcpy(p, data->size - data->used, it, it->length);
     data->count++;
     data->used += it->length;
@@ -243,21 +287,25 @@ static void split_node(HTree *tree, Node *node)
 {
     Node *child = get_child(tree, node, 0);
     int i;
-    for (i=0; i<BUCKET_SIZE; ++i)
+    for (i = 0; i < BUCKET_SIZE; ++i)
     {
         clear(child + i);
     }
 
-    Data *data = get_data(node);
-    Item *it = data->head;
-    for (i=0; i < data->count; ++i)
+    Data *data0 = get_data(node);
+    Data *data;
+    for (data = data0; data != NULL; data = data->next)
     {
-        int32_t keyhash = key_hash(tree, it);
-        add_item(tree, child + INDEX(it), it, keyhash, false);
-        it = (Item*)((char*)it + it->length);
+	    Item *it = data->head;
+	    for (i = 0; i < data->count; ++i)
+	    {
+		    int32_t keyhash = key_hash(tree, it);
+		    add_item(tree, child + INDEX(it), it, keyhash, false);
+		    it = (Item*)((char*)it + it->length);
+	    }
     }
 
-    set_data(node, NULL);
+    free_data(node);
 
     node->is_node = 1;
     node->valid = 0;
@@ -271,25 +319,35 @@ static void remove_item(HTree *tree, Node *node, Item *it, uint32_t keyhash)
         node = get_child(tree, node, INDEX(it));
     }
 
-    Data *data = get_data(node);
-    if (data->count == 0) return ;
-    Item *p = data->head;
-    int i;
-    for (i=0; i < data->count; ++i)
+    Data *data0 = get_data(node);
+    Data *data;
+    Data *last = NULL;
+    for (data = data0; data != NULL; last = data, data = data->next)
     {
-        if (it->length == p->length &&
-                memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+        Item *p = data->head;
+        int i;
+        for (i = 0; i < data->count; ++i, p = (Item*)((char*)p + p->length))
         {
-            data->count--;
-            data->used -= p->length;
-            node->count -= p->ver > 0;
-            node->hash -= keyhash * HASH(p);
-            memmove(p, (char*)p + p->length,
+            if (it->length == p->length &&
+                    memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+            {
+                data->count--;
+                data->used -= p->length;
+                node->count -= p->ver > 0;
+                node->hash -= keyhash * HASH(p);
+                if (data->count > 0)
+                {
+                    memmove(p, (char*)p + p->length,
                     data->size - ((char*)p - (char*)data) - p->length);
-            set_data(node, data);
-            return;
+                }
+                else if (data != data0 && data->next != NULL) //neither first nor last
+                {
+                    last->next = data->next;
+                    free(data);
+                }
+                return;
+            }
         }
-        p = (Item*)((char*)p + p->length);
     }
 }
 
@@ -301,16 +359,19 @@ static void merge_node(HTree *tree, Node *node)
     int i, j;
     for (i=0; i<BUCKET_SIZE; ++i)
     {
-        Data *data = get_data(child + i);
-        Item *it = data->head;
-        for (j=0; j < data->count; ++j)
+        Data *data0 = get_data(child + i);
+        Data *data;
+        for (data = data0; data != NULL; data = data->next)
         {
-            if (it->ver > 0) {
-                add_item(tree, node, it, key_hash(tree, it), false);
-            } // drop deleted items, ver < 0
-            it = (Item*)((char*)it + it->length);
+            Item *it = data->head;
+            for (j=0; j < data->count; ++j, it = (Item*)((char*)it + it->length))
+            {
+                if (it->ver > 0) {
+                    add_item(tree, node, it, key_hash(tree, it), false);
+                } // drop deleted items, ver < 0
+            }
         }
-        clear(child + i);
+        clear(child + i);//FIXME
     }
 }
 
@@ -354,20 +415,25 @@ static Item* get_item_hash(HTree* tree, Node* node, Item* it, uint32_t keyhash)
         node = get_child(tree, node, INDEX(it));
     }
 
-    Data *data = get_data(node);
-    Item *p = data->head, *r = NULL;
-    int i;
-    for (i=0; i<data->count; i++)
+    Item *r = NULL;
+    Data *data0 = get_data(node);
+    Data *data;
+    for (data = data0; data != NULL && r == NULL; data = data->next)
     {
-        if (it->length == p->length &&
-                memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+        Item *p = data->head;
+        int i;
+        for (i=0; i<data->count; i++,  p = (Item*)((char*)p + p->length))
         {
-            r = p;
-            break;
+            if (it->length == p->length &&
+                    memcmp(it->key, p->key, KEYLENGTH(it)) == 0)
+            {
+                r = p;
+                break;
+            }
         }
-        p = (Item*)((char*)p + p->length);
     }
     return r;
+
 }
 
 static inline int hex2int(char b)
@@ -457,34 +523,40 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
     }
     else
     {
-        Data *data = get_data(node);
-        Item *it = data->head;
         char pbuf[20], key[KEY_BUF_LEN];
         int prefix_len = 0;
         if (prefix != NULL) prefix_len = strlen(prefix);
-        for (i=0; i<data->count; i++, it = (Item*)((char*)it + it->length))
-        {
-            if (dlen > 0)
-            {
-                safe_snprintf(pbuf, 20, "%08x", key_hash(tree, it));
-                if (memcmp(pbuf + tree->depth + node->depth, dir, dlen) != 0)
-                {
-                    continue;
-                }
-            }
-            int l = dc_decode(tree->dc, key, KEY_BUF_LEN, it->key, KEYLENGTH(it));
-            if (prefix == NULL || (l >= prefix_len && strncmp(key, prefix, prefix_len) == 0))
-            {
-                if (bsize - n < KEY_BUF_LEN + 32)
-                {
-                    bsize *= 2;
-                    buf = (char*)safe_realloc(buf, bsize);
-                }
 
-                n += safe_snprintf(buf + n, bsize - n, "%s %u %d\n", key, it->hash, it->ver);
+        Data *data0 = get_data(node);
+        Data *data;
+        for (data = data0; data != NULL;  data = data->next)
+        {
+            Item *it = data->head;
+            for (i=0; i<data->count; i++, it = (Item*)((char*)it + it->length))
+            {
+                if (dlen > 0)
+                {
+                    safe_snprintf(pbuf, 20, "%08x", key_hash(tree, it));
+                    if (memcmp(pbuf + tree->depth + node->depth, dir, dlen) != 0)
+                    {
+                        continue;
+                    }
+                }
+                int l = dc_decode(tree->dc, key, KEY_BUF_LEN, it->key, KEYLENGTH(it));
+                if (prefix == NULL || (l >= prefix_len && strncmp(key, prefix, prefix_len) == 0))
+                {
+                    if (bsize - n < KEY_BUF_LEN + 32)
+                    {
+                        bsize *= 2;
+                        buf = (char*)safe_realloc(buf, bsize);
+                    }
+
+                    n += safe_snprintf(buf + n, bsize - n, "%s %u %d\n", key, it->hash, it->ver);
+                }
             }
         }
     }
+
     return buf;
 }
 
@@ -501,18 +573,21 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
     }
     else
     {
-        Data *data = get_data(node);
-        Item *p = data->head;
-        Item *it = (Item*)tree->buf;
-        int buf_size = TREE_BUF_SIZE - (sizeof(Item) - ITEM_PADDING);;
-        int decode_len;
-        for (i=0; i<data->count; i++)
+        Data *data0 = get_data(node);
+        Data *data;
+        for (data = data0; data != NULL; data = data->next)
         {
-            safe_memcpy(it, buf_size, p, sizeof(Item));
-            decode_len = dc_decode(tree->dc, it->key, buf_size, p->key, KEYLENGTH(p));
-            it->length = sizeof(Item) + strlen(it->key) - ITEM_PADDING;
-            visitor(it, param);
-            p = (Item*)((char*)p + p->length);
+            Item *p = data->head;
+            Item *it = (Item*)tree->buf;
+            int buf_size = TREE_BUF_SIZE - (sizeof(Item) - ITEM_PADDING);;
+            int decode_len;
+            for (i=0; i<data->count; i++, p = (Item*)((char*)p + p->length))
+            {
+                safe_memcpy(it, buf_size, p, sizeof(Item));
+                decode_len = dc_decode(tree->dc, it->key, buf_size, p->key, KEYLENGTH(p));
+                it->length = sizeof(Item) + strlen(it->key) - ITEM_PADDING;
+                visitor(it, param);
+            }
         }
     }
 }
@@ -521,14 +596,17 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
  * API
  */
 
-HTree* ht_new(int depth, int pos)
+HTree* ht_new(int depth, int pos, bool tmp)
 {
     HTree *tree = (HTree*)safe_malloc(sizeof(HTree));
-    /*if (!tree) return NULL;*/
     memset(tree, 0, sizeof(HTree));
     tree->depth = depth;
     tree->pos = pos;
     tree->height = 1;
+    if (tmp)
+        tree->block_size = DATA_BLOCK_SIZE_SMALL;
+    else
+        tree->block_size = DATA_BLOCK_SIZE;
     tree->updating_bucket = -1;
     tree->updating_tree = NULL;
 
@@ -617,6 +695,7 @@ HTree* ht_open(int depth, int pos, const char *path)
     tree->depth = depth;
     tree->pos = pos;
     tree->updating_bucket = -1;
+    tree->block_size = DATA_BLOCK_SIZE;
 
     if (fread(&tree->height, sizeof(int), 1, f) != 1 ||
             tree->height + depth < 0 || tree->height + depth > 9)
@@ -653,9 +732,10 @@ HTree* ht_open(int depth, int pos, const char *path)
         }
         if (size > 0)
         {
-            data = (Data*)safe_malloc(size);
-            if (fread(data, size, 1, f) != 1)
+            data = (Data*)safe_malloc(size + sizeof(Data*));
+            if (fread(DATA_file_start(data), size, 1, f) != 1)
             {
+                log_error("load data: size %d fail", size);
                 goto FAIL;
             }
             if (data->used != size)
@@ -663,7 +743,8 @@ HTree* ht_open(int depth, int pos, const char *path)
                 log_error("broken data: %d != %d", data->used, size);
                 goto FAIL;
             }
-            data->size = size;
+            data->used = data->size = size + sizeof(Data*);
+            data->next = NULL;
         }
         else if (size == 0)
         {
@@ -677,6 +758,7 @@ HTree* ht_open(int depth, int pos, const char *path)
         tree->root[i].data = data;
         pool_used ++;
     }
+
 
     // load Codec
     if (fread(&size, sizeof(int), 1, f) != 1
@@ -730,7 +812,6 @@ static int ht_save2(HTree *tree, FILE* f)
         return -1;
     }
 
-
     int pool_size = g_index[tree->height];
     if (fwrite(&tree->height, sizeof(int), 1, f) != 1 ||
             fwrite(tree->root, sizeof(Node) * pool_size, 1, f) != 1 )
@@ -742,14 +823,34 @@ static int ht_save2(HTree *tree, FILE* f)
     int i, zero = 0;
     for (i=0; i<pool_size; i++)
     {
-        Data *data= tree->root[i].data;
-        if (data)
+        Data *data0= tree->root[i].data;
+        if (data0)
         {
-            if (fwrite(&data->used, sizeof(int), 1, f) != 1
-                    || fwrite(data, data->used, 1, f) != 1)
+            Data new_data;
+            init_data(&new_data, 0);
+	        Data *data;
+            for (data = data0; data != NULL; data = data->next)
             {
-                log_error("write pool failed");
+                new_data.count += data->count;
+                new_data.used += data->used - DATA_HEAD_SIZE; 
+            }
+            new_data.used -= sizeof(Data*);
+
+            if (fwrite(&(new_data.used), sizeof(int), 1, f) != 1 || fwrite(DATA_file_start(&new_data), DATA_HEAD_SIZE - sizeof(Data*), 1, f) != 1)
+            {
+                log_error("write data head failed");
                 return -1;
+            }
+
+            for (data = data0; data != NULL; data = data->next)
+            {
+                if (data->count == 0)
+                    continue;
+                if ( fwrite(((char*)data) + DATA_HEAD_SIZE, data->used - DATA_HEAD_SIZE, 1, f) != 1)
+                {
+                    log_error("write data failed");
+                    return -1;
+                }
             }
         }
         else
@@ -843,7 +944,8 @@ void ht_destroy(HTree *tree)
     int pool_size = g_index[tree->height];
     for(i=0; i<pool_size; i++)
     {
-        if (tree->root[i].data) free(tree->root[i].data);
+        if (tree->root[i].data) 
+            free_data(tree->root + i);
     }
     free(tree->root);
     free(tree);

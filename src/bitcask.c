@@ -515,7 +515,7 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     bc->curr_bytes = 0;
     bc->tree = NULL;
     bc->last_snapshot = -1;
-    bc->curr_tree = ht_new(depth, pos);
+    bc->curr_tree = ht_new(depth, pos, true);
     bc->wbuf_size = 1024 * 4;
     bc->write_buffer = (char*)safe_malloc(bc->wbuf_size);
     bc->last_flush_time = time(NULL);
@@ -617,7 +617,7 @@ void bc_scan(Bitcask* bc)
     }
     if (bc->tree == NULL)
     {
-        bc->tree = ht_new(bc->depth, bc->pos);
+        bc->tree = ht_new(bc->depth, bc->pos, false);
     }
 
     for (i=0; i<MAX_BUCKET_COUNT; i++)
@@ -840,7 +840,7 @@ int bc_optimize(Bitcask *bc, int limit)
                     return -1;
                 }
 
-                HTree *tree = ht_new(bc->depth, bc->pos);
+                HTree *tree = ht_new(bc->depth, bc->pos, true);
                 scanHintFile(tree, i, hintpath, NULL);
                 struct update_args args;
                 args.tree = bc->tree;
@@ -1147,7 +1147,7 @@ void bc_rotate(Bitcask *bc)
     }
     // next bucket
     bc->curr ++;
-    bc->curr_tree = ht_new(bc->depth, bc->pos);
+    bc->curr_tree = ht_new(bc->depth, bc->pos, true);
     bc->wbuf_start_pos = 0;
     bc->curr_bytes = 0;
 }

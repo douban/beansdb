@@ -482,7 +482,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     if (f == NULL) return;
 
     log_warn("scan datafile %s", path);
-    HTree *cur_tree = ht_new(0, 0);
+    HTree *cur_tree = ht_new(0, 0, true);
     char *p = f->addr, *end = f->addr + f->size;
     int num_broken_total = 0;
     size_t last_advise = 0;
@@ -664,7 +664,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         hintdata = (char*)safe_malloc(hint_size);
     }
 
-    cur_tree = ht_new(0, 0);
+    cur_tree = ht_new(0, 0, true);
     int nrecord = 0, deleted = 0, broken = 0, released = 0;
     char *p = f->addr, *end = f->addr + f->size;
     char *newp = p;

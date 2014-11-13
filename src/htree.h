@@ -38,7 +38,7 @@ typedef struct t_hash_tree HTree;
 typedef void (*fun_visitor) (Item *it, void *param);
 
 
-HTree*   ht_new(int depth, int pos);
+HTree*   ht_new(int depth, int pos, bool tmp);
 void     ht_destroy(HTree *tree);
 void     ht_add(HTree *tree, const char* key, uint32_t pos, uint16_t hash, int32_t ver);
 void     ht_remove(HTree *tree, const char *key);
