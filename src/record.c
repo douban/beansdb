@@ -384,7 +384,6 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             uint32_t pos = p - f->addr;
             p += record_length(r); 
             r = decompress_record(r);
-            uint16_t hash = gen_hash(r->value, r->vsz);
             if (r->version > 0){
                 uint16_t hash = gen_hash(r->value, r->vsz);
                 ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);            
