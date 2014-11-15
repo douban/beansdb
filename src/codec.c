@@ -286,7 +286,6 @@ int dc_decode(Codec* dc, char* buf, const char* src, int len)
             return 0;
         }
         int rlen = 0;
-        int flen = strlen(f->fmt);
         switch(f->nargs){
             case 1: rlen = sprintf(buf, f->fmt, args[0]); break;
             case 2: rlen = sprintf(buf, f->fmt, args[0], args[1]); break;
