@@ -268,7 +268,7 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     {
         if (node->depth == tree->height - 1)
         {
-            if (enlarge && node->count > SPLIT_LIMIT * 4)
+            if (enlarge && (tree->height + tree->depth < MAX_DEPTH) && ( node->count > SPLIT_LIMIT * 4))
             {
                 int pos = node - tree->root;
                 enlarge_pool(tree);
