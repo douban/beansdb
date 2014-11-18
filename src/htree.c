@@ -906,6 +906,11 @@ int ht_save(HTree *tree, const char *path)
         return -1;
     }
 
+    int buf_size = 1024*1024;
+    char *buff = (char*)malloc(buf_size);
+    memset( buff, '\0', buf_size);
+    setvbuf(f , buff, _IOFBF, buf_size);
+
     uint64_t file_size = 0;
     struct timespec save_start, save_end;
     clock_gettime(CLOCK_MONOTONIC, &save_start);
@@ -919,6 +924,7 @@ int ht_save(HTree *tree, const char *path)
         file_size = ftello(f);
     }
     fclose(f);
+    free(buff);
 
     if (ret == 0)
     {
