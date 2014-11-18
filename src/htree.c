@@ -371,7 +371,7 @@ static void merge_node(HTree *tree, Node *node)
                 } // drop deleted items, ver < 0
             }
         }
-        clear(child + i);//FIXME
+        free_data(child + i);
     }
 }
 
