@@ -47,7 +47,7 @@ const char HTREE_VERSION[] = "HTREE001";
 #define DATA_file_start(data) (&((data)->size))
 #define DATA_HEAD_SIZE (int)(((char*)&(((Data*)0)->head)) - (char*)(0)) 
 #define DATA_BLOCK_SIZE 256 
-#define DATA_BLOCK_SIZE_SMALL 128
+#define DATA_BLOCK_SIZE_SMALL 1024
 
 typedef struct t_data Data;
 struct t_data
