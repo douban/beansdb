@@ -238,14 +238,16 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     {
         if (last->used + it->length > tree->block_size)
         {
-            int size = max(DATA_HEAD_SIZE + it->length, 64);
+            int size = DATA_HEAD_SIZE + it->length;
+            //int size = max(DATA_HEAD_SIZE + it->length, 64);
             data = (Data*)safe_malloc(size);
             init_data(data, size);
             last->next = data;
         }
         else
         {
-            int size = max(last->used + it->length, last->size + 64);
+            int size = max(last->used + it->length, last->size);
+            //int size = max(last->used + it->length, last->size + 64);
             size = min(size, tree->block_size);
             data = (Data*)safe_realloc(last, size);
             data->size = size;
