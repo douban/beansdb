@@ -169,6 +169,8 @@ void scanHintFile(HTree* tree, int bucket, const char* path, const char* new_pat
     HintFile* hint = open_hint(path, new_path);
     if (hint == NULL) return;
 
+    log_notice("scan hint: %s", path);
+
     char *p = hint->buf, *end = hint->buf + hint->size;
     while (p < end)
     {

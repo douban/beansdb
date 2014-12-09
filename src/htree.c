@@ -21,8 +21,10 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 #include "fnv1a.h"
+#include "mfile.h"
 #include "htree.h"
 #include "codec.h"
 #include "const.h"
@@ -31,7 +33,6 @@
 #ifndef CLOCK_MONOTONIC
 #include "clock_gettime_stub.c"
 #endif
-#include <inttypes.h>
 
 const int BUCKET_SIZE = 16;
 const int SPLIT_LIMIT = 64;
@@ -806,6 +807,9 @@ FAIL:
 
 static int ht_save2(HTree *tree, FILE* f)
 {
+    size_t last_advise = 0;
+    int fd = fileno(f);
+
     off_t pos = 0;
     if (fwrite(HTREE_VERSION, sizeof(HTREE_VERSION), 1, f) != 1 ||
             fwrite(&pos, sizeof(off_t), 1, f) != 1)
@@ -854,6 +858,7 @@ static int ht_save2(HTree *tree, FILE* f)
                     return -1;
                 }
             }
+            file_dontneed(fd, ftello(f), &last_advise);
         }
         else
         {
