@@ -20,7 +20,7 @@
 
 #include "record.h"
 #include "diskmgr.h"
-#include "beansdb.h"
+#include "common.h"
 
 #include "util.h"
 

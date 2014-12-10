@@ -23,14 +23,7 @@
 #include "codec.h"
 #include "fnv1a.h"
 #include "log.h"
-
-//#define min(a,b) ((a)<(b)?(a):(b))
-
-typedef struct
-{
-    unsigned char nargs;
-    char fmt[7];
-} Fmt;
+#include "varint.h"
 
 static inline int fmt_size(Fmt *fmt)
 {
@@ -41,15 +34,6 @@ const int DEFAULT_DICT_SIZE = 1024;
 const int MAX_DICT_SIZE = 16384;
 
 #define RDICT_SIZE(DICT_SIZE) ((DICT_SIZE) * 7 + 1)
-
-struct t_codec
-{
-    size_t dict_size;
-    Fmt **dict;
-    size_t rdict_size;
-    short *rdict;
-    int dict_used;
-};
 
 Codec* dc_new()
 {
@@ -126,7 +110,7 @@ void dc_enlarge(Codec *dc)
 {
     dc->dict_size = min(dc->dict_size * 2, MAX_DICT_SIZE);
     dc->dict = (Fmt**)safe_realloc(dc->dict, sizeof(Fmt*) * dc->dict_size);
-
+    log_notice("enlare codec to %zu", dc->dict_size);
     dc_rebuild(dc);
 }
 
@@ -188,161 +172,191 @@ void dc_destroy(Codec *dc)
     free(dc);
 }
 
-int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
+static inline int parse_fmt(const char* src, int len, char* fmt, int* flen, int32_t *args)
 {
-    if (dc && len > 6 && len < 100 && src[0] > 0)
+    int m = 0; //narg 
+    bool hex[20];
+    char num[20][10];
+    const char *p = src, *q = src + len;
+    char *dst = fmt;
+    while(p < q)
     {
-        int m = 0;
-        char fmt[255];
-        bool hex[20];
-        char num[20][10];
-        int32_t args[10];
-        const char *p = src, *q = src + len;
-        char *dst = fmt;
-        while(p < q)
+        if (*p == '%' || *p == '@' || *p == ':')   // not supported format
         {
-            if (*p == '%' || *p == '@' || *p == ':')   // not supported format
+            return 0;
+        }
+        if ((*p >= '1' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+        {
+            char *nd = num[m];
+            hex[m] = false;
+            while(p < q && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')))
             {
-                goto RET;
+                if (*p >= 'a' && *p <= 'f') hex[m] = true;
+                *nd ++ = *p ++;
+                if ((hex[m] && nd-num[m] >= 8) || (!hex[m] && nd-num[m] >= 9))
+                {
+                    break;
+                }
             }
-            if ((*p >= '1' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+            // 8digit+1hex, pop it
+            if (hex[m] && nd-num[m]==9)
             {
-                char *nd = num[m];
+                --nd;
+                --p;
                 hex[m] = false;
-                while(p < q && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')))
-                {
-                    if (*p >= 'a' && *p <= 'f') hex[m] = true;
-                    *nd ++ = *p ++;
-                    if ((hex[m] && nd-num[m] >= 8) || (!hex[m] && nd-num[m] >= 9))
-                    {
-                        break;
-                    }
-                }
-                // 8digit+1hex, pop it
-                if (hex[m] && nd-num[m]==9)
-                {
-                    --nd;
-                    --p;
-                    hex[m] = false;
-                }
-                *nd = 0;
-                if (hex[m] && nd - num[m] >= 4)
-                {
-                    *dst++ = '%';
-                    *dst++ = 'x';
-                    args[m] = strtol(num[m], NULL, 16);
-                    ++m;
-                }
-                else if (!hex[m] && nd - num[m] >= 3)
-                {
-                    *dst++ = '%';
-                    *dst++ = 'd';
-                    args[m] = atoi(num[m]);
-                    ++m;
-                }
-                else
-                {
-                    safe_memcpy(dst, 255, num[m], nd - num[m]);
-                    dst += nd - num[m];
-                }
+            }
+            *nd = 0;
+            if (hex[m] && nd - num[m] >= 4)
+            {
+                *dst++ = '%';
+                *dst++ = 'x';
+                args[m] = strtol(num[m], NULL, 16);
+                ++m;
+            }
+            else if (!hex[m] && nd - num[m] >= 3)
+            {
+                *dst++ = '%';
+                *dst++ = 'd';
+                args[m] = atoi(num[m]);
+                ++m;
             }
             else
             {
-                *dst++ = *p++;
+                safe_memcpy(dst, 255, num[m], nd - num[m]);
+                dst += nd - num[m];
             }
         }
-        *dst = 0; // ending 0
-        int flen = dst - fmt, prefix;
-        if (m > 0 && m <= 2)
+        else
         {
-            Fmt **dict = dc->dict;
-            uint32_t h = fnv1a(fmt, flen) % dc->rdict_size;
-            // test hash collision
-            while (dc->rdict[h] > 0 && strcmp(fmt, dict[dc->rdict[h]]->fmt) != 0)
-            {
-                ++h;
-                if (h == dc->rdict_size) h = 0;
-            }
-            int rh = dc->rdict[h];
-            if (rh == 0)
-            {
-                if ((unsigned int)(dc->dict_used) < dc->dict_size)
-                {
-                    dict[dc->dict_used] = (Fmt*) safe_malloc(sizeof(Fmt) + flen - 7 + 1);
-                    dict[dc->dict_used]->nargs = m;
-                    memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
-                    log_debug("new fmt %d: %s <= %s", dc->dict_used, fmt, src);
-                    dc->rdict[h] = rh = dc->dict_used ++;
-                    if ((unsigned int)(dc->dict_used) == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
-                    {
-                        dc_enlarge(dc);
-                    }
-                }
-                else
-                {
-                    log_debug("not captched fmt: %s <= %s", fmt, src);
-                    dc->rdict[h] = rh = -1; // not again
-                }
-            }
-            if (rh > 0)
-            {
-                if (rh < 64)
-                {
-                    prefix = 1;
-                    *buf = -rh;
-                }
-                else
-                {
-                    prefix = 2;
-                    *buf = - (rh & 0x3f) - 64;
-                    *(unsigned char*)(buf+1) = rh >> 6;
-                }
-                safe_memcpy(buf+prefix, buf_size - prefix, args, sizeof(int32_t)*m);
-                return prefix + m * sizeof(int32_t);
-            }
+            *dst++ = *p++;
         }
     }
-RET:
-    safe_memcpy(buf, buf_size, src, len);
+    *dst = 0; // ending 0
+    *flen = dst - fmt;
+    return m;
+}
+
+static inline int parse_fmt_new(const char* src, int len, char* fmt, int* flen, uint64_t *args)
+{
+    int m = 0; //narg 
+    bool hex[20];
+    char num[20][10];
+    const char *p = src, *q = src + len;
+    char *dst = fmt;
+    while(p < q)
+    {
+        if (*p == '%' || *p == '@' || *p == ':')   // not supported format
+        {
+            return 0;
+        }
+        if ((*p >= '1' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+        {
+            char *nd = num[m];
+            hex[m] = false;
+            while(p < q && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')))
+            {
+                if (*p >= 'a' && *p <= 'f') hex[m] = true;
+                *nd ++ = *p ++;
+                if ((hex[m] && nd-num[m] >= 16) || (!hex[m] && nd-num[m] >= 18))
+                {
+                    break;
+                }
+            }
+            // 8digit+1hex, pop it
+            if (hex[m] && nd-num[m]==9)
+            {
+                --nd;
+                --p;
+                hex[m] = false;
+            }
+            *nd = 0;
+            if (hex[m] && nd - num[m] >= 4)
+            {
+                *dst++ = '%';
+                *dst++ = 'l';
+                *dst++ = 'l';
+                *dst++ = 'x';
+                args[m] = strtoll(num[m], NULL, 16);
+                ++m;
+            }
+            else if (!hex[m] && nd - num[m] >= 3)
+            {
+                *dst++ = '%';
+                *dst++ = 'l';
+                *dst++ = 'l';
+                *dst++ = 'd';
+                args[m] = strtoll(num[m], NULL, 10);
+                ++m;
+            }
+            else
+            {
+                safe_memcpy(dst, 255, num[m], nd - num[m]);
+                dst += nd - num[m];
+            }
+        }
+        else
+        {
+            *dst++ = *p++;
+        }
+    }
+    *dst = 0; // ending 0
+    *flen = dst - fmt;
+    return m;
+}
+
+static inline int dc_encode_key_with_fmt(int idx, char* buf, int buf_size, int32_t*args, int narg)
+{
+    int intlen = encode_varint_old(idx, buf);
+    safe_memcpy(buf + intlen, buf_size - intlen, args, sizeof(int32_t)*narg);
+    return intlen + narg * sizeof(int32_t);
+}
+
+static inline int dc_encode_key_with_fmt_new(int idx, char* buf, int buf_size, uint64_t*args, int narg)
+{
+    int len = encode_varint_old(idx, buf);
+    int i;
+    for (i=0; i<narg; i++)
+    {
+        int l = encode_varint((uint64_t)args[i], buf + len);
+        len += l;
+    }
     return len;
 }
 
-int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
+
+static inline int dc_decode_key_with_fmt(Codec* dc, char* buf, int buf_size, const char* src, int len)
 {
-    if (src[0] < 0 && len >= 5)
+    if (len < 5)
+        return 0;
+    int intlen; 
+    int idx = decode_varint_old(src, &intlen);
+    int32_t* args = (int32_t*)(src + intlen);
+    Fmt *f = dc->dict[idx];
+
+    if (f == NULL)
     {
-        int idx = -*src;
-        int32_t* args = (int32_t*)(src + 1);
-        if (idx >= 64)
+        int key_buf_len = sizeof(char) * len * 2 + 1;
+        char *key_hex_buf = (char*)safe_malloc(key_buf_len);
+        *(key_hex_buf + key_buf_len - 1) = 0;
+        log_error("invalid fmt index: %d", idx);
+        int i;
+        for (i = 0; i < len; ++i)
         {
-            idx -= 64;
-            idx += (*(unsigned char*)(src + 1)) << 6;
-            args = (int32_t*)(src + 2);
+            sprintf(key_hex_buf + 2 * i, "%x", src[i]); //safe
         }
-        Fmt *f = dc->dict[idx];
-        if (f == NULL)
-        {
-            int key_buf_len = sizeof(char) * len * 2 + 1;
-            char *key_hex_buf = (char*)safe_malloc(key_buf_len);
-            *(key_hex_buf + key_buf_len - 1) = 0;
-            log_error("invalid fmt index: %d", idx);
-            for (idx = 0; idx < len; ++idx)
-            {
-                sprintf(key_hex_buf + 2 * idx, "%x", src[idx]); //safe
-            }
-            free(key_hex_buf);
-            log_error("invalid key: %s", key_hex_buf);
-            return 0;
-        }
-        int nlen = f->nargs * sizeof(int32_t) + ((char *)args - src);
-        if (len != nlen)
-        {
-            log_error("invalid length of key: %d != %d", len, nlen);
-            return 0;
-        }
-        int rlen = 0;
-        switch(f->nargs)
-        {
+        log_error("invalid key: %s", key_hex_buf);
+        free(key_hex_buf);
+        return 0;
+    }
+    int nlen = f->nargs * sizeof(int32_t) + ((char *)args - src);
+    if (len != nlen)
+    {
+        log_error("invalid length of key: %d != %d", len, nlen);
+        return 0;
+    }
+    int rlen = 0;
+    switch(f->nargs)
+    {
         case 1:
             rlen = safe_snprintf(buf, buf_size, f->fmt, args[0]);
             break;
@@ -354,9 +368,121 @@ int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
             break;
         default:
             ;
-        }
-        return rlen;
     }
+    return rlen;
+}
+
+static inline int dc_decode_key_with_fmt_new(Codec* dc, char* buf, int buf_size, const char* src, int len)
+{
+    int intlen; 
+    char*p = (char*) src;
+    int idx = decode_varint(p, &intlen);
+    //printf("index= %d\n", idx);
+    Fmt *f = dc->dict[idx];
+    if (f == NULL)
+    {
+        log_error("invalid fmt index: %d", idx);
+        printbuf(src, len);
+        return 0;
+    }
+    uint64_t args[5];
+
+    int i;
+    p += intlen;
+    for (i = 0; i<f->nargs; i++) 
+    {
+       args[i] = decode_varint(p, &intlen);
+       p += intlen;
+    }
+    if (p-src != len)
+    {
+        log_error("invalid length of key: %d != %ld", len, p-src);
+        printbuf(src, len);
+        return 0;
+    }
+    int rlen = 0;
+    switch(f->nargs)
+    {
+        case 1:
+            rlen = safe_snprintf(buf, buf_size, f->fmt, args[0]);
+            break;
+        case 2:
+            rlen = safe_snprintf(buf, buf_size, f->fmt, args[0], args[1]);
+            break;
+        case 3:
+            rlen = safe_snprintf(buf, buf_size, f->fmt, args[0], args[1], args[2]);
+            break;
+        default:
+            ;
+    }
+    return rlen;
+}
+
+int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
+{
+    char fmt[255];
+    int flen;
+
+#ifndef NEW_ENCODE
+    int args[10];
+    int narg = parse_fmt(src, len, fmt, &flen, args);
+#else
+    uint64_t args[10];
+    int narg = parse_fmt_new(src, len, fmt, &flen, args);
+#endif
+
+    if (dc && len > 6 && len < 100 && src[0] > 0 && narg > 0 && narg <= 2)
+    {
+        Fmt **dict = dc->dict;
+        uint32_t h = fnv1a(fmt, flen) % dc->rdict_size;
+        // test hash collision
+        while (dc->rdict[h] > 0 && strcmp(fmt, dict[dc->rdict[h]]->fmt) != 0)
+        {
+            ++h;
+            if (h == dc->rdict_size) h = 0;
+        }
+        int rh = dc->rdict[h];
+        if (rh == 0)
+        {
+            if ((unsigned int)(dc->dict_used) < dc->dict_size)
+            {
+                dict[dc->dict_used] = (Fmt*) safe_malloc(sizeof(Fmt) + flen - 7 + 1);
+                dict[dc->dict_used]->nargs = narg;
+                memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
+                log_debug("new fmt %d: %s <= %s", dc->dict_used, fmt, src);
+                dc->rdict[h] = rh = dc->dict_used ++;
+                if ((unsigned int)(dc->dict_used) == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
+                {
+                    dc_enlarge(dc);
+                }
+            }
+            else
+            {
+                log_debug("not captched fmt: %s <= %s", fmt, src);
+                dc->rdict[h] = rh = -1; // not again
+            }
+        }
+        if (rh > 0)
+
+#ifndef NEW_ENCODE
+            return dc_encode_key_with_fmt(rh, buf, buf_size, args, narg);
+#else
+            return dc_encode_key_with_fmt_new(rh, buf, buf_size, args, narg);
+#endif
+    }
+    safe_memcpy(buf, buf_size, src, len);
+    return len;
+}
+
+int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
+{
+    if (src[0] < 0)
+#ifndef NEW_ENCODE
+        return dc_decode_key_with_fmt(dc, buf, buf_size, src, len);
+#else
+        return dc_decode_key_with_fmt_new(dc, buf, buf_size, src, len);
+#endif
+
     safe_memcpy(buf, buf_size, src, len);
     buf[len] = 0;
     return len;

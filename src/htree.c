@@ -12,7 +12,7 @@
  *      Davies Liu <davies.liu@gmail.com>
  *      Hurricane Lee <hurricane1026@gmail.com>
  */
-
+#include<sys/time.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -30,9 +30,6 @@
 #include "const.h"
 #include "log.h"
 #include "diskmgr.h"
-#ifndef CLOCK_MONOTONIC
-#include "clock_gettime_stub.c"
-#endif
 
 const int BUCKET_SIZE = 16;
 const int SPLIT_LIMIT = 64;
@@ -919,8 +916,8 @@ int ht_save(HTree *tree, const char *path)
     setvbuf(f , buff, _IOFBF, buf_size);
 
     uint64_t file_size = 0;
-    struct timespec save_start, save_end;
-    clock_gettime(CLOCK_MONOTONIC, &save_start);
+    struct timeval save_start, save_end;
+    gettimeofday(&save_start, NULL);
 
     pthread_mutex_lock(&tree->lock);
     int ret = ht_save2(tree, f);
@@ -935,8 +932,8 @@ int ht_save(HTree *tree, const char *path)
 
     if (ret == 0)
     {
-        clock_gettime(CLOCK_MONOTONIC, &save_end);
-        float save_secs = (save_end.tv_sec - save_start.tv_sec) + (save_end.tv_nsec - save_start.tv_nsec) / 1e9;
+        gettimeofday(&save_end, NULL);
+        float save_secs = (save_end.tv_sec - save_start.tv_sec) + (save_end.tv_usec - save_start.tv_usec) / 1e6;
         log_notice("save HTree to %s, size = %"PRIu64", in %f secs", path, file_size, save_secs);
         mgr_rename(tmp, path);
     }

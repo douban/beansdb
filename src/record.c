@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <sys/time.h>
 
 #if HAVE_UNISTD_H
 #include <unistd.h>
@@ -41,10 +42,6 @@
 #include "util.h"
 #include "const.h"
 #include "log.h"
-#include "time.h"
-#ifndef CLOCK_MONOTONIC
-#include "clock_gettime_stub.c"
-#endif
 
 
 const int PADDING = 256;
@@ -588,8 +585,8 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         bool skipped, bool use_tmp, uint32_t *deleted_bytes)
 {
 
-    struct timespec opt_start, opt_end, update_start, update_end;
-    clock_gettime(CLOCK_MONOTONIC, &opt_start);
+    struct timeval opt_start, opt_end, update_start, update_end;
+    gettimeofday(&opt_start, NULL);
 
     int err = -1; 
     log_notice("begin optimize %s -> %s, use_tmp = %s", path, lastdata, use_tmp ? "true" : "false");
@@ -754,7 +751,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     close_mfile(f);
     fclose(new_df);
 
-    clock_gettime(CLOCK_MONOTONIC, &update_start);
+    gettimeofday(&update_start, NULL);
     if (bucket == last_bucket)
     {
         ht_set_updating_bucket(tree, bucket, cur_tree);
@@ -770,7 +767,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         ht_visit(cur_tree, update_items, tree);
         mgr_unlink(path);
     }
-    clock_gettime(CLOCK_MONOTONIC, &update_end);
+    gettimeofday(&update_end, NULL);
 
     ht_destroy(cur_tree);
 
@@ -780,9 +777,9 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     free(hintdata);
 
 
-    clock_gettime(CLOCK_MONOTONIC, &opt_end);
-    float update_secs = (update_end.tv_sec - update_start.tv_sec) + (update_end.tv_nsec - update_start.tv_nsec) / 1e9;
-    float opt_secs = (opt_end.tv_sec - opt_start.tv_sec) + (opt_end.tv_nsec - opt_start.tv_nsec) / 1e9;
+    gettimeofday(&opt_end, NULL);
+    float update_secs = (update_end.tv_sec - update_start.tv_sec) + (update_end.tv_usec - update_start.tv_usec) / 1e6;
+    float opt_secs = (opt_end.tv_sec - opt_start.tv_sec) + (opt_end.tv_usec - opt_start.tv_usec) / 1e6;
     log_notice("optimize %s -> %d (%u B) complete, %d/%d records released, %d deleted, %u/%u bytes released, %d bytes broken, use %fs/%fs",
             path, last_bucket, (last_bucket == bucket) ? old_srcdata_size : new_df_orig_size, released, nrecord, deleted, *deleted_bytes, old_srcdata_size, broken, update_secs, opt_secs);
     return 0;

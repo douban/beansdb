@@ -69,8 +69,6 @@ static int try_read_network(conn *c);
 static void stats_reset(void);
 static void stats_init(void);
 
-/* defaults */
-static void settings_init(void);
 
 /* event handling, network IO */
 static void conn_init(void);
@@ -86,10 +84,8 @@ static void conn_free(conn *c);
 
 /** exported globals **/
 struct stats stats;
-struct settings settings;
 
 HStore *store = NULL;
-int daemon_quit = 0;
 int    stopme = 0;
 
 /** file scope variables **/
@@ -124,22 +120,6 @@ static void stats_reset(void)
     STATS_UNLOCK();
 }
 
-static void settings_init(void)
-{
-    settings.port = 7900;
-    /* By default this string should be NULL for getaddrinfo() */
-    settings.inter = NULL;
-    settings.item_buf_size = 4 * 1024;     /* default is 4KB */
-    settings.maxconns = 1024;         /* to limit connections-related memory to about 5MB */
-    settings.verbose = 0;
-    settings.num_threads = 16;
-    settings.flush_limit = 1024; // 1M
-    settings.flush_period = 60 * 10; // 10 min
-    settings.slow_cmd_time = 0.1; // 100ms
-    settings.max_bucket_size  = (uint32_t)(4000 << 20); // 4G
-    settings.check_file_size = false;
-    settings.autolink = true;
-}
 
 /*
  * Adds a message header to a connection.
