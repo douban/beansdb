@@ -18,6 +18,7 @@
 aclocal.m4
 .deps/
 Makefile
+!go_test/Makefile
 config.*
 doc/Makefile
 autom4te.cache/
