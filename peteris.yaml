@@ -1,0 +1,25 @@
+- job:
+    name: unittest
+    desciption: 'beansdb'
+    scm:
+      - git:
+          branches:
+            - master
+          skip-tag: True
+          url: http://code.dapps.douban.com/beansdb.git
+    builders:
+      - shell: |
+          ./configure
+          make
+          cd python_tests
+          rm -rf venv
+          virtualenv venv || true
+          source venv/bin/activate
+          pip install -i http://pypim.dapps.douban.com/simple -r pip-requirement.txt
+          nosetests --with-xunit --xunit-file=unittest.xml
+          deactivate
+    publishers:
+      - junit:
+          results: unittest.xml
+      - email:
+          recipients: zhuzhaolong@douban.com,yangxiufeng@douban.com

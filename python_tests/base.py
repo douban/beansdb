@@ -10,7 +10,7 @@ import sys
 import string
 import random
 import shutil
-from os.path import dirname
+from os.path import dirname, abspath
 import fnv1a # douban-fnv1a
 import glob
 import quicklz
@@ -21,7 +21,7 @@ import binascii
 from nose.tools import eq_
 import memcache # for stat interface
 
-sys.path.insert(0, os.path.join(dirname(dirname(__file__)), "python"))
+sys.path.insert(0, os.path.join(dirname(dirname(abspath(__file__))), "python"))
 from dbclient import MCStore # in  "python" dir
 
 def start_svc(cmd):
@@ -107,7 +107,7 @@ class BeansdbInstance:
             assert isinstance(sector, int) or (isinstance(sector, (tuple, list)) and len(sector) == 2)
         i = 0
         j = 0
-        while j < count: 
+        while j < count:
             key = prefix + "test%s" % (i)
             if sector is not None:
                 if sector == get_key_sector(key, self.db_depth):
@@ -116,8 +116,8 @@ class BeansdbInstance:
             else:
                 j += 1
                 yield key
-            i += 1 
- 
+            i += 1
+
 
 def get_key_sector(key, db_depth):
     hash_ = get_hash(key)
@@ -183,7 +183,7 @@ def delete_hint_and_htree(db_homes, db_depth):
             os.remove(file_)
         if not g:
             print "no htree to delete"
-    
+
 
 
 
