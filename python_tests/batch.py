@@ -15,12 +15,12 @@ class TestGenerateData(TestBeansdbBase):
 
     proxy_addr = 'localhost:7905'
     backend1_addr = 'localhost:57901'
-    
+
     def setUp(self):
         self._clear_dir()
         self._init_dir()
         self.backend1 = BeansdbInstance(self.data_base_path, 57901)
- 
+
     def test_gen_data(self):
         self.backend1.start()
         store = MCStore(self.backend1_addr)

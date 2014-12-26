@@ -213,21 +213,21 @@ void mgr_rename(const char *oldpath, const char *newpath)
                 exit(-1);
             }
             log_notice("mgr_rename real %s -> %s", ropath, rnpath);
-            if (rename(ropath, rnpath) != 0) 
+            if (rename(ropath, rnpath) != 0)
             {
                 log_error("rename failed: %s -> %s, err: %s, exit!", ropath, rnpath, strerror(errno));
                 exit(-1);
-            }; 
+            };
             unlink(oldpath);
         }
     }
     else
     {
-        if (rename(oldpath, newpath) != 0) 
+        if (rename(oldpath, newpath) != 0)
         {
             log_error("rename failed: %s -> %s, err:%s, exit!", oldpath, newpath, strerror(errno));
             exit(-1);
-        }; 
+        };
     }
 }
 

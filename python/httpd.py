@@ -22,12 +22,12 @@ urls = (
    "(/.*)", "File",
 )
 
-def runfcgi_multiprocess(func, addr=('localhost', 8000)): 
-    import flup.server.fcgi as flups 
-    return flups.WSGIServer(func, multithreaded=False, 
-                multiprocess=True, bindAddress=addr).run() 
+def runfcgi_multiprocess(func, addr=('localhost', 8000)):
+    import flup.server.fcgi as flups
+    return flups.WSGIServer(func, multithreaded=False,
+                multiprocess=True, bindAddress=addr).run()
 
-web.wsgi.runfcgi = runfcgi_multiprocess 
+web.wsgi.runfcgi = runfcgi_multiprocess
 
 if __name__ == '__main__':
     if hasattr(web, 'run'):

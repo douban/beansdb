@@ -174,7 +174,7 @@ void dc_destroy(Codec *dc)
 
 static inline int parse_fmt(const char* src, int len, char* fmt, int* flen, int32_t *args)
 {
-    int m = 0; //narg 
+    int m = 0; //narg
     bool hex[20];
     char num[20][10];
     const char *p = src, *q = src + len;
@@ -238,7 +238,7 @@ static inline int parse_fmt(const char* src, int len, char* fmt, int* flen, int3
 
 static inline int parse_fmt_new(const char* src, int len, char* fmt, int* flen, uint64_t *args)
 {
-    int m = 0; //narg 
+    int m = 0; //narg
     bool hex[20];
     char num[20][10];
     const char *p = src, *q = src + len;
@@ -328,7 +328,7 @@ static inline int dc_decode_key_with_fmt(Codec* dc, char* buf, int buf_size, con
 {
     if (len < 5)
         return 0;
-    int intlen; 
+    int intlen;
     int idx = decode_varint_old(src, &intlen);
     int32_t* args = (int32_t*)(src + intlen);
     Fmt *f = dc->dict[idx];
@@ -374,7 +374,7 @@ static inline int dc_decode_key_with_fmt(Codec* dc, char* buf, int buf_size, con
 
 static inline int dc_decode_key_with_fmt_new(Codec* dc, char* buf, int buf_size, const char* src, int len)
 {
-    int intlen; 
+    int intlen;
     char*p = (char*) src;
     int idx = decode_varint(p, &intlen);
     //printf("index= %d\n", idx);
@@ -389,7 +389,7 @@ static inline int dc_decode_key_with_fmt_new(Codec* dc, char* buf, int buf_size,
 
     int i;
     p += intlen;
-    for (i = 0; i<f->nargs; i++) 
+    for (i = 0; i<f->nargs; i++)
     {
        args[i] = decode_varint(p, &intlen);
        p += intlen;

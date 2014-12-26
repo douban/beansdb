@@ -265,7 +265,7 @@ static inline DataRecord* scan_record(char* begin, char* end,  char** curr,
                     }
 
                 }
-                if (bad_reason == BAD_REC_CRC) 
+                if (bad_reason == BAD_REC_CRC)
                 {
                     char *oldp = p;
                     int jump = record_length(ro);
@@ -280,7 +280,7 @@ static inline DataRecord* scan_record(char* begin, char* end,  char** curr,
                         log_error("JUMP_BROKEN in %s, jump %d PADDING, total %d", path, jump, *num_broken_total);
                         return rn;
                     }
-                    else 
+                    else
                     {
                         p = oldp;
                     }
@@ -586,15 +586,15 @@ void update_items(Item *it, void *args)
         ht_add(tree, it->key, it->pos, it->hash, it->ver);
     }
 }
-int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath, 
-        int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size, 
+int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath,
+        int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size,
         bool skipped, bool use_tmp, uint32_t *deleted_bytes)
 {
 
     struct timeval opt_start, opt_end, update_start, update_end;
     gettimeofday(&opt_start, NULL);
 
-    int err = -1; 
+    int err = -1;
     log_notice("begin optimize %s -> %s, use_tmp = %s", path, lastdata, use_tmp ? "true" : "false");
 
 //to destroy:
@@ -602,7 +602,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
     HTree *cur_tree = NULL;
     char *hintdata = NULL;
     MFile *f = open_mfile(path);
-    if (f == NULL) 
+    if (f == NULL)
     {
           err = -1;
           goto  OPT_FAIL;
@@ -695,10 +695,10 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
                 {
                     log_warn("Bug: optimize %s into tmp %s overflow", path, tmp);
                 }
-                else 
+                else
                 {
                     log_warn("optimize %s into %s overflow, ftruncate to %u", path, lastdata, new_df_orig_size);
-                    fflush(new_df);  
+                    fflush(new_df);
                     if ( 0 != ftruncate(fileno(new_df), new_df_orig_size))
                     {
                         log_error("ftruncate failed for  %s old size = %u", path, new_df_orig_size);
@@ -766,7 +766,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         mgr_rename(tmp, lastdata);
         ht_set_updating_bucket(tree, -1, NULL);
     }
-    else 
+    else
     {
         if (use_tmp)
             mgr_rename(tmp, lastdata);

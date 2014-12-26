@@ -11,12 +11,12 @@ void printbuf(const char *buf, int n)
 {
     int i;
     printf("%d[", n);
-    for (i = 0; i< n;i++)  
+    for (i = 0; i< n;i++)
        printf("(%x,%x)", buf[i] & 0x7f, buf[i] & 0x80);
     printf("]\n");
 }
 
-int encode_varint(uint64_t n, char *buf) 
+int encode_varint(uint64_t n, char *buf)
 {
     char *p = buf;
 	if (n < 64)
@@ -41,16 +41,16 @@ int encode_varint(uint64_t n, char *buf)
 uint64_t decode_varint(const char* src, int *len)
 {
     char *p  = (char *)src;
-    uint64_t n = (*p) & 0x7f; 
+    uint64_t n = (*p) & 0x7f;
     *len = 1;
-    if (n < 64) 
+    if (n < 64)
     {
         return n;
     }
     n &= 0x3f;
     ++p;
     uint64_t multi = 1<<6;
-    do 
+    do
     {
         int v = (*p) & 0x7f;
         n += multi * v;
@@ -68,7 +68,7 @@ int encode_varint_old(int n, char *buf)
 	    len = 1;
 	    *buf = -n;
 	}
-	else 
+	else
 	{
 	    len = 2;
 	    *buf = - (n & 0x3f) - 64;
@@ -76,7 +76,7 @@ int encode_varint_old(int n, char *buf)
 	}
 	return len;
 }
- 
+
 int decode_varint_old(const char* src, int *len)
 {
     int n = -*src;
@@ -89,4 +89,4 @@ int decode_varint_old(const char* src, int *len)
     }
     return n;
 }
- 
+

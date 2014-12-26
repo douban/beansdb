@@ -37,22 +37,22 @@ const int MAX_DEPTH = 8;
 static const long long g_index[] = {0, 1, 17, 273, 4369, 69905, 1118481, 17895697, 286331153, 4581298449L};
 
 const char HTREE_VERSION[] = "HTREE001";
-#define TREE_BUF_SIZE 512 
+#define TREE_BUF_SIZE 512
 #define max(a,b) ((a)>(b)?(a):(b))
 #define INDEX(it) (0x0f & (keyhash >> ((7 - node->depth - tree->depth) * 4)))
 #define KEYLENGTH(it) ((it)->length-sizeof(Item)+ITEM_PADDING)
 #define HASH(it) ((it)->hash * ((it)->ver>0))
 #define DATA_file_start(data) (&((data)->size))
-#define DATA_HEAD_SIZE (int)(((char*)&(((Data*)0)->head)) - (char*)(0)) 
-#define DATA_BLOCK_SIZE 256 
+#define DATA_HEAD_SIZE (int)(((char*)&(((Data*)0)->head)) - (char*)(0))
+#define DATA_BLOCK_SIZE 256
 #define DATA_BLOCK_SIZE_SMALL 1024
 
 typedef struct t_data Data;
 struct t_data
 {
     Data *next;
-    int size; 
-    int used; 
+    int size;
+    int used;
     int count;
     Item head[0];
 };
@@ -93,7 +93,7 @@ static void split_node(HTree *tree, Node *node);
 static void merge_node(HTree *tree, Node *node);
 static void update_node(HTree *tree, Node *node);
 
-static inline bool check_version(Item *oldit, Item * newit, HTree *tree, uint32_t keyhash) 
+static inline bool check_version(Item *oldit, Item * newit, HTree *tree, uint32_t keyhash)
 {
     if (abs(newit->ver) >= abs(oldit->ver))
         return true;
@@ -835,7 +835,7 @@ static int ht_save2(HTree *tree, FILE* f)
             for (data = data0; data != NULL; data = data->next)
             {
                 new_data.count += data->count;
-                new_data.used += data->used - DATA_HEAD_SIZE; 
+                new_data.used += data->used - DATA_HEAD_SIZE;
             }
             new_data.used -= sizeof(Data*);
 
@@ -954,7 +954,7 @@ void ht_destroy(HTree *tree)
     int pool_size = g_index[tree->height];
     for(i=0; i<pool_size; i++)
     {
-        if (tree->root[i].data) 
+        if (tree->root[i].data)
             free_data(tree->root + i);
     }
     free(tree->root);
@@ -1107,7 +1107,7 @@ Item* ht_get_withbuf(HTree* tree, const char* key, int len, char * buf, bool loc
 {
     if (!check_bucket(tree, key, len)) return NULL;
 
-    Item *it = (Item*)buf; 
+    Item *it = (Item*)buf;
     int n = dc_encode(tree->dc, it->key, TREE_BUF_SIZE - (sizeof(Item) - ITEM_PADDING) , key, len);
     it->length = sizeof(Item) + n - ITEM_PADDING;
 
@@ -1118,7 +1118,7 @@ Item* ht_get_withbuf(HTree* tree, const char* key, int len, char * buf, bool loc
     {
         memcpy(it, r, it->length); // safe
         buf[it->length] = 0; // c-str
-        r = it; 
+        r = it;
     }
     if (lock)
         pthread_mutex_unlock(&tree->lock);

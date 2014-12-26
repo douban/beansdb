@@ -51,7 +51,7 @@ void free_record(DataRecord *r);
 // on bad record, return NULL and set *fail_reason to one of these
 #define BAD_REC_SIZE  1
 #define BAD_REC_END  2
-#define BAD_REC_CRC  3 
+#define BAD_REC_CRC  3
 #define BAD_REC_DECOMPRESS 4
 DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* path, uint32_t pos, const char* key, bool do_logging, int *fail_reason);
 
@@ -61,8 +61,8 @@ DataRecord* fast_read_record(int fd, off_t offset, bool decomp, const char* path
 
 void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpath);
 void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before);
-int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath, 
-        int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size, 
+int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath,
+        int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size,
         bool skipped, bool isnewfile, uint32_t *deleted_bytes);
 void visit_record(const char* path, RecordVisitor visitor, void *arg1, void *arg2, bool decomp);
 

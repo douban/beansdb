@@ -12,7 +12,7 @@ class TestKeyVersion(TestBeansdbBase):
 
     proxy_addr = 'localhost:7905'
     backend1_addr = 'localhost:57901'
-    
+
 
     def _get_version(self, store, key):
         meta = store.get("?" + key)
@@ -23,9 +23,9 @@ class TestKeyVersion(TestBeansdbBase):
         self._clear_dir()
         self._init_dir()
         self.backend1 = BeansdbInstance(self.data_base_path, 57901)
-    
+
     def test_set_verion(self):
-        self.backend1.start() 
+        self.backend1.start()
         store = MCStore(self.backend1_addr)
         key = "key1"
         store.set(key, "aaa")
@@ -40,7 +40,7 @@ class TestKeyVersion(TestBeansdbBase):
         self.assertEqual(self._get_version(store, key), 4) # current behavior will raise version
 
     def test_delete_version(self):
-        self.backend1.start() 
+        self.backend1.start()
         store = MCStore(self.backend1_addr)
         key = "key2"
         store.set(key, "aaa")

@@ -228,7 +228,7 @@ static void conn_getnameinfo(conn *c)
         return;
     }
     char host[NI_MAXHOST], serv[NI_MAXSERV];
-    if (0 != getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host), 
+    if (0 != getnameinfo((struct sockaddr*)&addr, addrlen,  host, sizeof(host),
                 serv, sizeof(serv), NI_NUMERICSERV))
         return;
     c->remote = (char*)try_malloc(strlen(host) + strlen(serv) + 2);
@@ -300,7 +300,7 @@ conn *conn_new(const int sfd, const int init_state, const int read_buffer_size)
     c->item = NULL;
     c->noreply = false;
 
-    c->remote = NULL; 
+    c->remote = NULL;
     if (init_state == conn_read)
         conn_getnameinfo(c);
 
@@ -2135,7 +2135,7 @@ int main (int argc, char **argv)
             break;
         case 'F':
             settings.max_bucket_size = (uint32_t) atoll(optarg);
-            if (settings.max_bucket_size < 5 || settings.max_bucket_size >4000) 
+            if (settings.max_bucket_size < 5 || settings.max_bucket_size >4000)
             {
                 printf("-F <num>,  5 <= num <= 4000\n");
                 exit(EXIT_FAILURE);

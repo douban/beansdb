@@ -67,7 +67,7 @@ struct settings
     float slow_cmd_time;
     int flush_period;
     int flush_limit;
-    uint32_t max_bucket_size; 
+    uint32_t max_bucket_size;
     bool check_file_size;
     bool autolink;
 };

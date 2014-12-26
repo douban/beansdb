@@ -7,7 +7,7 @@ def get_dir(s, dir):
     def parse(line):
         p,h,c = line.split(' ')
         return p, (int(h), int(c))
-    return dict(parse(line) for line in 
+    return dict(parse(line) for line in
                 filter(None, (s.get(dir) or '').split('\n')))
 
 def is_dir(d):
@@ -56,11 +56,11 @@ def sync_files(src, dst, path, s, d):
                     dst.set(k, src.get(k))
                 elif m2 >= m1:
                     src.set(k, dst.get(k))
-                
+
 def stat(s):
     st = {}
     for d,h,c in [line.split(' ') for line in (s.get('@') or '').split('\n') if line]:
-        if len(d) != 2 and not d.endswith('/'): 
+        if len(d) != 2 and not d.endswith('/'):
             return {}
         try:
             st[int(d[0],16)] = (h,int(c))
@@ -111,6 +111,6 @@ def main():
             sync(db)
     finally:
         os.close(fd)
-    
+
 if __name__ == "__main__":
     main()

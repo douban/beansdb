@@ -46,7 +46,7 @@ class TestGCMultiple(TestGCBase):
         #5M data file 1
         self._gen_data(2, prefix='group1_', loop_num=16 * 1024)
         print 'group1'
-        
+
         self.backend1.stop()
         self.backend1.start()
         print "restarted"
@@ -82,7 +82,7 @@ class TestGCMultiple(TestGCBase):
         if os.path.exists(buckets_txt_path):
             print "rm", buckets_txt_path
             os.remove(buckets_txt_path)
-        
+
         self.backend1.start()
         def check_data():
             self._check_data(2, prefix='group1_', loop_num=16 * 1024)
@@ -161,7 +161,7 @@ class TestGCMultiple2(TestGCBase):
         #5M data file 1
         self._gen_data(2, prefix='group1_', loop_num=16 * 1024)
         print 'group1'
-        
+
         self.backend1.stop()
         self.backend1.start()
         print "restarted"

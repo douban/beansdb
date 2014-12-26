@@ -55,7 +55,7 @@ class Client(object):
     def get_hosts_by_key(self, key):
         hash = fnv1a(key)
         b = hash / self.bucket_size
-        return self.buckets[b] 
+        return self.buckets[b]
 
     def _get(self, addr, key):
         sock = self.pop_connection(addr)
@@ -102,7 +102,7 @@ class Client(object):
         return r
 
     def set(self, key, value, flag=0, rev=0):
-        rs = [self._set(addr, key, value, flag) 
+        rs = [self._set(addr, key, value, flag)
                 for addr in self.get_hosts_by_key(key)]
         return rs.count(True) > 0
 
@@ -141,7 +141,7 @@ def handler(store, sock):
                     writeline(value)
                     del value, v
             writeline('END')
-            
+
         elif cmd == 'set':
             key, flag, rev, bytes = args[1:5]
             flag, rev, bytes = int(flag), int(rev), int(bytes)
@@ -171,15 +171,15 @@ def handler(store, sock):
 
         else:
             writeline('CLIENT_ERROR')
-        
+
         t = time.time() - st
         if t > 0.001:
             logging.info(args)
             print t, args
-        
+
         writer.flush()
         api.sleep()
-        
+
     reader.close()
     writer.close()
     sock.close()
@@ -192,7 +192,7 @@ def main():
             help="the ip interface to bind")
     parser.add_option("-p", "--port", default=7902, type=int,
             help="which port to listen")
-    parser.add_option("-d", "--daemon", action="store_true", 
+    parser.add_option("-d", "--daemon", action="store_true",
             help="run in daemon", default=False)
 
     (options, args) = parser.parse_args()
@@ -211,10 +211,10 @@ def main():
             new_sock, address = server.accept()
         except KeyboardInterrupt:
             break
-        api.spawn(handler, store, new_sock) 
+        api.spawn(handler, store, new_sock)
 
     print 'close listener ...'
     server.close()
-    
+
 if __name__ == '__main__':
     main()

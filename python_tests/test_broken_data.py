@@ -64,19 +64,19 @@ class TestBitCaseScanBroken(TestBrokenBase):
         #make sure we produce a crc error
         assert temper_with_key_value(self.backend1.db_home, self.backend1.db_depth, tempered_key, delete_hint=True)
         delete_hint_and_htree(self.backend1.db_home, self.backend1.db_depth)
-        
+
         self.backend1.start()
         self.assertEqual(self.backend1.item_count(), 2048)
         self._check_data("some value", prefix="test1", loop_num=1024, sector=0)
         self._check_data("other value", prefix="test3", loop_num=1024, sector=0)
         self.backend1.stop()
 
-       
+
 
 class TestOnlineBroken(TestBrokenBase):
 
     def test_get_broken(self):
-        print 
+        print
         print "test get broken data"
         self.backend1.start()
 
@@ -111,7 +111,7 @@ class TestGCBroken(TestBrokenBase):
 
     def test_gc_broken(self):
 
-        print 
+        print
         print "test gc broken data"
         self.backend1.start()
         self._gen_data("some value", prefix='test1', loop_num=1024, sector=0)

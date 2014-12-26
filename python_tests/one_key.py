@@ -27,13 +27,13 @@ class TestKeyVersion(TestBeansdbBase):
 
         self.last_pos = 0
         self.last_size = 0
-        
+
     def append(self, size):
         self.last_pos += self.last_size
-        self.last_size = size 
-    
+        self.last_size = size
+
     def test_set_verion(self):
-        self.backend1.start() 
+        self.backend1.start()
         store = MCStore(self.backend1_addr)
         key = "key1"
         store.set(key, "aaa")
@@ -50,7 +50,7 @@ class TestKeyVersion(TestBeansdbBase):
         self.assertEqual(self._get_meta(store, key), (4, 0, self.last_pos)) # current behavior will raise version
 
     def test_delete_version(self):
-        self.backend1.start() 
+        self.backend1.start()
         store = MCStore(self.backend1_addr)
         key = "key1"
 
@@ -68,27 +68,27 @@ class TestKeyVersion(TestBeansdbBase):
         self.assertEqual(self._get_meta(store, key), (3, 0, self.last_pos))
 
     def _test_compress(self, overflow):
-        self.backend1.start() 
+        self.backend1.start()
         value =  string.letters
         store = MCStore(self.backend1_addr)
         compressed_value = zlib.compress(value, 0)
         key = 'k' * (256 - len(compressed_value) - 24 + (1 if overflow else 0))
 
-        value_easy_compress = 'v'* len(compressed_value) 
+        value_easy_compress = 'v'* len(compressed_value)
 
         assert(store.set(key, value_easy_compress))
         assert(store.get(key) == value_easy_compress)
         self.append(256)
-        self.assertEqual(self._get_meta(store, key), (1, 0, self.last_pos)) 
+        self.assertEqual(self._get_meta(store, key), (1, 0, self.last_pos))
 
         assert(store.set_raw(key, compressed_value, flag = 0x00000010))
         assert(store.get(key) == value)
         self.append(512 if overflow else 256)
-        self.assertEqual(self._get_meta(store, key), (2, 0, self.last_pos)) 
+        self.assertEqual(self._get_meta(store, key), (2, 0, self.last_pos))
 
         assert(store.set(key, 'aaa'))
         self.append(256)
-        self.assertEqual(self._get_meta(store, key), (3, 0, self.last_pos)) 
+        self.assertEqual(self._get_meta(store, key), (3, 0, self.last_pos))
 
     def test_compress_257(self):
         self._test_compress(True)
@@ -98,7 +98,7 @@ class TestKeyVersion(TestBeansdbBase):
 
 
     def test_big_value(self):
-        self.backend1.start() 
+        self.backend1.start()
         store = MCStore(self.backend1_addr)
 
         key = "largekey"
@@ -108,11 +108,11 @@ class TestKeyVersion(TestBeansdbBase):
         assert(store.set(key, string_large))
         assert(store.get(key) == string_large)
         self.append(rsize)
-        self.assertEqual(self._get_meta(store, key), (1, 0, self.last_pos)) 
+        self.assertEqual(self._get_meta(store, key), (1, 0, self.last_pos))
 
         assert(store.set(key, 'aaa'))
         self.append(256)
-        self.assertEqual(self._get_meta(store, key), (2, 0, self.last_pos)) 
+        self.assertEqual(self._get_meta(store, key), (2, 0, self.last_pos))
 
 
     def test_restart(self):

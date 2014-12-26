@@ -17,12 +17,12 @@ class TestBucketTxt(TestBeansdbBase):
 
     proxy_addr = 'localhost:7905'
     backend1_addr = 'localhost:57901'
-    
+
     def setUp(self):
         self._clear_dir()
         self._init_dir()
         self.backend1 = BeansdbInstance(self.data_base_path, 57901)
- 
+
     # only generate keys in sector0
     def _gen_data(self, data, prefix='', loop_num=10 * 1024):
         store = MCStore(self.backend1_addr)
@@ -52,7 +52,7 @@ class TestBucketTxt(TestBeansdbBase):
         #5M data file 1
         self._gen_data(2, prefix='group1_', loop_num=16 * 1024)
         print 'group1'
-        
+
         self.backend1.stop()
         self.backend1.start()
         print "restarted"
@@ -66,7 +66,7 @@ class TestBucketTxt(TestBeansdbBase):
 
         self._gen_data(1, prefix='group3_', loop_num=16 * 1024)
         self._gen_data(2, prefix='group3_', loop_num=16 * 1024)
-        
+
         self.backend1.stop()
         sector0_exp = os.path.join(self.backend1.db_home, "0/*.data")
         print "sector0 files", len(glob.glob(sector0_exp))
@@ -84,15 +84,15 @@ class TestBucketTxt(TestBeansdbBase):
         os.remove(hint2)
         with self.assertRaisesRegexp(Exception, '^cannot start'):
             self.backend1.start()
-        
-        
+
+
     def test_buckets_txt2(self):
         self.backend1.start()
         self._gen_data(1, prefix='group1_', loop_num=16 * 1024)
         #5M data file 1
         self._gen_data(2, prefix='group1_', loop_num=16 * 1024)
         print 'group1'
-        
+
         self.backend1.stop()
         self.backend1.start()
         print "restarted"
@@ -106,28 +106,28 @@ class TestBucketTxt(TestBeansdbBase):
 
         self._gen_data(1, prefix='group3_', loop_num=16 * 1024)
         self._gen_data(2, prefix='group3_', loop_num=16 * 1024)
-        
+
         self.assertEqual(self.backend1.item_count(), 16 * 3 * 1024)
         self.backend1.stop()
         sector0_exp = os.path.join(self.backend1.db_home, "0/*.data")
         print "sector0 files", len(glob.glob(sector0_exp))
         self.assertEqual(len(glob.glob(sector0_exp)), 3)
-        
+
         buckets_txt = os.path.join(self.backend1.db_home, "0/buckets.txt")
         with open(buckets_txt, 'r') as f:
             bucket_data = f.read()
-        print bucket_data 
+        print bucket_data
         bucket_arr = bucket_data.split("\n")
         for i in xrange(len(bucket_arr)):
             if bucket_arr[i] and bucket_arr[i][0] == '2':
-                bucket_arr[i] = "2 1024"  # size have to be multiply of 256 
+                bucket_arr[i] = "2 1024"  # size have to be multiply of 256
                 break
         with open(buckets_txt, 'w') as f:
             f.write("\n".join(bucket_arr))
         print "changed the buckets.txt with last file size, can be tolerated"
         with open(buckets_txt, 'r') as f:
             bucket_data = f.read()
-            print bucket_data 
+            print bucket_data
 
         self.backend1.start()
         self.assertEqual(self.backend1.item_count(), 16 * 3 * 1024)
@@ -139,7 +139,7 @@ class TestBucketTxt(TestBeansdbBase):
         #5M data file 1
         self._gen_data(2, prefix='group1_', loop_num=16 * 1024)
         print 'group1'
-        
+
         self.backend1.stop()
         self.backend1.start()
         print "restarted"
@@ -150,40 +150,40 @@ class TestBucketTxt(TestBeansdbBase):
 
         self.backend1.stop()
 
-        
+
         self.backend1.stop()
         sector0_exp = os.path.join(self.backend1.db_home, "0/*.data")
         print "sector0 files", len(glob.glob(sector0_exp))
         self.assertEqual(len(glob.glob(sector0_exp)), 2)
-        
+
         buckets_txt = os.path.join(self.backend1.db_home, "0/buckets.txt")
         with open(buckets_txt, 'r') as f:
             bucket_data = f.read()
-        print bucket_data 
+        print bucket_data
         bucket_arr = bucket_data.split("\n")
         for i in xrange(len(bucket_arr)):
             if bucket_arr[i] and bucket_arr[i][0] == '0':
                 size = int(bucket_arr[i].split()[1])
                 size += 1024
-                bucket_arr[i] = "1 %s" % (size)  # size have to be multiply of 256 
+                bucket_arr[i] = "1 %s" % (size)  # size have to be multiply of 256
                 break
         with open(buckets_txt, 'w') as f:
             f.write("\n".join(bucket_arr))
         print "changed the buckets.txt file size which not the last, shouldnot start"
         with open(buckets_txt, 'r') as f:
             bucket_data = f.read()
-            print bucket_data 
+            print bucket_data
 
         with self.assertRaisesRegexp(Exception, '^cannot start'):
             self.backend1.start()
- 
-    def test_buckets_txt4(self): 
+
+    def test_buckets_txt4(self):
         self.backend1.start()
         self._gen_data(1, prefix='group1_', loop_num=16 * 1024)
         #5M data file 1
         self._gen_data(2, prefix='group1_', loop_num=16 * 1024)
         print 'group1'
-        
+
         self.backend1.stop()
         self.backend1.start()
         print "restarted"
@@ -200,11 +200,11 @@ class TestBucketTxt(TestBeansdbBase):
 
 
 
-        
+
     def tearDown(self):
         self.backend1.stop()
 
-        
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -568,7 +568,7 @@ static bool tree2range(char* tree, int height, int*start, int *end)
 
 int hs_optimize(HStore *store, long limit, char* tree)
 {
-    if (store->before > 0) 
+    if (store->before > 0)
         return  -1;
     if (store->op_start < store->op_end)
         return  -2;
@@ -585,10 +585,10 @@ int hs_optimize(HStore *store, long limit, char* tree)
 
     return 0;
 }
-    
+
 //>=0 running; == -1 ok; < -1 err
 int hs_optimize_stat(HStore *store)
-{ 
+{
     if (store->op_start < store->op_end)
         return store->op_start;
     else

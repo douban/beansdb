@@ -97,7 +97,7 @@ class TestGCSimple(TestGCBase):
         print "stop beansdb to rotate data file and produce hint"
         self.backend1.stop()
         self.backend1.start()
-        
+
         print "deleted key should exists in data"
         assert locate_key_iterate(self.backend1.db_home, db_depth=self.backend1.db_depth, key="delete_group" + "test0", ver_=1)
         assert locate_key_with_hint(self.backend1.db_home, db_depth=self.backend1.db_depth, key="delete_group" + "test0", ver_=-2)

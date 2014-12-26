@@ -1,5 +1,5 @@
 import time, os
-from store import HTree, HStore 
+from store import HTree, HStore
 from fnv1a import get_hash as fnv1a
 import unittest
 import pickle
@@ -26,11 +26,11 @@ class TestHTree(unittest.TestCase):
         self.htree.add(TEST_KEY, TEST_VER, 3)
         self.assertEqual(len(self.htree), 1)
         self.assertEqual(hash(self.htree), TEST_HASH)
-    
+
     def testRemove(self):
         self.htree.remove(TEST_KEY)
         self.testEmpty()
-        
+
         self.testAdd()
         self.htree.remove(TEST_KEY)
         self.testEmpty()
@@ -104,12 +104,12 @@ class TestHTree(unittest.TestCase):
         except:
             pass
         db.close()
-        
+
         t = HTree(path, 0)
         self.assertEqual(len(t), l)
         self.assertEqual(hash(t), h)
         t.close()
-        
+
         import pytc
         db = pytc.HDB()
         db.open(path, pytc.HDBOREADER|pytc.HDBOWRITER)
@@ -119,7 +119,7 @@ class TestHTree(unittest.TestCase):
         except:
             pass
         db.close()
-        
+
         t = HTree(path, 0)
         self.assertEqual(len(t), l)
         self.assertEqual(hash(t), h)
@@ -202,7 +202,7 @@ class TestHStore(unittest.TestCase):
     def testScan(self):
         self.testHash()
         self.store.close()
-        
+
         os.unlink(self.store.path + '/.0.index')
         t = HStore(self.store.path, self.store.height)
         t.check()
