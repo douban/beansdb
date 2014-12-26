@@ -27,7 +27,7 @@ typedef struct
     char *addr;
 } MFile;
 
-MFile* open_mfile(const char* path);
+MFile *open_mfile(const char *path);
 void close_mfile(MFile *f);
 static inline void mfile_dontneed(MFile *f,  size_t pos, size_t *last_advise) {
     if (pos - *last_advise > (64<<20))

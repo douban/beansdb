@@ -124,7 +124,7 @@ static inline char *new_data(char *dst, int dst_size, Bitcask *bc, const char *f
 
 
 #define MAX_BUCKETS_FILE_SIZE (256 * 32)
-int load_buckets(const char* base, int64_t *buckets, int *last)
+int load_buckets(const char *base, int64_t *buckets, int *last)
 {
     char path[MAX_PATH_LEN];
     safe_snprintf(path, MAX_PATH_LEN, "%s/buckets.txt", base);
@@ -228,7 +228,7 @@ int dump_buckets(Bitcask *bc)
     return 0;
 }
 
-int get_bucket_by_name(char* dir, char *name, long *bucket)
+int get_bucket_by_name(char *dir, char *name, long *bucket)
 {
     if (name[0] == '.' || strcmp("buckets.txt",name) == 0)
         return -1;
@@ -270,7 +270,7 @@ int get_bucket_by_name(char* dir, char *name, long *bucket)
     return -1;
 }
 
-int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
+int check_buckets(Mgr *mgr, int64_t *sizes, int locations[][3])
 {
     char **disks = mgr->disks;
     struct stat sb;
@@ -398,7 +398,7 @@ int check_buckets(Mgr* mgr, int64_t *sizes, int locations[][3])
 }
 
 
-Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
+Bitcask* bc_open(const char *path, int depth, int pos, time_t before)
 {
     if (path == NULL || depth > 4) return NULL;
     if (0 != access(path, F_OK) && 0 != mkdir(path, 0750))
@@ -406,7 +406,7 @@ Bitcask* bc_open(const char* path, int depth, int pos, time_t before)
         log_error("mkdir %s failed", path);
         return NULL;
     }
-    const char* t[] = {path};
+    const char *t[] = {path};
     Mgr *mgr = mgr_create(t, 1);
     if (mgr == NULL) return NULL;
 
@@ -530,11 +530,11 @@ Bitcask* bc_open2(Mgr *mgr, int depth, int pos, time_t before)
     return bc;
 }
 
-static void skip_empty_file(Bitcask* bc)
+static void skip_empty_file(Bitcask *bc)
 {
     int i, last=0;
     char opath[MAX_PATH_LEN], npath[MAX_PATH_LEN];
-    const char* base = mgr_base(bc->mgr);
+    const char *base = mgr_base(bc->mgr);
     for (i=0; i<MAX_BUCKET_COUNT; i++)
     {
         int64_t size = bc->buckets[i];
@@ -584,7 +584,7 @@ static void skip_empty_file(Bitcask* bc)
     }
 }
 
-void bc_scan(Bitcask* bc)
+void bc_scan(Bitcask *bc)
 {
     char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
     int i = 0;
@@ -593,7 +593,7 @@ void bc_scan(Bitcask* bc)
     skip_empty_file(bc);
     dump_buckets(bc);
 
-    const char* base = mgr_base(bc->mgr);
+    const char *base = mgr_base(bc->mgr);
     // load snapshot of htree
     for (i = MAX_BUCKET_COUNT - 1; i >= 0; --i)
     {
@@ -972,7 +972,7 @@ int bc_optimize(Bitcask *bc, int limit)
     return 0;
 }
 
-DataRecord* bc_get(Bitcask *bc, const char* key, uint32_t* ret_pos, int* ret_ver)
+DataRecord* bc_get(Bitcask *bc, const char *key, uint32_t *ret_pos, int *ret_ver)
 {
     if (!check_key(key, strlen(key)))
         return NULL;
@@ -998,7 +998,7 @@ DataRecord* bc_get(Bitcask *bc, const char* key, uint32_t* ret_pos, int* ret_ver
         return NULL;
     }
 
-    DataRecord* r = NULL;
+    DataRecord *r = NULL;
     if (bucket == (uint32_t)(bc->curr) || bucket == (uint32_t)(bc->flushing_bucket))
     {
         pthread_mutex_lock(&bc->buffer_lock);
@@ -1120,7 +1120,7 @@ struct build_thread_args
     char *path;
 };
 
-void* build_thread(void *param)
+void *build_thread(void *param)
 {
     pthread_detach(pthread_self());
     struct build_thread_args *args = (struct build_thread_args*) param;
@@ -1245,7 +1245,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
     pthread_mutex_unlock(&bc->flush_lock);
 }
 
-bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, int version)
+bool bc_set(Bitcask *bc, const char *key, char *value, size_t vlen, int flag, int version)
 {
     if ((version < 0 && vlen > 0) || vlen > MAX_VALUE_LEN || !check_key(key, strlen(key)))
     {
@@ -1379,22 +1379,22 @@ SET_FAIL:
     return suc;
 }
 
-bool bc_delete(Bitcask *bc, const char* key)
+bool bc_delete(Bitcask *bc, const char *key)
 {
     return bc_set(bc, key, "", 0, 0, -1);
 }
 
-uint16_t bc_get_hash(Bitcask *bc, const char * pos, unsigned int *count)
+uint16_t bc_get_hash(Bitcask *bc, const char *pos, unsigned int *count)
 {
     return ht_get_hash(bc->tree, pos, count);
 }
 
-char* bc_list(Bitcask *bc, const char* pos, const char* prefix)
+char *bc_list(Bitcask *bc, const char *pos, const char *prefix)
 {
     return ht_list(bc->tree, pos, prefix);
 }
 
-uint32_t   bc_count(Bitcask *bc, uint32_t* curr)
+uint32_t   bc_count(Bitcask *bc, uint32_t *curr)
 {
     uint32_t total = 0;
     ht_get_hash(bc->tree, "@", &total);

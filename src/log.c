@@ -2,7 +2,7 @@
 
 zlog_category_t *cat;
 
-int log_init(const char* conf_path)
+int log_init(const char *conf_path)
 {
     int rc = zlog_init(conf_path);
     if (rc)

@@ -35,7 +35,7 @@ const int MAX_DICT_SIZE = 16384;
 
 #define RDICT_SIZE(DICT_SIZE) ((DICT_SIZE) * 7 + 1)
 
-Codec* dc_new()
+Codec *dc_new()
 {
     Codec *dc = (Codec*)safe_malloc(sizeof(struct t_codec));
 
@@ -172,7 +172,7 @@ void dc_destroy(Codec *dc)
     free(dc);
 }
 
-static inline int parse_fmt(const char* src, int len, char* fmt, int* flen, int32_t *args)
+static inline int parse_fmt(const char *src, int len, char *fmt, int *flen, int32_t *args)
 {
     int m = 0; //narg
     bool hex[20];
@@ -236,7 +236,7 @@ static inline int parse_fmt(const char* src, int len, char* fmt, int* flen, int3
     return m;
 }
 
-static inline int parse_fmt_new(const char* src, int len, char* fmt, int* flen, uint64_t *args)
+static inline int parse_fmt_new(const char *src, int len, char *fmt, int *flen, uint64_t *args)
 {
     int m = 0; //narg
     bool hex[20];
@@ -304,14 +304,14 @@ static inline int parse_fmt_new(const char* src, int len, char* fmt, int* flen, 
     return m;
 }
 
-static inline int dc_encode_key_with_fmt(int idx, char* buf, int buf_size, int32_t*args, int narg)
+static inline int dc_encode_key_with_fmt(int idx, char *buf, int buf_size, int32_t *args, int narg)
 {
     int intlen = encode_varint_old(idx, buf);
     safe_memcpy(buf + intlen, buf_size - intlen, args, sizeof(int32_t)*narg);
     return intlen + narg * sizeof(int32_t);
 }
 
-static inline int dc_encode_key_with_fmt_new(int idx, char* buf, int buf_size, uint64_t*args, int narg)
+static inline int dc_encode_key_with_fmt_new(int idx, char *buf, int buf_size, uint64_t *args, int narg)
 {
     int len = encode_varint_old(idx, buf);
     int i;
@@ -324,13 +324,13 @@ static inline int dc_encode_key_with_fmt_new(int idx, char* buf, int buf_size, u
 }
 
 
-static inline int dc_decode_key_with_fmt(Codec* dc, char* buf, int buf_size, const char* src, int len)
+static inline int dc_decode_key_with_fmt(Codec *dc, char *buf, int buf_size, const char *src, int len)
 {
     if (len < 5)
         return 0;
     int intlen;
     int idx = decode_varint_old(src, &intlen);
-    int32_t* args = (int32_t*)(src + intlen);
+    int32_t *args = (int32_t*)(src + intlen);
     Fmt *f = dc->dict[idx];
 
     if (f == NULL)
@@ -372,7 +372,7 @@ static inline int dc_decode_key_with_fmt(Codec* dc, char* buf, int buf_size, con
     return rlen;
 }
 
-static inline int dc_decode_key_with_fmt_new(Codec* dc, char* buf, int buf_size, const char* src, int len)
+static inline int dc_decode_key_with_fmt_new(Codec *dc, char *buf, int buf_size, const char *src, int len)
 {
     int intlen;
     char*p = (char*) src;
@@ -418,7 +418,7 @@ static inline int dc_decode_key_with_fmt_new(Codec* dc, char* buf, int buf_size,
     return rlen;
 }
 
-int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
+int dc_encode(Codec *dc, char *buf, int buf_size, const char *src, int len)
 {
     char fmt[255];
     int flen;
@@ -474,7 +474,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
     return len;
 }
 
-int dc_decode(Codec* dc, char* buf, int buf_size, const char* src, int len)
+int dc_decode(Codec *dc, char *buf, int buf_size, const char *src, int len)
 {
     if (src[0] < 0)
 #ifndef NEW_ENCODE

@@ -72,7 +72,7 @@ _try_malloc(size_t s, const char *file, int line, const char *func)
 #define try_malloc(X) _try_malloc(X, __FILE__, __LINE__, __FUNCTION__)
 
 inline static void*
-_safe_realloc(void* ptr, size_t s, const char *file, int line, const char *func)
+_safe_realloc(void *ptr, size_t s, const char *file, int line, const char *func)
 {
     void *p = realloc(ptr, s);
     if (unlikely(p == NULL))
@@ -87,7 +87,7 @@ _safe_realloc(void* ptr, size_t s, const char *file, int line, const char *func)
 #define safe_realloc(X, Y) _safe_realloc(X, Y, __FILE__, __LINE__, __FUNCTION__)
 
 inline static void*
-_try_realloc(void* ptr, size_t s, const char *file, int line, const char *func)
+_try_realloc(void *ptr, size_t s, const char *file, int line, const char *func)
 {
     void *p = realloc(ptr, s);
     if (unlikely(p == NULL))
@@ -128,7 +128,7 @@ _try_calloc(size_t num, size_t size, const char *file, int line, const char *fun
 #define try_calloc(X, Y) _try_calloc(X, Y, __FILE__, __LINE__, __FUNCTION__)
 
 inline static size_t
-_check_snprintf(const char *file, int line, const char *func, char* s, size_t n, const char* format, ...)
+_check_snprintf(const char *file, int line, const char *func, char *s, size_t n, const char *format, ...)
 {
     va_list args;
     size_t result_len;
@@ -147,7 +147,7 @@ _check_snprintf(const char *file, int line, const char *func, char* s, size_t n,
 #define safe_snprintf(BUFFER, N, FORMAT, ...)  _check_snprintf(__FILE__, __LINE__, __FUNCTION__, BUFFER, N, FORMAT, ##__VA_ARGS__)
 
 inline static void*
-_check_memcpy(const char* file, int line, const char *func, void* dst, size_t dst_num, const void* src, size_t src_num)
+_check_memcpy(const char *file, int line, const char *func, void *dst, size_t dst_num, const void *src, size_t src_num)
 {
     if (unlikely(dst_num < src_num))
     {

@@ -38,7 +38,7 @@ int encode_varint(uint64_t n, char *buf)
     return (p-buf+1);
 }
 
-uint64_t decode_varint(const char* src, int *len)
+uint64_t decode_varint(const char *src, int *len)
 {
     char *p  = (char *)src;
     uint64_t n = (*p) & 0x7f;
@@ -77,7 +77,7 @@ int encode_varint_old(int n, char *buf)
 	return len;
 }
 
-int decode_varint_old(const char* src, int *len)
+int decode_varint_old(const char *src, int *len)
 {
     int n = -*src;
     *len = 1;

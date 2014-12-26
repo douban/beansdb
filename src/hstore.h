@@ -26,12 +26,12 @@ HStore* hs_open(char *path, int height, time_t before, int scan_threads);
 void    hs_flush(HStore *store, unsigned int limit, int period);
 void    hs_close(HStore *store);
 char*   hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag);
-bool    hs_set(HStore *store, char *key, char* value, unsigned int vlen, uint32_t flag, int version);
-bool    hs_append(HStore *store, char *key, char* value, unsigned int vlen);
+bool    hs_set(HStore *store, char *key, char *value, unsigned int vlen, uint32_t flag, int version);
+bool    hs_append(HStore *store, char *key, char *value, unsigned int vlen);
 int64_t hs_incr(HStore *store, char *key, int64_t value);
 bool    hs_delete(HStore *store, char *key);
 uint64_t hs_count(HStore *store, uint64_t *curr);
 void    hs_stat(HStore *store, uint64_t *total, uint64_t *avail);
-int     hs_optimize(HStore *store, long limit, char* tree);
+int     hs_optimize(HStore *store, long limit, char *tree);
 int     hs_optimize_stat(HStore *store);
 #endif

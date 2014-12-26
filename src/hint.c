@@ -43,10 +43,10 @@ struct param
 {
     int size;
     int curr;
-    char* buf;
+    char *buf;
 };
 
-void collect_items(Item* it, void* param)
+void collect_items(Item *it, void *param)
 {
     int ksize = strlen(it->key);
     int length = sizeof(HintRecord) + ksize + 1 - NAME_IN_RECORD;
@@ -68,13 +68,13 @@ void collect_items(Item* it, void* param)
     p->curr += length;
 }
 
-void write_hint_file(char *buf, int size, const char* path)
+void write_hint_file(char *buf, int size, const char *path)
 {
     // compress
     char *dst = buf;
     if (strcmp(path + strlen(path) - 4, ".qlz") == 0)
     {
-        char* wbuf = (char*)safe_malloc(QLZ_SCRATCH_COMPRESS);
+        char *wbuf = (char*)safe_malloc(QLZ_SCRATCH_COMPRESS);
         dst = (char*)safe_malloc(size + 400);
         size = qlz_compress(buf, dst, size, wbuf);
         free(wbuf);
@@ -103,7 +103,7 @@ void write_hint_file(char *buf, int size, const char* path)
     }
 }
 
-void build_hint(HTree* tree, const char* hintpath)
+void build_hint(HTree *tree, const char *hintpath)
 {
     struct param p;
     p.size = 1024 * 1024;
@@ -117,7 +117,7 @@ void build_hint(HTree* tree, const char* hintpath)
     free(p.buf);
 }
 
-HintFile *open_hint(const char* path, const char* new_path)
+HintFile *open_hint(const char *path, const char *new_path)
 {
     MFile *f = open_mfile(path);
     if (f == NULL)
@@ -134,7 +134,7 @@ HintFile *open_hint(const char* path, const char* new_path)
     {
         char wbuf[QLZ_SCRATCH_DECOMPRESS];
         int size = qlz_size_decompressed(hint->buf);
-        char* buf = (char*)safe_malloc(size);
+        char *buf = (char*)safe_malloc(size);
         int vsize = qlz_decompress(hint->buf, buf, wbuf);
         if (vsize != size)
         {
@@ -164,9 +164,9 @@ void close_hint(HintFile *hint)
     free(hint);
 }
 
-void scanHintFile(HTree* tree, int bucket, const char* path, const char* new_path)
+void scanHintFile(HTree *tree, int bucket, const char *path, const char *new_path)
 {
-    HintFile* hint = open_hint(path, new_path);
+    HintFile *hint = open_hint(path, new_path);
     if (hint == NULL) return;
 
     log_notice("scan hint: %s", path);
@@ -194,7 +194,7 @@ void scanHintFile(HTree* tree, int bucket, const char* path, const char* new_pat
     close_hint(hint);
 }
 
-int count_deleted_record(HTree* tree, int bucket, const char* path, int *total, bool skipped)
+int count_deleted_record(HTree *tree, int bucket, const char *path, int *total, bool skipped)
 {
     *total = 0;
     HintFile *hint = open_hint(path, NULL);

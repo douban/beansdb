@@ -36,14 +36,14 @@ typedef struct t_codec
     int dict_used;
 } Codec;
 
-Codec* dc_new();
+Codec *dc_new();
 void dc_destroy(Codec *dc);
-int dc_size(Codec* dc);
-int dc_dump(Codec* dc, char *buf, int size);
-int dc_load(Codec* dc, const char *buf, int size);
+int dc_size(Codec *dc);
+int dc_dump(Codec *dc, char *buf, int size);
+int dc_load(Codec *dc, const char *buf, int size);
 
-int dc_encode(Codec* dc, char* buf, int buf_size, const char *src, int len);
-int dc_decode(Codec* dc, char* buf, int buf_size, const char *src, int len);
+int dc_encode(Codec *dc, char *buf, int buf_size, const char *src, int len);
+int dc_decode(Codec *dc, char *buf, int buf_size, const char *src, int len);
 
 
 #endif

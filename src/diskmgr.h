@@ -25,12 +25,12 @@ typedef struct disk_mgr
     int ndisks;
 } Mgr;
 
-Mgr* mgr_create(const char **disks, int ndisks);
+Mgr *mgr_create(const char **disks, int ndisks);
 void mgr_destroy(Mgr *mgr);
 ssize_t mgr_readlink(const char *path, char *buf, size_t bufsiz);
 
-const char* mgr_base(Mgr *mgr);
-const char* mgr_alloc(Mgr *mgr, const char *path);
+const char *mgr_base(Mgr *mgr);
+const char *mgr_alloc(Mgr *mgr, const char *path);
 
 #define mgr_unlink(X)  _mgr_unlink(X, __FILE__, __LINE__, __FUNCTION__)
 void _mgr_unlink(const char *path, const char *file, int line, const char *func);
@@ -39,7 +39,7 @@ void mgr_rename(const char *oldpath, const char *newpath);
 
 void mgr_stat(Mgr *mgr, uint64_t *total, uint64_t *avail);
 
-static inline char* simple_basename(const char *path)
+static inline char *simple_basename(const char *path)
 {
     char *p = (char*)path + strlen(path);
     while (*p != '/' && p >= path)

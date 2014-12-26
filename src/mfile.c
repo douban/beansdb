@@ -17,7 +17,7 @@ const  int MAX_MMAP_SIZE = 1<<12; // 4G
 static int curr_mmap_size = 0;
 static pthread_mutex_t mmap_lock = PTHREAD_MUTEX_INITIALIZER;
 
-MFile* open_mfile(const char* path)
+MFile *open_mfile(const char *path)
 {
     int fd = open(path, O_RDONLY);
     if (fd == -1)

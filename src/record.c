@@ -83,7 +83,7 @@ int record_length(DataRecord *r)
     return (n / PADDING + (int)!!(n % PADDING)) * PADDING;
 }
 
-char* record_value(DataRecord *r)
+char *record_value(DataRecord *r)
 {
     char *res = r->value;
     if (res == r->key + r->ksz + 1)
@@ -138,7 +138,7 @@ void compress_record(DataRecord *r)
     }
 }
 
-DataRecord* decompress_record(DataRecord *r)
+DataRecord *decompress_record(DataRecord *r)
 {
     if (r->flag & COMPRESS_FLAG)
     {
@@ -173,7 +173,7 @@ DECOMP_END:
     return NULL;
 }
 
-DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* path, uint32_t pos, const char* key, bool do_logging, int* fail_reason)
+DataRecord *decode_record(char *buf, uint32_t size, bool decomp, const char *path, uint32_t pos, const char *key, bool do_logging, int *fail_reason)
 {
     DataRecord *r = (DataRecord *) (buf - sizeof(char*));
     uint32_t ksz = r->ksz, vsz = r->vsz;
@@ -222,8 +222,8 @@ DataRecord* decode_record(char* buf, uint32_t size, bool decomp, const char* pat
     return r2;
 }
 
-static inline DataRecord* scan_record(char* begin, char* end,  char** curr,
-        const char* path, int* num_broken_total, HTree* tree, int bucket)
+static inline DataRecord *scan_record(char *begin, char *end,  char **curr,
+        const char *path, int *num_broken_total, HTree *tree, int bucket)
 {
     int num_broken_curr = 0;
     while (*curr <  end)
@@ -307,7 +307,7 @@ static inline DataRecord* scan_record(char* begin, char* end,  char** curr,
 
 
 
-DataRecord* read_record(FILE *f, bool decomp, const char* path, const char* key)
+DataRecord *read_record(FILE *f, bool decomp, const char *path, const char *key)
 {
     DataRecord *r = (DataRecord*) safe_malloc(PADDING + sizeof(char*));
     r->value = NULL;
@@ -369,7 +369,7 @@ READ_END:
     return NULL;
 }
 
-DataRecord* fast_read_record(int fd, off_t offset, bool decomp, const char* path, const char* key)
+DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path, const char *key)
 {
     DataRecord *r = (DataRecord*) safe_malloc(PADDING + sizeof(char*));
     r->value = NULL;
@@ -432,7 +432,7 @@ READ_END:
     return NULL;
 }
 
-char* encode_record(DataRecord *r, unsigned int *size)
+char *encode_record(DataRecord *r, unsigned int *size)
 {
     compress_record(r);
 
@@ -473,7 +473,7 @@ int write_record(FILE *f, DataRecord *r)
 }
 
 
-void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpath)
+void scanDataFile(HTree *tree, int bucket, const char *path, const char *hintpath)
 {
     MFile *f = open_mfile(path);
     if (f == NULL) return;
@@ -518,7 +518,7 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
     build_hint(cur_tree, hintpath);
 }
 
-void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before)
+void scanDataFileBefore(HTree *tree, int bucket, const char *path, time_t before)
 {
     MFile *f = open_mfile(path);
     if (f == NULL) return;
@@ -586,7 +586,7 @@ void update_items(Item *it, void *args)
         ht_add(tree, it->key, it->pos, it->hash, it->ver);
     }
 }
-int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const char* hintpath,
+int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const char *hintpath,
         int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size,
         bool skipped, bool use_tmp, uint32_t *deleted_bytes)
 {

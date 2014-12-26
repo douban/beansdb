@@ -33,7 +33,7 @@ typedef struct EventLoop
     conn* conns[AE_SETSIZE];
     int   fired[AE_SETSIZE];
     int   nready;
-    void *apidata;
+    void* apidata;
 } EventLoop;
 
 /* Lock for connection freelist */
@@ -224,7 +224,7 @@ void loop_run(int nthread)
     int i, ret;
     pthread_attr_t  attr;
     pthread_attr_init(&attr);
-    pthread_t* tids = (pthread_t*)safe_malloc(sizeof(pthread_t) * nthread);
+    pthread_t *tids = (pthread_t*)safe_malloc(sizeof(pthread_t) * nthread);
 
     for (i=0; i<nthread - 1; i++)
     {

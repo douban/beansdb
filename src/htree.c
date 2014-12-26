@@ -82,7 +82,7 @@ struct t_hash_tree
     char buf[TREE_BUF_SIZE];
 
     uint32_t updating_bucket;
-    HTree * updating_tree;
+    HTree *updating_tree;
 };
 
 
@@ -93,7 +93,7 @@ static void split_node(HTree *tree, Node *node);
 static void merge_node(HTree *tree, Node *node);
 static void update_node(HTree *tree, Node *node);
 
-static inline bool check_version(Item *oldit, Item * newit, HTree *tree, uint32_t keyhash)
+static inline bool check_version(Item *oldit, Item *newit, HTree *tree, uint32_t keyhash)
 {
     if (abs(newit->ver) >= abs(oldit->ver))
         return true;
@@ -117,7 +117,7 @@ static inline Node *get_child(HTree *tree, Node *node, int b)
     return tree->root + i;
 }
 
-static inline void init_data(Data* data, int size)
+static inline void init_data(Data *data, int size)
 {
     data->next = NULL;
     data->count = 0;
@@ -125,7 +125,7 @@ static inline void init_data(Data* data, int size)
     data->size = size;
  }
 
-static inline Data* get_data(Node *node)
+static inline Data *get_data(Node *node)
 {
     return node->data;
 }
@@ -135,7 +135,7 @@ static inline void set_data(Node *node, Data *data)
    node->data = data;
 }
 
-static inline void free_data(Node* node)
+static inline void free_data(Node *node)
 {
     Data *d, *d0;
     for (d = node->data; d != NULL; )
@@ -149,14 +149,14 @@ static inline void free_data(Node* node)
 
 
 
-static inline uint32_t key_hash(HTree *tree, Item* it)
+static inline uint32_t key_hash(HTree *tree, Item *it)
 {
     char buf[KEY_BUF_LEN];
     int n = dc_decode(tree->dc, buf, KEY_BUF_LEN, it->key, KEYLENGTH(it));
     return fnv1a(buf, n);
 }
 
-static Item* create_item(HTree *tree, const char* key, int len, uint32_t pos, uint16_t hash, int32_t ver)
+static Item *create_item(HTree *tree, const char *key, int len, uint32_t pos, uint16_t hash, int32_t ver)
 {
     Item *it = (Item*)tree->buf;
     it->pos = pos;
@@ -187,7 +187,7 @@ static void enlarge_pool(HTree *tree)
 
 static void clear(Node *node)
 {
-    Data* data = (Data*)safe_malloc(64);
+    Data *data = (Data*)safe_malloc(64);
     init_data(data, 64);
     set_data(node, data);
 
@@ -206,7 +206,7 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
     }
 
     Data *data0 = get_data(node);
-    Data* data;
+    Data *data;
     for (data = data0; data != NULL;  data = data->next)
     {
         Item *p = data->head;
@@ -227,8 +227,8 @@ static void add_item(HTree *tree, Node *node, Item *it, uint32_t keyhash, bool e
         }
     }
 
-    Data * last = NULL;
-    Data * llast = NULL;
+    Data *last = NULL;
+    Data *llast = NULL;
     for (data = data0; data != NULL && data->size < data->used + it->length ; llast = last, last = data, data = data->next)
         ;
 
@@ -355,7 +355,7 @@ static void merge_node(HTree *tree, Node *node)
 {
     clear(node);
 
-    Node* child = get_child(tree, node, 0);
+    Node *child = get_child(tree, node, 0);
     int i, j;
     for (i=0; i<BUCKET_SIZE; ++i)
     {
@@ -408,7 +408,7 @@ static void update_node(HTree *tree, Node *node)
     }
 }
 
-static Item* get_item_hash(HTree* tree, Node* node, Item* it, uint32_t keyhash)
+static Item *get_item_hash(HTree *tree, Node *node, Item *it, uint32_t keyhash)
 {
     while (node->is_node)
     {
@@ -448,7 +448,7 @@ static inline int hex2int(char b)
     }
 }
 
-static uint16_t get_node_hash(HTree* tree, Node* node, const char* dir,
+static uint16_t get_node_hash(HTree *tree, Node *node, const char *dir,
                               unsigned int *count)
 {
     if (node->is_node && strlen(dir) > 0)
@@ -469,7 +469,7 @@ static uint16_t get_node_hash(HTree* tree, Node* node, const char* dir,
     return node->hash;
 }
 
-static char* list_dir(HTree *tree, Node* node, const char* dir, const char* prefix)
+static char *list_dir(HTree *tree, Node *node, const char *dir, const char *prefix)
 {
     int dlen = strlen(dir);
     while (node->is_node && dlen > 0)
@@ -560,7 +560,7 @@ static char* list_dir(HTree *tree, Node* node, const char* dir, const char* pref
     return buf;
 }
 
-static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param)
+static void visit_node(HTree *tree, Node *node, fun_visitor visitor, void *param)
 {
     int i;
     if (node->is_node)
@@ -596,7 +596,7 @@ static void visit_node(HTree *tree, Node* node, fun_visitor visitor, void* param
  * API
  */
 
-HTree* ht_new(int depth, int pos, bool tmp)
+HTree *ht_new(int depth, int pos, bool tmp)
 {
     HTree *tree = (HTree*)safe_malloc(sizeof(HTree));
     memset(tree, 0, sizeof(HTree));
@@ -642,7 +642,7 @@ HTree* ht_new(int depth, int pos, bool tmp)
     return tree;
 }
 
-HTree* ht_open(int depth, int pos, const char *path)
+HTree *ht_open(int depth, int pos, const char *path)
 {
     char version[sizeof(HTREE_VERSION)+1] = {0};
     HTree *tree = NULL;
@@ -802,7 +802,7 @@ FAIL:
     return NULL;
 }
 
-static int ht_save2(HTree *tree, FILE* f)
+static int ht_save2(HTree *tree, FILE *f)
 {
     size_t last_advise = 0;
     int fd = fileno(f);
@@ -966,7 +966,7 @@ static inline uint32_t keyhash(const char *s, int len)
     return fnv1a(s, len);
 }
 
-bool check_key(const char* key, int len)
+bool check_key(const char *key, int len)
 {
     if (!key) return false;
     if (len == 0 || len > MAX_KEY_LEN)
@@ -990,6 +990,7 @@ bool check_key(const char* key, int len)
     }
     return true;
 }
+
 bool check_bucket(HTree *tree, const char* key, int len)
 {
     uint32_t h = keyhash(key, len);
@@ -1002,35 +1003,35 @@ bool check_bucket(HTree *tree, const char* key, int len)
     return true;
 }
 
-void ht_add2(HTree *tree, const char* key, int len, uint32_t pos, uint16_t hash, int32_t ver)
+void ht_add2(HTree *tree, const char *key, int len, uint32_t pos, uint16_t hash, int32_t ver)
 {
     if (!check_bucket(tree, key, len)) return;
     Item *it = create_item(tree, key, len, pos, hash, ver);
     add_item(tree, tree->root, it, keyhash(key, len), true);
 }
 
-void ht_add(HTree *tree, const char* key, uint32_t pos, uint16_t hash, int32_t ver)
+void ht_add(HTree *tree, const char *key, uint32_t pos, uint16_t hash, int32_t ver)
 {
     pthread_mutex_lock(&tree->lock);
     ht_add2(tree, key, strlen(key), pos, hash, ver);
     pthread_mutex_unlock(&tree->lock);
 }
 
-void ht_remove2(HTree* tree, const char *key, int len)
+void ht_remove2(HTree *tree, const char *key, int len)
 {
     if (!check_bucket(tree, key, len)) return;
     Item *it = create_item(tree, key, len, 0, 0, 0);
     remove_item(tree, tree->root, it, keyhash(key, len));
 }
 
-void ht_remove(HTree* tree, const char *key)
+void ht_remove(HTree *tree, const char *key)
 {
     pthread_mutex_lock(&tree->lock);
     ht_remove2(tree, key, strlen(key));
     pthread_mutex_unlock(&tree->lock);
 }
 
-Item* ht_get2(HTree* tree, const char* key, int len)
+Item *ht_get2(HTree *tree, const char *key, int len)
 {
     if (!check_bucket(tree, key, len)) return NULL;
 
@@ -1049,12 +1050,12 @@ Item* ht_get2(HTree* tree, const char* key, int len)
     return r;
 }
 
-Item* ht_get(HTree* tree, const char* key)
+Item *ht_get(HTree *tree, const char *key)
 {
     return ht_get2(tree, key, strlen(key));
 }
 
-uint32_t ht_get_hash(HTree* tree, const char* key, unsigned int* count)
+uint32_t ht_get_hash(HTree *tree, const char *key, unsigned int *count)
 {
     if (!tree || !key || key[0] != '@')
     {
@@ -1070,13 +1071,13 @@ uint32_t ht_get_hash(HTree* tree, const char* key, unsigned int* count)
     return hash;
 }
 
-char* ht_list(HTree* tree, const char* dir, const char* prefix)
+char *ht_list(HTree *tree, const char *dir, const char *prefix)
 {
     if (!tree || !dir || strlen(dir) > 8) return NULL;
     if (prefix != NULL && strlen(prefix) == 0) prefix = NULL;
 
     pthread_mutex_lock(&tree->lock);
-    char* r = list_dir(tree, tree->root, dir, prefix);
+    char *r = list_dir(tree, tree->root, dir, prefix);
     pthread_mutex_unlock(&tree->lock);
 
     return r;
@@ -1103,7 +1104,7 @@ void ht_set_updating_bucket(HTree *tree, int bucket, HTree *updating_tree)
     pthread_mutex_unlock(&tree->lock);
 }
 
-Item* ht_get_withbuf(HTree* tree, const char* key, int len, char * buf, bool lock)
+Item *ht_get_withbuf(HTree *tree, const char *key, int len, char *buf, bool lock)
 {
     if (!check_bucket(tree, key, len)) return NULL;
 
@@ -1126,10 +1127,10 @@ Item* ht_get_withbuf(HTree* tree, const char* key, int len, char * buf, bool loc
 }
 
 
-Item* ht_get_maybe_tmp(HTree *tree, const char* key, int* is_tmp, char* buf)
+Item *ht_get_maybe_tmp(HTree *tree, const char *key, int *is_tmp, char *buf)
 {
     *is_tmp = 0;
-    Item* item = ht_get_withbuf(tree, key, strlen(key), buf, true);
+    Item *item = ht_get_withbuf(tree, key, strlen(key), buf, true);
     if (NULL != item)
     {
         uint32_t bucket = item->pos & 0xff;

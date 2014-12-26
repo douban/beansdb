@@ -66,7 +66,7 @@ int mgr_getrealpath(const char *path, char *buf, size_t bufsiz)
     return 0;
 }
 
-Mgr* mgr_create(const char **disks, int ndisks)
+Mgr *mgr_create(const char **disks, int ndisks)
 {
     char *cwd = getcwd(NULL, 0);
     Mgr *mgr = (Mgr*) safe_malloc(sizeof(Mgr));
@@ -108,7 +108,7 @@ void mgr_destroy(Mgr *mgr)
     free(mgr);
 }
 
-const char* mgr_base(Mgr *mgr)
+const char *mgr_base(Mgr *mgr)
 {
     return mgr->disks[0];
 }
@@ -129,7 +129,7 @@ get_disk_avail(const char *path, uint64_t *total)
     return stat.f_bavail * stat.f_frsize;
 }
 
-const char* mgr_alloc(Mgr *mgr, const char *name)
+const char *mgr_alloc(Mgr *mgr, const char *name)
 {
     if (mgr->ndisks == 1)
     {

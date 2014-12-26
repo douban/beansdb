@@ -52,9 +52,9 @@ struct t_hstore
     time_t before;
     int scan_threads;
     int op_start, op_end, op_laststat, op_limit; // for optimization
-    Mgr* mgr;
+    Mgr *mgr;
     pthread_mutex_t locks[NUM_OF_MUTEX];
-    Bitcask* bitcasks[];
+    Bitcask *bitcasks[];
 };
 
 static inline int get_index(HStore *store, char *key)
@@ -64,7 +64,7 @@ static inline int get_index(HStore *store, char *key)
     return h >> ((8 - store->height) * 4);
 }
 
-static inline pthread_mutex_t* get_mutex(HStore *store, char *key)
+static inline pthread_mutex_t * get_mutex(HStore *store, char *key)
 {
     uint32_t i = fnv1a(key, strlen(key)) % NUM_OF_MUTEX;
     return &store->locks[i];
@@ -85,7 +85,7 @@ struct scan_args
     BC_FUNC func;
 };
 
-static void* scan_thread(void *_args)
+static void *scan_thread(void *_args)
 {
     struct scan_args *args = (struct scan_args*)_args;
     HStore *store = args->store;
@@ -147,7 +147,7 @@ static void parallelize(HStore *store, BC_FUNC func)
     free(args);
 }
 
-HStore* hs_open(char *path, int height, time_t before, int scan_threads)
+HStore *hs_open(char *path, int height, time_t before, int scan_threads)
 {
     if (NULL == path) return NULL;
     if (height < 0 || height > 3)
@@ -331,7 +331,7 @@ static uint16_t hs_get_hash(HStore *store, char *pos, uint32_t *count)
     }
 }
 
-static char* hs_list(HStore *store, char *key)
+static char *hs_list(HStore *store, char *key)
 {
     char *prefix = NULL;
     int p = 0, pos = strlen(key);
@@ -441,7 +441,7 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
     return res;
 }
 
-bool hs_set(HStore *store, char *key, char* value, unsigned int vlen, uint32_t flag, int ver)
+bool hs_set(HStore *store, char *key, char *value, unsigned int vlen, uint32_t flag, int ver)
 {
     if (!store || !key || key[0] == '@') return false;
     if (store->before > 0) return false;
@@ -450,7 +450,7 @@ bool hs_set(HStore *store, char *key, char* value, unsigned int vlen, uint32_t f
     return bc_set(store->bitcasks[index], key, value, vlen, flag, ver);
 }
 
-bool hs_append(HStore *store, char *key, char* value, unsigned int vlen)
+bool hs_append(HStore *store, char *key, char *value, unsigned int vlen)
 {
     if (!store || !key || key[0] == '@') return false;
     if (store->before > 0) return false;
@@ -520,7 +520,7 @@ INCR_END:
     return result;
 }
 
-void* do_optimize(void *arg)
+void *do_optimize(void *arg)
 {
     pthread_detach(pthread_self());
     HStore *store = (HStore *) arg;
@@ -538,7 +538,7 @@ void* do_optimize(void *arg)
     return NULL;
 }
 
-static bool tree2range(char* tree, int height, int*start, int *end)
+static bool tree2range(char *tree, int height, int *start, int *end)
 {
     int count = 1 << (height * 4);
     *start = 0;
@@ -566,7 +566,7 @@ static bool tree2range(char* tree, int height, int*start, int *end)
     return true;
 }
 
-int hs_optimize(HStore *store, long limit, char* tree)
+int hs_optimize(HStore *store, long limit, char *tree)
 {
     if (store->before > 0)
         return  -1;

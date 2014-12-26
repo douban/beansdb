@@ -21,7 +21,7 @@
 
 extern zlog_category_t *cat;
 
-int log_init(const char* conf_path);
+int log_init(const char *conf_path);
 void log_finish();
 #define log_fatal(FORMAT, ...) zlog_fatal(cat, FORMAT, ##__VA_ARGS__)
 #define log_error(FORMAT, ...) zlog_error(cat, FORMAT, ##__VA_ARGS__)
