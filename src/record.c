@@ -740,7 +740,7 @@ int optimizeDataFile(HTree* tree, Mgr* mgr, int bucket, const char* path, const 
         {
             if (it && it->pos == (pos | bucket) && it->ver < 0)
             {
-                deleted ++;
+                deleted++;
                 ht_add2(cur_tree, r->key, r->ksz, 0, it->hash, it->ver);
             }
             released++;

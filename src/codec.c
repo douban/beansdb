@@ -192,7 +192,7 @@ static inline int parse_fmt(const char* src, int len, char* fmt, int* flen, int3
             while(p < q && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')))
             {
                 if (*p >= 'a' && *p <= 'f') hex[m] = true;
-                *nd ++ = *p ++;
+                *nd++ = *p++;
                 if ((hex[m] && nd-num[m] >= 8) || (!hex[m] && nd-num[m] >= 9))
                 {
                     break;
@@ -256,7 +256,7 @@ static inline int parse_fmt_new(const char* src, int len, char* fmt, int* flen, 
             while(p < q && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')))
             {
                 if (*p >= 'a' && *p <= 'f') hex[m] = true;
-                *nd ++ = *p ++;
+                *nd++ = *p++;
                 if ((hex[m] && nd-num[m] >= 16) || (!hex[m] && nd-num[m] >= 18))
                 {
                     break;
@@ -450,7 +450,7 @@ int dc_encode(Codec* dc, char* buf, int buf_size, const char* src, int len)
                 dict[dc->dict_used]->nargs = narg;
                 memcpy(dict[dc->dict_used]->fmt, fmt, flen + 1);
                 log_debug("new fmt %d: %s <= %s", dc->dict_used, fmt, src);
-                dc->rdict[h] = rh = dc->dict_used ++;
+                dc->rdict[h] = rh = dc->dict_used++;
                 if ((unsigned int)(dc->dict_used) == dc->dict_size && dc->dict_size < MAX_DICT_SIZE)
                 {
                     dc_enlarge(dc);

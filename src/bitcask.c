@@ -1149,7 +1149,7 @@ void bc_rotate(Bitcask *bc)
         dump_buckets(bc);
     }
     // next bucket
-    bc->curr ++;
+    bc->curr++;
     bc->curr_tree = ht_new(bc->depth, bc->pos, true);
     bc->wbuf_start_pos = 0;
     bc->curr_bytes = 0;

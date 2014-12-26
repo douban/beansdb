@@ -182,7 +182,7 @@ static void enlarge_pool(HTree *tree)
         tree->root[i].depth = tree->height;
     }
 
-    tree->height ++;
+    tree->height++;
 }
 
 static void clear(Node *node)
@@ -756,7 +756,7 @@ HTree* ht_open(int depth, int pos, const char *path)
             goto FAIL;
         }
         tree->root[i].data = data;
-        pool_used ++;
+        pool_used++;
     }
 
 

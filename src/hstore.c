@@ -99,7 +99,7 @@ static void* scan_thread(void *_args)
     }
 
     pthread_mutex_lock(&scan_lock);
-    scan_completed ++;
+    scan_completed++;
     pthread_cond_signal(&scan_cond);
     pthread_mutex_unlock(&scan_lock);
 
