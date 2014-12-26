@@ -966,9 +966,9 @@ static inline uint32_t keyhash(const char *s, int len)
     return fnv1a(s, len);
 }
 
-bool check_key(HTree *tree, const char* key, int len)
+bool check_key(const char* key, int len)
 {
-    if (!tree || !key) return false;
+    if (!key) return false;
     if (len == 0 || len > MAX_KEY_LEN)
     {
         log_error("bad key len=%d", len);
@@ -988,7 +988,10 @@ bool check_key(HTree *tree, const char* key, int len)
             return false;
         }
     }
-
+    return true;
+}
+bool check_bucket(HTree *tree, const char* key, int len)
+{
     uint32_t h = keyhash(key, len);
     if (tree->depth > 0 && h >> ((8-tree->depth)*4) != (unsigned int)(tree->pos))
     {
@@ -1001,7 +1004,7 @@ bool check_key(HTree *tree, const char* key, int len)
 
 void ht_add2(HTree *tree, const char* key, int len, uint32_t pos, uint16_t hash, int32_t ver)
 {
-    if (!check_key(tree, key, len)) return;
+    if (!check_bucket(tree, key, len)) return;
     Item *it = create_item(tree, key, len, pos, hash, ver);
     add_item(tree, tree->root, it, keyhash(key, len), true);
 }
@@ -1015,7 +1018,7 @@ void ht_add(HTree *tree, const char* key, uint32_t pos, uint16_t hash, int32_t v
 
 void ht_remove2(HTree* tree, const char *key, int len)
 {
-    if (!check_key(tree, key, len)) return;
+    if (!check_bucket(tree, key, len)) return;
     Item *it = create_item(tree, key, len, 0, 0, 0);
     remove_item(tree, tree->root, it, keyhash(key, len));
 }
@@ -1029,7 +1032,7 @@ void ht_remove(HTree* tree, const char *key)
 
 Item* ht_get2(HTree* tree, const char* key, int len)
 {
-    if (!check_key(tree, key, len)) return NULL;
+    if (!check_bucket(tree, key, len)) return NULL;
 
     pthread_mutex_lock(&tree->lock);
     Item *it = create_item(tree, key, len, 0, 0, 0);
@@ -1102,7 +1105,7 @@ void ht_set_updating_bucket(HTree *tree, int bucket, HTree *updating_tree)
 
 Item* ht_get_withbuf(HTree* tree, const char* key, int len, char * buf, bool lock)
 {
-    if (!check_key(tree, key, len)) return NULL;
+    if (!check_bucket(tree, key, len)) return NULL;
 
     Item *it = (Item*)buf; 
     int n = dc_encode(tree->dc, it->key, TREE_BUF_SIZE - (sizeof(Item) - ITEM_PADDING) , key, len);

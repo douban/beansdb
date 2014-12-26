@@ -182,10 +182,13 @@ void scanHintFile(HTree* tree, int bucket, const char* path, const char* new_pat
             break;
         }
         uint32_t pos = (r->pos << 8) | (bucket & 0xff);
-        if (r->version > 0)
-            ht_add2(tree, r->key, r->ksize, pos, r->hash, r->version);
-        else
-            ht_remove2(tree, r->key, r->ksize);
+        if (check_key(r->key, r->ksize))
+        {
+            if (r->version > 0)
+                ht_add2(tree, r->key, r->ksize, pos, r->hash, r->version);
+            else
+                ht_remove2(tree, r->key, r->ksize);
+        }
     }
 
     close_hint(hint);

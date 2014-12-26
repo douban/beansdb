@@ -974,6 +974,9 @@ int bc_optimize(Bitcask *bc, int limit)
 
 DataRecord* bc_get(Bitcask *bc, const char* key, uint32_t* ret_pos, int* ret_ver)
 {
+    if (!check_key(key, strlen(key)))
+        return NULL;
+
     int maybe_tmp = 0;
     char buf[512];
     Item *item = ht_get_maybe_tmp(bc->tree, key, &maybe_tmp, buf);
@@ -1244,7 +1247,7 @@ void bc_flush(Bitcask *bc, unsigned int limit, int flush_period)
 
 bool bc_set(Bitcask *bc, const char* key, char* value, size_t vlen, int flag, int version)
 {
-    if ((version < 0 && vlen > 0) || vlen > MAX_VALUE_LEN) 
+    if ((version < 0 && vlen > 0) || vlen > MAX_VALUE_LEN || !check_key(key, strlen(key)))
     {
         log_error("invalid set cmd, key %s, version %d, vlen %ld", key, version, vlen);
         return false;

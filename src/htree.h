@@ -60,4 +60,6 @@ void     ht_add2(HTree *tree, const char* key, int ksz, uint32_t pos, uint16_t h
 void     ht_remove2(HTree *tree, const char *key, int ksz);
 void     ht_visit2(HTree *tree, fun_visitor visitor, void *param);
 
+bool check_key(const char* key, int len);
+
 #endif /* __HTREE_H__ */

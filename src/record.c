@@ -499,15 +499,18 @@ void scanDataFile(HTree* tree, int bucket, const char* path, const char* hintpat
             continue;
         }
         uint16_t hash = gen_hash(r->value, r->vsz);
-        if (r->version > 0)
+        if (check_key(r->key, r->ksz))
         {
-            ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
+            if (r->version > 0)
+            {
+                ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
+            }
+            else
+            {
+                ht_remove2(tree, r->key, r->ksz);
+            }
+            ht_add2(cur_tree, r->key, r->ksz, pos | bucket, hash, r->version);
         }
-        else
-        {
-            ht_remove2(tree, r->key, r->ksz);
-        }
-        ht_add2(cur_tree, r->key, r->ksz, pos | bucket, hash, r->version);
         free_record(r);
         mfile_dontneed(f, p - f->addr, &last_advise);
     }
@@ -539,15 +542,18 @@ void scanDataFileBefore(HTree* tree, int bucket, const char* path, time_t before
             log_error("decompress_record fail, %s @%u size = %ld", path, pos, p - (pos + f->addr));
             continue;
         }
-        /*uint16_t hash = gen_hash(r->value, r->vsz);*/
-        if (r->version > 0)
+
+        if (check_key(r->key, r->ksz))
         {
-            uint16_t hash = gen_hash(r->value, r->vsz);
-            ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
-        }
-        else
-        {
-            ht_remove2(tree, r->key, r->ksz);
+            if (r->version > 0)
+            {
+                uint16_t hash = gen_hash(r->value, r->vsz);
+                ht_add2(tree, r->key, r->ksz, pos | bucket, hash, r->version);
+            }
+            else
+            {
+                ht_remove2(tree, r->key, r->ksz);
+            }
         }
         free_record(r);
         mfile_dontneed(f, p - f->addr, &last_advise);
