@@ -9,6 +9,7 @@
           url: http://code.dapps.douban.com/beansdb.git
     builders:
       - shell: |
+          ./autogen.sh
           ./configure
           make
           cd python_tests
