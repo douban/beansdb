@@ -12,15 +12,14 @@
           ./autogen.sh
           ./configure
           make
-          cd python_tests
           rm -rf venv
           virtualenv venv || true
           source venv/bin/activate
-          pip install -i http://pypim.dapps.douban.com/simple -r pip-requirement.txt
+          pip install -i http://pypim.dapps.douban.com/simple -r python_tests/pip-requirement.txt
           nosetests --with-xunit --xunit-file=unittest.xml
           deactivate
     publishers:
       - junit:
           results: unittest.xml
       - email:
-          recipients: zhuzhaolong@douban.com,yangxiufeng@douban.com
+          recipients: zhuzhaolong@douban.com
