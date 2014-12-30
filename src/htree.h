@@ -28,7 +28,7 @@ struct t_item
     uint32_t pos;
     int32_t  ver;
     uint16_t hash;
-    uint8_t  length;
+    uint8_t  ksz;
     char     key[1];
 };
 
