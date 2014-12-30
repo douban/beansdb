@@ -55,7 +55,7 @@ Codec *dc_new()
 int dc_size(Codec *dc)
 {
     int i, s = sizeof(int);
-    for (i=1; i<dc->dict_used; ++i)
+    for (i = 1; i < dc->dict_used; ++i)
     {
         s += 1 + fmt_size(dc->dict[i]);
     }
@@ -94,7 +94,7 @@ void dc_rebuild(Codec *dc)
     dc->rdict = (short*) safe_malloc(sizeof(short) * dc->rdict_size);
     memset(dc->rdict, 0, sizeof(short) * dc->rdict_size);
 
-    for (i=1; i<dc->dict_used; ++i)
+    for (i = 1; i < dc->dict_used; ++i)
     {
         uint32_t h = fnv1a(dc->dict[i]->fmt, strlen(dc->dict[i]->fmt)) % dc->rdict_size;
         while (dc->rdict[h] > 0)
@@ -166,7 +166,7 @@ void dc_destroy(Codec *dc)
     if (dc == NULL) return;
 
     if (dc->rdict) free(dc->rdict);
-    for (i=1; i<dc->dict_used; i++)
+    for (i = 1; i < dc->dict_used; i++)
         free(dc->dict[i]);
     if (dc->dict) free(dc->dict);
     free(dc);
@@ -315,7 +315,7 @@ static inline int dc_encode_key_with_fmt_new(int idx, char *buf, int buf_size, u
 {
     int len = encode_varint_old(idx, buf);
     int i;
-    for (i=0; i<narg; i++)
+    for (i = 0; i < narg; i++)
     {
         int l = encode_varint((uint64_t)args[i], buf + len);
         len += l;

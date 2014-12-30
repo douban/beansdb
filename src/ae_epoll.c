@@ -75,7 +75,7 @@ static int aeApiDelEvent(EventLoop *eventLoop, int fd)
     ee.data.fd = fd;
     /* Note, Kernel < 2.6.9 requires a non null event pointer even for
      * EPOLL_CTL_DEL. */
-    if ( epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee) == -1
+    if (epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee) == -1
             && errno != ENOENT && errno != EBADF)
     {
         log_error("epoll_ctl(%d,%d) failed: %d", EPOLL_CTL_DEL,fd,errno);

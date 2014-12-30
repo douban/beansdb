@@ -49,7 +49,7 @@ uint64_t decode_varint(const char *src, int *len)
     }
     n &= 0x3f;
     ++p;
-    uint64_t multi = 1<<6;
+    uint64_t multi = 1 << 6;
     do
     {
         int v = (*p) & 0x7f;
@@ -71,8 +71,8 @@ int encode_varint_old(int n, char *buf)
 	else
 	{
 	    len = 2;
-	    *buf = - (n & 0x3f) - 64;
-	    *(unsigned char*)(buf+1) = n >> 6;
+	    *buf = -(n & 0x3f) - 64;
+	    *(unsigned char*)(buf + 1) = n >> 6;
 	}
 	return len;
 }

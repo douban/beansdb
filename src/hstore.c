@@ -90,7 +90,7 @@ static void *scan_thread(void *_args)
     struct scan_args *args = (struct scan_args*)_args;
     HStore *store = args->store;
     int i, index = args->index;
-    for (i=0; i<store->count; i++)
+    for (i = 0; i < store->count; i++)
     {
         if (i % store->scan_threads == index)
         {
@@ -119,7 +119,7 @@ static void parallelize(HStore *store, BC_FUNC func)
     int i, ret;
     pthread_t *thread_ids = (pthread_t*)safe_malloc(sizeof(pthread_t) * store->scan_threads);
     struct scan_args *args = (struct scan_args *) safe_malloc(sizeof(struct scan_args) * store->scan_threads);
-    for (i=0; i<store->scan_threads; i++)
+    for (i = 0; i < store->scan_threads; i++)
     {
         args[i].store = store;
         args[i].index = i;
@@ -138,7 +138,7 @@ static void parallelize(HStore *store, BC_FUNC func)
     }
     pthread_mutex_unlock(&scan_lock);
 
-    for (i=0; i<store->scan_threads; i++)
+    for (i = 0; i < store->scan_threads; i++)
     {
         pthread_join(thread_ids[i], NULL);
         pthread_detach(thread_ids[i]);
@@ -215,19 +215,19 @@ HStore *hs_open(char *path, int height, time_t before, int scan_threads)
         free(store);
         return NULL;
     }
-    for (i=0; i<NUM_OF_MUTEX; i++)
+    for (i = 0; i < NUM_OF_MUTEX; i++)
     {
         pthread_mutex_init(&store->locks[i], NULL);
     }
 
     char *buf[20] = {0};
-    for (i=0; i<npath; i++)
+    for (i = 0; i < npath; i++)
     {
         buf[i] = (char*)safe_malloc(MAX_PATH_LEN);
     }
-    for (i=0; i<count; i++)
+    for (i = 0; i<count; i++)
     {
-        for (j=0; j<npath; j++)
+        for (j = 0; j < npath; j++)
         {
             path = paths[j];
             switch(height)
@@ -250,7 +250,7 @@ HStore *hs_open(char *path, int height, time_t before, int scan_threads)
         if (mgr == NULL) return NULL;
         store->bitcasks[i] = bc_open2(mgr, height, i, before);
     }
-    for (i=0; i<npath; i++)
+    for (i = 0; i < npath; i++)
     {
         free(buf[i]);
     }
@@ -261,7 +261,7 @@ HStore *hs_open(char *path, int height, time_t before, int scan_threads)
     }
     else
     {
-        for (i=0; i<count; i++)
+        for (i = 0; i < count; i++)
         {
             bc_scan(store->bitcasks[i]);
         }
@@ -275,7 +275,7 @@ void hs_flush(HStore *store, unsigned int limit, int period)
     if (!store) return;
     if (store->before > 0) return;
     int i;
-    for (i=0; i<store->count; i++)
+    for (i = 0; i < store->count; i++)
     {
         bc_flush(store->bitcasks[i], limit, period);
     }
@@ -294,7 +294,7 @@ void hs_close(HStore *store)
     }
     else
     {
-        for (i=0; i<store->count; i++)
+        for (i = 0; i < store->count; i++)
         {
             bc_close(store->bitcasks[i]);
         }
@@ -359,7 +359,7 @@ static char *hs_list(HStore *store, char *key)
         int i, bsize = 1024, used = 0;
         char *buf = (char*)try_malloc(bsize);
         if (!buf) return NULL;
-        for (i=0; i < 16; ++i)
+        for (i = 0; i < 16; ++i)
         {
             char pos_buf[255];
             safe_memcpy(pos_buf, 255, key, p);
@@ -608,7 +608,7 @@ uint64_t hs_count(HStore *store, uint64_t *curr)
 {
     uint64_t total = 0, curr_total = 0;
     int i;
-    for (i=0; i<store->count; i++)
+    for (i = 0; i < store->count; i++)
     {
         uint32_t curr = 0;
         total += bc_count(store->bitcasks[i], &curr);
@@ -619,12 +619,12 @@ uint64_t hs_count(HStore *store, uint64_t *curr)
     return total;
 }
 
-void    hs_stat(HStore *store, uint64_t *total, uint64_t *avail)
+void hs_stat(HStore *store, uint64_t *total, uint64_t *avail)
 {
     uint64_t used = 0;
     *total = 0;
     int i;
-    for (i=0; i<store->count; i++)
+    for (i = 0; i < store->count; i++)
     {
         bc_stat(store->bitcasks[i], &used);
         *total += used;

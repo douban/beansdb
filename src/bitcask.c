@@ -190,7 +190,7 @@ int dump_buckets(Bitcask *bc)
 
     char *p = buf;
     int i;
-    for ( i = 0; i<256; i++)
+    for (i = 0; i < 256; i++)
     {
         if (bc->buckets[i] >= 0)
         {
@@ -200,7 +200,6 @@ int dump_buckets(Bitcask *bc)
     }
 
     *p = 0;
-
     char path[MAX_PATH_LEN];
     safe_snprintf(path, MAX_PATH_LEN, "%s/buckets.txt", mgr_base(bc->mgr));
     if (p == buf)
@@ -217,8 +216,8 @@ int dump_buckets(Bitcask *bc)
         log_error("fail to open %s", path);
         return -1;
     }
-    int n = fwrite(buf, 1, p-buf, f);
-    if (n < p-buf)
+    int n = fwrite(buf, 1, p - buf, f);
+    if (n < p - buf)
     {
         log_error("fail to write %s", path);
         fclose(f);
@@ -253,15 +252,15 @@ int get_bucket_by_name(char *dir, char *name, long *bucket)
         return -1;
     }
     char *suffix = name + 3;
-    if ( 0==strcmp(name + strlen(name) - 3, "tmp"))
+    if (0 == strcmp(name + strlen(name) - 3, "tmp"))
     {
         log_warn("find tmp file %s/%s", dir, name);
         return -1;
     }
     int i;
-    for (i=0; i<3; i++)
+    for (i = 0; i < 3; i++)
     {
-        if (strcmp(types[i]+ 7, suffix) == 0)
+        if (strcmp(types[i] + 7, suffix) == 0)
         {
             return i;
         }
@@ -277,7 +276,7 @@ int check_buckets(Mgr *mgr, int64_t *sizes, int locations[][3])
     char path[MAX_PATH_LEN], sym[MAX_PATH_LEN], real[MAX_PATH_LEN];
 
     int i;
-    for (i=0; i<mgr->ndisks; i++)
+    for (i = 0; i < mgr->ndisks; i++)
     {
         DIR* dp = opendir(disks[i]);
         if (dp == NULL)
@@ -419,7 +418,7 @@ static void print_buckets(int64_t *buckets)
 {
     int i;
     printf("\n");
-    for (i=0; i<256; i++)
+    for (i = 0; i < 256; i++)
     {
         if (buckets[i] >= 0)
         {
@@ -428,7 +427,6 @@ static void print_buckets(int64_t *buckets)
     }
     printf("\n");
 }
-
 
 static void init_buckets(Bitcask *bc)
 {
@@ -463,7 +461,7 @@ static void init_buckets(Bitcask *bc)
         else
         {
             int i;
-            for (i=255; i>=0; i--)
+            for (i = 255; i >= 0; i--)
             {
                 if (buckets[i] != bc->buckets[i])
                 {
@@ -535,7 +533,7 @@ static void skip_empty_file(Bitcask *bc)
     int i, last=0;
     char opath[MAX_PATH_LEN], npath[MAX_PATH_LEN];
     const char *base = mgr_base(bc->mgr);
-    for (i=0; i<MAX_BUCKET_COUNT; i++)
+    for (i = 0; i < MAX_BUCKET_COUNT; i++)
     {
         int64_t size = bc->buckets[i];
         gen_path(opath, MAX_PATH_LEN, base, DATA_FILE, i);
@@ -620,7 +618,7 @@ void bc_scan(Bitcask *bc)
         bc->tree = ht_new(bc->depth, bc->pos, false);
     }
 
-    for (i=0; i<MAX_BUCKET_COUNT; i++)
+    for (i = 0; i < MAX_BUCKET_COUNT; i++)
     {
         if (stat(gen_path(datapath, MAX_PATH_LEN, base, DATA_FILE, i), &st) != 0)
         {
@@ -775,7 +773,7 @@ int bc_optimize(Bitcask *bc, int limit)
     const char *base = mgr_base(bc->mgr);
     char htreepath_tmp[MAX_PATH_LEN];
     // remove htree
-    for (i=0; i < bc->curr; ++i)
+    for (i = 0; i < bc->curr; ++i)
     {
         mgr_unlink(gen_path(htreepath_tmp, MAX_PATH_LEN, base, HTREE_FILE, i));
     }
@@ -793,7 +791,7 @@ int bc_optimize(Bitcask *bc, int limit)
 
     struct stat st;
     bool skipped = false;
-    for (i=0; i < bc->curr && bc->optimize_flag == 1; ++i)
+    for (i = 0; i < bc->curr && bc->optimize_flag == 1; ++i)
     {
         char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
         gen_path(datapath, MAX_PATH_LEN, base, DATA_FILE, i);
@@ -874,7 +872,7 @@ int bc_optimize(Bitcask *bc, int limit)
             char ldpath[MAX_PATH_LEN], lhpath[MAX_PATH_LEN], lhpath_real[MAX_PATH_LEN];
             gen_path(ldpath, MAX_PATH_LEN, mgr_base(bc->mgr), DATA_FILE, last);
             struct stat sb;
-            if ( (bc->buckets[last]>= 0) !=  (lstat(ldpath,&sb)==0))
+            if ((bc->buckets[last]>= 0) !=  (lstat(ldpath,&sb)==0))
             {
                 log_fatal("buckets mismatch!");
                 bc->optimize_flag = 0;

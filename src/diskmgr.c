@@ -72,8 +72,8 @@ Mgr *mgr_create(const char **disks, int ndisks)
     Mgr *mgr = (Mgr*) safe_malloc(sizeof(Mgr));
     mgr->ndisks = ndisks;
     mgr->disks = (char**)safe_malloc(sizeof(char*) * ndisks);
-    int i=0;
-    for (i=0; i<ndisks; i++)
+    int i;
+    for (i = 0; i < ndisks; i++)
     {
         if (0 != access(disks[i], F_OK) && 0 != mkdir(disks[i], 0755))
         {
@@ -100,7 +100,7 @@ Mgr *mgr_create(const char **disks, int ndisks)
 void mgr_destroy(Mgr *mgr)
 {
     int i=0;
-    for (i=0; i< mgr->ndisks; i++)
+    for (i = 0; i< mgr->ndisks; i++)
     {
         free(mgr->disks[i]);
     }
@@ -139,7 +139,7 @@ const char *mgr_alloc(Mgr *mgr, const char *name)
     int maxi = 0, i;
     char path[MAX_PATH_LEN];
     struct stat sb;
-    for (i=0; i< mgr->ndisks; i++)
+    for (i = 0; i< mgr->ndisks; i++)
     {
         safe_snprintf(path, MAX_PATH_LEN, "%s/%s", mgr->disks[i], name);
         if (lstat(path, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG)
@@ -175,7 +175,7 @@ const char *mgr_alloc(Mgr *mgr, const char *name)
 void _mgr_unlink(const char *path, const char *file, int line, const char *func)
 {
     struct stat sb;
-    if ( 0 != lstat(path, &sb))
+    if (0 != lstat(path, &sb))
         return;
     log_notice("mgr_unlink %s, in %s (%s:%i)", path, func, file, line);
     if ((sb.st_mode & S_IFMT) == S_IFLNK)
@@ -236,7 +236,7 @@ void mgr_stat(Mgr *mgr, uint64_t *total, uint64_t *avail)
     int i=0;
     *total = 0;
     *avail = 0;
-    for (i=0; i< mgr->ndisks; i++)
+    for (i = 0; i< mgr->ndisks; i++)
     {
         uint64_t t;
         *avail += get_disk_avail(mgr->disks[i], &t);

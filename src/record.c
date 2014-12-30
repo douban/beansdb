@@ -186,7 +186,6 @@ DataRecord *decode_record(char *buf, uint32_t size, bool decomp, const char *pat
         return NULL;
     }
 
-
     unsigned int need = sizeof(DataRecord) - sizeof(char*) + ksz + vsz;
     if (size < need)
     {
@@ -251,7 +250,7 @@ static inline DataRecord *scan_record(char *begin, char *end,  char **curr,
                 DataRecord *ro = (DataRecord *) (p - sizeof(char*));
                 log_error("START_BROKEN in %s at %ld", path, p - begin);
                 uint32_t ksz = ro->ksz;
-                if ( ksz > 0 && ksz <= MAX_KEY_LEN && sizeof(DataRecord) - sizeof(char*) + ksz < end - p)
+                if (ksz > 0 && ksz <= MAX_KEY_LEN && sizeof(DataRecord) - sizeof(char*) + ksz < end - p)
                 {
                     Item *it = ht_get2(tree, ro->key, ksz);
                     if (it && (it->pos & 0xffffff00) == (p - begin) && (it->pos & 0xff) == bucket)
@@ -340,7 +339,7 @@ DataRecord *read_record(FILE *f, bool decomp, const char *path, const char *key)
         safe_memcpy(r->value, vsz, r->key + ksz, read_size);
         int need = vsz - read_size;
         int ret = 0;
-        if (need > 0 && need != (ret=fread(r->value + read_size, 1, need, f)))
+        if (need > 0 && need != (ret = fread(r->value + read_size, 1, need, f)))
         {
             r->key[ksz] = 0; // c str
             log_error("PREAD %d < %d, %s @%lld, key = (%s)", ret, need, path, (long long int)ftello(f), key);
@@ -699,7 +698,7 @@ int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const 
                 {
                     log_warn("optimize %s into %s overflow, ftruncate to %u", path, lastdata, new_df_orig_size);
                     fflush(new_df);
-                    if ( 0 != ftruncate(fileno(new_df), new_df_orig_size))
+                    if (0 != ftruncate(fileno(new_df), new_df_orig_size))
                     {
                         log_error("ftruncate failed for  %s old size = %u", path, new_df_orig_size);
                     }

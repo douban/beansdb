@@ -83,7 +83,7 @@ void write_hint_file(char *buf, int size, const char *path)
     char tmp[MAX_PATH_LEN];
     safe_snprintf(tmp, MAX_PATH_LEN, "%s.tmp", path);
     FILE *hf = fopen(tmp, "wb");
-    if (NULL==hf)
+    if (NULL == hf)
     {
         log_error("open %s failed", tmp);
         return;
@@ -199,9 +199,7 @@ int count_deleted_record(HTree *tree, int bucket, const char *path, int *total, 
     *total = 0;
     HintFile *hint = open_hint(path, NULL);
     if (hint == NULL)
-    {
         return 0;
-    }
 
     char *p = hint->buf, *end = hint->buf + hint->size;
     int deleted = 0;

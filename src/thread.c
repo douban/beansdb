@@ -226,7 +226,7 @@ void loop_run(int nthread)
     pthread_attr_init(&attr);
     pthread_t *tids = (pthread_t*)safe_malloc(sizeof(pthread_t) * nthread);
 
-    for (i=0; i<nthread - 1; i++)
+    for (i = 0; i < nthread - 1; i++)
     {
         if ((ret = pthread_create(tids + i, &attr, worker_main, NULL)) != 0)
         {
@@ -239,7 +239,7 @@ void loop_run(int nthread)
     worker_main(NULL);
 
     // wait workers to stop
-    for (i=0; i<nthread - 1; i++)
+    for (i = 0; i < nthread - 1; i++)
     {
         (void) pthread_join(tids[i], NULL);
         pthread_detach(tids[i]);

@@ -335,7 +335,7 @@ static void conn_cleanup(conn *c)
 
     if (c->ileft != 0)
     {
-        for (; c->ileft > 0; c->ileft--,c->icurr++)
+        for (; c->ileft > 0; c->ileft--, c->icurr++)
         {
             item_free(*(c->icurr));
         }
@@ -746,7 +746,7 @@ static size_t tokenize_command(char *command, token_t *tokens, const size_t max_
      * If we scanned the whole string, the terminal value pointer is null,
      * otherwise it is the first unprocessed character.
      */
-    tokens[ntokens].value =  *e == '\0' ? NULL : e;
+    tokens[ntokens].value = (*e == '\0' ? NULL : e);
     tokens[ntokens].length = 0;
     ntokens++;
 
@@ -1534,7 +1534,6 @@ int drive_machine(conn *c)
 
     while (!stop)
     {
-
         switch(c->state)
         {
         case conn_listening:
@@ -2151,7 +2150,7 @@ int main (int argc, char **argv)
     }
 
     if (!conf_path) conf_path = "./beansdb_log.conf";
-    if ( 0 != log_init(conf_path))
+    if (0 != log_init(conf_path))
         exit(-1);
     log_notice("ZLOG inited");
 
