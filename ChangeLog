@@ -1,6 +1,17 @@
+2015-03-25 0.7.1
+    * new: optimize_stat command
+    * new: python test
+    * new: bucket.txt for each bitcask to check data files
+    * improve: go test
+    * improve: get ??key will return key's meta even the key is deleted
+    * improve: use zlog
+    * bugfix: gc error
+    * bugfix: item length overflow
+    * bugfix: some memory and lock error
+
 2013-07-15 0.6.0
     * new: stopme command
-    * improve: add madvise() and fadvise() to improve fs buffer usage 
+    * improve: add madvise() and fadvise() to improve fs buffer usage
     * bugfix: make select() work, if no epoll and kqueue
     * bugfix: overflow in htree and codec
 
@@ -11,15 +22,15 @@
 
 2013-02-04 0.5.8
     * new: merge data files into large one when GC
-	* change: close bitcask in parallel 
+	* change: close bitcask in parallel
     * bugfix: readlink() should ends with \0 (used when GC)
 
 2012-11-20 0.5.7
     * new: dump HTree to disk to speed up boosting
-	* change: increase the size of data file to 4G 
+	* change: increase the size of data file to 4G
 	* some bugfix
 
-2011-11-25 0.5.6 
+2011-11-25 0.5.6
 	* new: support multi directories as Home, manage disk spaces auto.
     * improve: using multi threads when boot scaning.
 
@@ -37,7 +48,7 @@
     * improve: less memory in htree
 
 2010-11-10 0.5.1
-    * new: pub/sub threads model 
+    * new: pub/sub threads model
     * new: compress records and hint with QuickLZ
 
 2010-10-25 0.5.0

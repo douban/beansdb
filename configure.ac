@@ -1,5 +1,5 @@
 AC_PREREQ(2.61)
-AC_INIT([beansdb], [0.7.0], [davies.liu@gmail.com])
+AC_INIT([beansdb], [0.7.1], [davies.liu@gmail.com])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_PROG_CC
 AM_PROG_CC_C_O
