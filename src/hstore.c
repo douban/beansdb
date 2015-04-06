@@ -498,6 +498,9 @@ int64_t hs_incr(HStore *store, char *key, int64_t value)
             log_error("try to incr %s but flag=0x%x, len=%u", key, flag, rlen);
             goto INCR_END;
         }
+
+        body = safe_realloc(body, rlen + 1);
+        body[rlen] = 0;
         result = strtoll(body, NULL, 10);
         if (result == 0 && errno == EINVAL)
         {
