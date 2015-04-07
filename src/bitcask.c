@@ -970,10 +970,11 @@ int bc_optimize(Bitcask *bc, int limit)
     return 0;
 }
 
-DataRecord* bc_get(Bitcask *bc, const char *key, uint32_t *ret_pos, int *ret_ver)
+DataRecord* bc_get(Bitcask *bc, const char *key, uint32_t *ret_pos, bool return_deleted)
 {
     if (!check_key(key, strlen(key)))
         return NULL;
+
 
     int maybe_tmp = 0;
     char buf[512];
@@ -981,13 +982,12 @@ DataRecord* bc_get(Bitcask *bc, const char *key, uint32_t *ret_pos, int *ret_ver
     if (NULL == item) return NULL;
 
     *ret_pos = item->pos;
-    *ret_ver = item->ver;
+
+    if (!return_deleted && item->ver < 0)
+        return NULL;
 
     uint32_t bucket = item->pos & 0xff;
     uint32_t pos = item->pos & 0xffffff00;
-
-    if (item->ver < 0)
-        return NULL;
 
     if (bucket > (uint32_t)(bc->curr))
     {
@@ -1298,8 +1298,7 @@ bool bc_set(Bitcask *bc, const char *key, char *value, size_t vlen, int flag, in
     if (NULL != it && hash == it->hash)
     {
         uint32_t ret_pos = 0;
-        int ret_ver = 256;
-        DataRecord *r = bc_get(bc, key, &ret_pos, &ret_ver);
+        DataRecord *r = bc_get(bc, key, &ret_pos, false);
         if (r != NULL && r->flag == flag && vlen  == r->vsz
                 && memcmp(value, r->value, vlen) == 0)
         {
