@@ -25,6 +25,8 @@
 #include "log.h"
 #include "varint.h"
 
+const int MAX_FMT_ARGS = 2;
+
 static inline int fmt_size(Fmt *fmt)
 {
     return sizeof(Fmt) + strlen(fmt->fmt) - 7 + 1;
@@ -185,7 +187,7 @@ static inline int parse_fmt(const char *src, int len, char *fmt, int *flen, int3
         {
             return 0;
         }
-        if ((*p >= '1' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+        if (((*p >= '1' && *p <= '9') || (*p >= 'a' && *p <= 'f')) && m < MAX_FMT_ARGS + 1)
         {
             char *nd = num[m];
             hex[m] = false;
@@ -431,7 +433,7 @@ int dc_encode(Codec *dc, char *buf, int buf_size, const char *src, int len)
     int narg = parse_fmt_new(src, len, fmt, &flen, args);
 #endif
 
-    if (dc && len > 6 && len < 100 && src[0] > 0 && narg > 0 && narg <= 2)
+    if (dc && len > 6 && len < 100 && src[0] > 0 && narg > 0 && narg <= MAX_FMT_ARGS)
     {
         Fmt **dict = dc->dict;
         uint32_t h = fnv1a(fmt, flen) % dc->rdict_size;
