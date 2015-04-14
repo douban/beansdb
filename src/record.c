@@ -370,7 +370,7 @@ READ_END:
 
 DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path, const char *key)
 {
-    DataRecord *r = (DataRecord*) safe_malloc(sizeof(DataRecord) + MAX_KEY_LEN);
+    DataRecord *r = (DataRecord*) safe_malloc(max(sizeof(DataRecord) + MAX_KEY_LEN, PADDING + sizeof(char*)) + 1);
     r->value = NULL;
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
@@ -391,7 +391,7 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
     int vreadn = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;
     int key_remain_len = vreadn < 0 ? -vreadn : 0;
 
-    if (vsz < vreadn)
+    if (vsz <= vreadn)
     {
         r->value = r->key + ksz + 1;
         r->free_value = false;

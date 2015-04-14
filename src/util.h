@@ -161,6 +161,7 @@ _check_memcpy(const char *file, int line, const char *func, void *dst, size_t ds
 #define safe_memcpy(DST, DST_NUM, SRC, SRC_NUM) _check_memcpy(__FILE__, __LINE__, __FUNCTION__, DST, DST_NUM, SRC, SRC_NUM)
 
 #define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
 
 inline static int safe_strtol(const char *str, int base, long *out)
 {
