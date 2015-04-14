@@ -370,7 +370,7 @@ READ_END:
 
 DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path, const char *key)
 {
-    DataRecord *r = (DataRecord*) safe_malloc(PADDING + sizeof(char*));
+    DataRecord *r = (DataRecord*) safe_malloc(sizeof(DataRecord) + MAX_KEY_LEN);
     r->value = NULL;
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
@@ -379,17 +379,19 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
         goto READ_END;
     }
 
-    uint32_t ksz = r->ksz, vsz = r->vsz;
+    int ksz = r->ksz, vsz = r->vsz;
 
     if (bad_kv_size(ksz, vsz))
     {
-        log_error("invalid ksz=%u, vsz=%u, %s @%lld, key = (%s)", ksz, vsz, path, (long long)offset, key);
+        log_error("invalid ksz=%d, vsz=%d, %s @%lld, key = (%s)", ksz, vsz, path, (long long)offset, key);
         goto READ_END;
     }
 
     uint32_t crc_old = r->crc;
-    int read_size = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;
-    if (vsz < read_size)
+    int vreadn = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;
+    int key_remain_len = vreadn < 0 ? -vreadn : 0;
+
+    if (vsz < vreadn)
     {
         r->value = r->key + ksz + 1;
         r->free_value = false;
@@ -397,16 +399,29 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
     }
     else
     {
-        r->value = (char*)safe_malloc(vsz);
+        int to_read = vsz - vreadn;
+        r->value = (char*)safe_malloc(to_read);
         r->free_value = true;
-        safe_memcpy(r->value, vsz, r->key + ksz, read_size);
-        int need = vsz - read_size;
+        int dst_offset = 0;
+
+        if (vreadn > 0)
+        {
+            safe_memcpy(r->value, vsz, r->key + ksz, vreadn);
+            dst_offset = vreadn;
+        }
         int ret = 0;
-        if (need > 0 && need != (ret=pread(fd, r->value + read_size, need, offset+PADDING)))
+        if (to_read > 0 && to_read != (ret=pread(fd, r->value + dst_offset, to_read, offset + PADDING)))
         {
             r->key[ksz] = 0; // c str
-            log_error("PREAD %d < %d, %s @%lld, get key (%s) got(%s)", ret, need, path, (long long int) offset, key, r->key);
+            log_error("PREAD %d < %d, %s @%lld, get key (%s) got(%s)", ret, to_read, path, (long long int) offset, key, r->key);
             goto READ_END;
+        }
+        if (vreadn < 0)
+        {
+            log_warn("long key ksz %d remain %d, vsz %d, to read %d",
+                    ksz, key_remain_len, vsz, to_read);
+            memcpy(r->key + ksz - key_remain_len, r->value, key_remain_len);
+            memmove(r->value, r->value + key_remain_len, vsz);
         }
     }
     r->key[ksz] = 0; // c str
