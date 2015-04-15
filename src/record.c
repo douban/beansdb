@@ -375,23 +375,21 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
     {
-        log_error("read file fail, %s @%lld, file size = %lld, key = %s",  path, (long long)offset, (long long)lseek(fd, 0L, SEEK_END), key);
+        log_error("read file fail, %s @%lld, file size = %lld, key = %s",  
+                path, (long long)offset, (long long)lseek(fd, 0L, SEEK_END), key);
         goto READ_END;
     }
 
-    int ksz = r->ksz, vsz = r->vsz;
-
-    if (bad_kv_size(ksz, vsz))
+    if (bad_kv_size(r->ksz, r->vsz))
     {
-        log_error("invalid ksz=%d, vsz=%d, %s @%lld, key = (%s)", ksz, vsz, path, (long long)offset, key);
+        log_error("invalid ksz=%u, vsz=%u, %s @%lld, key = (%s)", 
+                r->ksz, r->vsz, path, (long long)offset, key);
         goto READ_END;
     }
-
+    int ksz = r->ksz, vsz = r->vsz;
     uint32_t crc_old = r->crc;
-    int vreadn = PADDING - (sizeof(DataRecord) - sizeof(char*)) - ksz;
-    int key_remain_len = vreadn < 0 ? -vreadn : 0;
-
-    if (vsz <= vreadn)
+    int read_more = (sizeof(DataRecord) - sizeof(char*)) + ksz + vsz - PADDING;
+    if (read_more <= 0)
     {
         r->value = r->key + ksz + 1;
         r->free_value = false;
@@ -399,29 +397,26 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
     }
     else
     {
-        int to_read = vsz - vreadn;
-        r->value = (char*)safe_malloc(to_read);
+        int key_more = read_more - vsz; //pos of value relative to next read start i.e. (offset + PADDING);
+        r->value = (char*)safe_malloc(vsz + max(key_more, 0)); //may contain tail of key
         r->free_value = true;
-        int dst_offset = 0;
 
-        if (vreadn > 0)
-        {
-            safe_memcpy(r->value, vsz, r->key + ksz, vreadn);
-            dst_offset = vreadn;
-        }
+        if (key_more < 0)
+            safe_memcpy(r->value, vsz, r->key + ksz, -key_more);
+
         int ret = 0;
-        if (to_read > 0 && to_read != (ret=pread(fd, r->value + dst_offset, to_read, offset + PADDING)))
+        if (read_more > 0 && read_more != (ret=pread(fd, r->value + max(-key_more, 0), read_more, offset + PADDING)))
         {
             r->key[ksz] = 0; // c str
-            log_error("PREAD %d < %d, %s @%lld, get key (%s) got(%s)", ret, to_read, path, (long long int) offset, key, r->key);
+            log_error("PREAD %d < %d, %s @%lld, get key (%s) got(%s)", ret, read_more, path, (long long int) offset, key, r->key);
             goto READ_END;
         }
-        if (vreadn < 0)
+        if (key_more > 0)
         {
-            log_warn("long key ksz %d remain %d, vsz %d, to read %d",
-                    ksz, key_remain_len, vsz, to_read);
-            memcpy(r->key + ksz - key_remain_len, r->value, key_remain_len);
-            memmove(r->value, r->value + key_remain_len, vsz);
+            log_warn("long key ksz %d remain %d, vsz %d, read_more %d",
+                    ksz, key_more, vsz, read_more);
+            memcpy(r->key + ksz - key_more, r->value, key_more);
+            memmove(r->value, r->value + key_more, vsz);
         }
     }
     r->key[ksz] = 0; // c str
