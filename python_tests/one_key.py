@@ -96,6 +96,18 @@ class TestKeyVersion(TestBeansdbBase):
     def test_compress_256(self):
         self._test_compress(False)
 
+    def test_special_key(self):
+        self.backend1.start()
+        kvs = [('a'*250, 1), ("a", range(1000))]
+        store = MCStore(self.backend1_addr)
+        for k,v in kvs:
+            assert(store.set(k, v))
+            assert(v == store.get(k))
+        self.backend1.stop()
+        self.backend1.start()
+        store = MCStore(self.backend1_addr)
+        for (k,v) in kvs:
+            assert(v == store.get(k))
 
     def test_big_value(self):
         self.backend1.start()
