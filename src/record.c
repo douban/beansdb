@@ -396,28 +396,35 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
         r->free_value = false;
         memmove(r->value, r->key + ksz, vsz);
     }
-    else
+    else if (read_more > vsz)
     {
-        int key_more = read_more - vsz; //pos of value relative to next read start i.e. (offset + PADDING);
-        r->value = (char*)safe_malloc(vsz + max(key_more, 0)); //may contain tail of key
+        int key_more = read_more - vsz;
+        r->value = (char*)safe_malloc(vsz + key_more);
         r->free_value = true;
-
-        if (key_more < 0)
-            safe_memcpy(r->value, vsz, r->key + ksz, -key_more);
-
         int ret = 0;
-        if (read_more > 0 && read_more != (ret=pread(fd, r->value + max(-key_more, 0), read_more, offset + PADDING)))
+        log_warn("long key ksz %d key_more, vsz %d, read_more %d",
+                ksz, key_more, vsz, read_more);
+        if (read_more != (ret=pread(fd, r->value, read_more, offset + PADDING)))
         {
             r->key[ksz] = 0; // c str
             log_error("PREAD %d < %d, %s @%lld, get key (%s) got(%s)", ret, read_more, path, (long long int) offset, key, r->key);
             goto READ_END;
         }
-        if (key_more > 0)
+        memcpy(r->key + ksz - key_more, r->value, key_more);
+        memmove(r->value, r->value + key_more, vsz);
+    }
+    else 
+    {
+        int vreadn = vsz - read_more;
+        r->value = (char*)safe_malloc(vsz);
+        r->free_value = true;
+        safe_memcpy(r->value, vsz, r->key + ksz, vreadn);
+        int ret = 0;
+        if (read_more != (ret=pread(fd, r->value + vreadn, read_more, offset + PADDING)))
         {
-            log_warn("long key ksz %d remain %d, vsz %d, read_more %d",
-                    ksz, key_more, vsz, read_more);
-            memcpy(r->key + ksz - key_more, r->value, key_more);
-            memmove(r->value, r->value + key_more, vsz);
+            r->key[ksz] = 0; // c str
+            log_error("PREAD %d < %d, %s @%lld, get key (%s) got(%s)", ret, read_more, path, (long long int) offset, key, r->key);
+            goto READ_END;
         }
     }
     r->key[ksz] = 0; // c str
