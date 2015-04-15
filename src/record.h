@@ -46,7 +46,7 @@ typedef bool (*RecordVisitor)(DataRecord *r, void *arg1, void *arg2);
 uint32_t gen_hash(char *buf, int size);
 
 char* record_value(DataRecord *r);
-void free_record(DataRecord *r);
+void free_record(DataRecord **r);
 
 // on bad record, return NULL and set *fail_reason to one of these
 #define BAD_REC_SIZE  1

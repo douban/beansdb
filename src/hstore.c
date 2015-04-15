@@ -423,7 +423,7 @@ char *hs_get(HStore *store, char *key, unsigned int *vlen, uint32_t *flag)
         *vlen = r->vsz;
         *flag = r->flag;
     }
-    free_record(r);
+    free_record(&r);
     return res;
 }
 

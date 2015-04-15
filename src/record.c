@@ -95,11 +95,12 @@ char *record_value(DataRecord *r)
     return res;
 }
 
-void free_record(DataRecord *r)
+void free_record(DataRecord **r)
 {
-    if (r == NULL) return;
-    if (r->value != NULL && r->free_value) free(r->value);
-    free(r);
+    if (r == NULL || (*r) == NULL) return;
+    if ((*r)->value != NULL && (*r)->free_value) free((*r)->value);
+    free(*r);
+    *r = NULL;
 }
 
 void compress_record(DataRecord *r)
@@ -169,7 +170,7 @@ DataRecord *decompress_record(DataRecord *r)
     return r;
 
 DECOMP_END:
-    free_record(r);
+    free_record(&r);
     return NULL;
 }
 
@@ -364,7 +365,7 @@ DataRecord *read_record(FILE *f, bool decomp, const char *path, const char *key)
     return r;
 
 READ_END:
-    free_record(r);
+    free_record(&r);
     return NULL;
 }
 
@@ -437,7 +438,7 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
     return r;
 
 READ_END:
-    free_record(r);
+    free_record(&r);
     return NULL;
 }
 
@@ -520,7 +521,7 @@ void scanDataFile(HTree *tree, int bucket, const char *path, const char *hintpat
             }
             ht_add2(cur_tree, r->key, r->ksz, pos | bucket, hash, r->version);
         }
-        free_record(r);
+        free_record(&r);
         mfile_dontneed(f, p - f->addr, &last_advise);
     }
     close_mfile(f);
@@ -564,7 +565,7 @@ void scanDataFileBefore(HTree *tree, int bucket, const char *path, time_t before
                 ht_remove2(tree, r->key, r->ksz);
             }
         }
-        free_record(r);
+        free_record(&r);
         mfile_dontneed(f, p - f->addr, &last_advise);
     }
     close_mfile(f);
@@ -741,7 +742,7 @@ int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const 
             {
                 log_error("write error: %s -> %d", path, last_bucket);
                 free(it);
-                free_record(r);
+                free_record(&r);
                 goto  OPT_FAIL;
             }
         }
@@ -756,7 +757,7 @@ int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const 
         }
         if (it) free(it);
         p = newp;
-        free_record(r);
+        free_record(&r);
 
         mfile_dontneed(f, pos, &last_advise);
     }

@@ -1101,8 +1101,7 @@ READ_FAIL:
     else if (strcmp(key, r->key) != 0)
     {
         log_error("Bug: record %s is not expected %s in %s @ %u", r->key, key, datapath, pos);
-        free_record(r);
-        r = NULL;
+        free_record(&r);
     }
 
     if (r != NULL)
@@ -1312,10 +1311,10 @@ bool bc_set(Bitcask *bc, const char *key, char *value, size_t vlen, int flag, in
                 ht_add(bc->tree, key, it->pos, it->hash, ver);
             }
             suc = true;
-            free_record(r);
+            free_record(&r);
             goto SET_FAIL;
         }
-        if (r != NULL) free_record(r);
+        if (r != NULL) free_record(&r);
     }
 
     int klen = strlen(key);
@@ -1368,7 +1367,7 @@ bool bc_set(Bitcask *bc, const char *key, char *value, size_t vlen, int flag, in
     ht_add(bc->tree, key, pos, hash, ver);
     suc = true;
     free(rbuf);
-    free_record(r);
+    free_record(&r);
 
 SET_FAIL:
     pthread_mutex_unlock(&bc->write_lock);
