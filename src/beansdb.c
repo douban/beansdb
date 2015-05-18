@@ -1878,7 +1878,7 @@ static void usage(void)
            "-l <ip_addr>  interface to listen on, default is INDRR_ANY\n"
            "-d            run as a daemon\n"
            "-P <file>     save PID in <file>, only used with -d option\n"
-           "-L <file>     zlog config file path, default is \'beansdb_log.conf\'\n"
+           "-L <file>     zlog config file path, defaults are 1. \'./beansdb_log.conf\' 2. \'/etc/beansdb_log.conf\'\n"
            "-r            maximize core file limit\n"
            "-u <username> assume identity of <username> (only when run as root)\n"
            "-c <num>      max simultaneous connections, default is 1024\n"
@@ -2149,9 +2149,33 @@ int main (int argc, char **argv)
         }
     }
 
-    if (!conf_path) conf_path = "./beansdb_log.conf";
+    const char *default_log_confs[] = {"./beansdb_log.conf", "/etc/beansdb_log.conf"};
+    if (!conf_path)
+    {
+        int i;
+        for (i = 0; i < sizeof(default_log_confs) / sizeof(char*); i++)
+        {
+            const char *path = default_log_confs[i];
+            struct stat st;
+            if (stat(path, &st) == 0)
+            {
+                conf_path = (char*)path;
+                break;
+            }
+
+        }
+    }
+    if (!conf_path)
+    {
+        printf("FATAL: must specify log config file!\n" );
+        exit(EXIT_FAILURE);
+    }
+
+    printf("logging according to %s\n", conf_path);
     if (0 != log_init(conf_path))
-        exit(-1);
+    {
+        exit(EXIT_FAILURE);
+    }
     log_notice("ZLOG inited");
 
     if (invalid_arg)

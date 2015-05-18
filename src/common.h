@@ -74,4 +74,5 @@ struct settings
 extern int daemon_quit;
 extern struct settings settings;
 
+void settings_init(void);
 #endif
