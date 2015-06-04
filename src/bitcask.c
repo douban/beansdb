@@ -144,13 +144,13 @@ int load_buckets(const char *base, int64_t *buckets, int *last)
     FILE *f = fopen(path,"r");
     if (f == NULL)
     {
-        log_error("fail to open file %s", path);
+        log_error("fail to open file %s, err:%s", path, strerror(errno));
         return -1;
     }
     int n = fread(buf, 1, st.st_size, f);
     if (n < st.st_size)
     {
-        log_error("fail to open file %s", path);
+        log_error("fail to open file %s, err:%s", path, strerror(errno));
         return -1;
     }
 
@@ -1059,7 +1059,7 @@ RETRY_READ:
     if (-1 == fd)
     {
         if (bc->buckets[bucket] > 0)
-            log_error("fail to open %s, which should exist (to get key: %s)", datapath, key);
+            log_error("fail to open %s, which should exist (to get key: %s), err:%s", datapath, key, strerror(errno));
         else
            log_error("Bug: try read non-exist file %s (to get key %s)", datapath, key);
     }
