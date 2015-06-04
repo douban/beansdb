@@ -1555,14 +1555,12 @@ int drive_machine(conn *c)
                         if ((sfd = accept(c->sfd, (struct sockaddr *)&addr, &addrlen)) != -1)
                         {
                             close(sfd);
-                            stub_fd = open("/dev/null", O_RDONLY);
-                            stop = false;
                         }
                         else
                         {
-                            if (settings.verbose > 0)
-                                log_error("Too many open connections 2");
+                            log_error("Too many open connections");
                         }
+                        stub_fd = open("/dev/null", O_RDONLY);
                     }
                 }
                 else
