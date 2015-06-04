@@ -14,6 +14,7 @@
  *
  */
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1059,9 +1060,14 @@ RETRY_READ:
     if (-1 == fd)
     {
         if (bc->buckets[bucket] > 0)
-            log_error("fail to open %s, which should exist (to get key: %s), err:%s", datapath, key, strerror(errno));
+        {
+            log_error("fail to open %s, which should exist. (key: %s, err: %s)",
+                datapath, key, strerror(errno));
+        }
         else
-           log_error("Bug: try read non-exist file %s (to get key %s)", datapath, key);
+        {
+            log_error("Bug: try read non-exist file %s. (key: %s)", datapath, key);
+        }
     }
     else
     {
