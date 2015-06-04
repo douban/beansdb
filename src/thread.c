@@ -150,7 +150,11 @@ int add_event(int fd, int mask, conn *c)
         log_error("fd is too large: %d", fd);
         return AE_ERR;
     }
-    assert(loop.conns[fd] == NULL);
+    if (loop.conns[fd] != NULL)
+    {
+        log_error("fd is used: %d", fd);
+        return AE_ERR;
+    }
     loop.conns[fd] = c;
     if (aeApiAddEvent(&loop, fd, mask) == -1)
     {
