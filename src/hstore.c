@@ -48,10 +48,15 @@ const int INCR_FLAG    = 0x00000204;
 
 struct t_hstore
 {
-    int height, count;
+    int height;
+    int count;
     time_t before;
     int scan_threads;
-    int op_start, op_end, op_laststat, op_limit; // for optimization
+    int op_start;       // start bitcask for optimization
+    int op_end;         // end bitcask for optimization
+    int op_laststat;    // last status for optimization
+    int start_fid;      // start file id for optimization
+    int end_fid;        // end file id for optimization
     Mgr *mgr;
     pthread_mutex_t locks[NUM_OF_MUTEX];
     Bitcask *bitcasks[];
@@ -208,7 +213,8 @@ HStore *hs_open(char *path, int height, time_t before, int scan_threads)
     store->scan_threads = scan_threads;
     store->op_start = 0;
     store->op_end = 0;
-    store->op_limit = 0;
+    store->start_fid = 0;
+    store->end_fid = 0;
     store->mgr = mgr_create((const char**)paths, npath);
     if (store->mgr == NULL)
     {
@@ -514,12 +520,14 @@ void *do_optimize(void *arg)
     pthread_detach(pthread_self());
     HStore *store = (HStore *) arg;
     time_t st = time(NULL);
-    log_notice("start to optimize from 0x%x to 0x%x, limit %d",
-            store->op_start, store->op_end - 1 , store->op_limit);
+    log_notice("start to optimize from 0x%x to 0x%x, start_fid %d, end_fid %d",
+            store->op_start, store->op_end - 1 , store->start_fid, store->end_fid);
     store->op_laststat = 0;
     for (; store->op_start < store->op_end && store->op_laststat == 0; ++(store->op_start))
     {
-        store->op_laststat = bc_optimize(store->bitcasks[store->op_start], store->op_limit);
+        store->op_laststat = bc_optimize(store->bitcasks[store->op_start],
+                                         store->start_fid,
+                                         store->end_fid);
     }
     store->op_start = store->op_end = 0;
     log_notice("optimization %s in %lld seconds",
@@ -527,6 +535,8 @@ void *do_optimize(void *arg)
     return NULL;
 }
 
+// Transform tree (bucket path) to bitcask range,
+// the length of bucket path must equal to height.
 static bool tree2range(char *tree, int height, int *start, int *end)
 {
     int count = 1 << (height * 4);
@@ -534,8 +544,7 @@ static bool tree2range(char *tree, int height, int *start, int *end)
     *end = count;
 
     int len = strlen(tree);
-    int shift = (height - (len - 1))* 4;
-    if (len < 1 || tree[0] != '@' || shift < 0)
+    if (len < 1 || tree[0] != '@' || (len - 1) != height)
     {
         return false;
     }
@@ -547,29 +556,32 @@ static bool tree2range(char *tree, int height, int *start, int *end)
         {
             return false;
         }
-        *start = n << shift;
-        *end = (n + 1) << shift;
+        *start = n;
+        *end = n + 1;
         if (*start < 0 || *start > count || *end < 0 || *end > count)
             return false;
     }
     return true;
 }
 
-int hs_optimize(HStore *store, long limit, char *tree)
+int hs_optimize(HStore *store, char *tree, int start_fid, int end_fid)
 {
     if (store->before > 0)
-        return  -1;
+        return -1;
     if (store->op_start < store->op_end)
-        return  -2;
+        return -2;
 
     int start, end;
     if (!tree2range(tree, store->height, &start, &end))
         return -3;
 
+    log_debug("height=%d,tree=%s,start=%d,end=%d\n",
+              store->height, tree, start, end);
     pthread_t id;
-    store->op_limit = limit;
     store->op_start = start;
     store->op_end = end;
+    store->start_fid = start_fid;
+    store->end_fid = end_fid;
     pthread_create(&id, NULL, do_optimize, store);
 
     return 0;

@@ -1130,6 +1130,10 @@ static void process_arithmetic_command(conn *c, token_t *tokens, const size_t nt
     }
 }
 
+static inline bool is_valid_fid(long fid)
+{
+    return (fid >= 0 && fid <= 255);
+}
 
 static void process_delete_command(conn *c, token_t *tokens, const size_t ntokens)
 {
@@ -1273,27 +1277,43 @@ static void process_command(conn *c, char *command)
         else
             out_string(c, "fail");
     }
-    else if (ntokens >= 2 && ntokens <= 4 && (strcmp(tokens[COMMAND_TOKEN].value, "flush_all") == 0))
+    else if (ntokens >= 4 && ntokens <= 5 && (strcmp(tokens[COMMAND_TOKEN].value, "gc") == 0))
     {
-        set_noreply_maybe(c, tokens, ntokens);
-        ntokens -= (c->noreply ? 1 : 0);
+        // Format: gc tree start_fid [end_fid]
+        // The end_fid are optional, if it's not set,
+        // the end_fid equals to current fid.
+        //
+        // Note:
+        // 1. Both start_fid and end_fid are inclusive,
+        // 2. Length of tree (path) must equal to store->height (see function `hstore.c:tree2range`).
+        //
+        // Example:
+        // 1. gc on bucket 0 from 125 to bc->curr. (assume store->height=1)
+        //     gc @0 125
+        // 2. gc on bucket a0 from 111 to 123. (assume store->height=2)
+        //     gc @a0 111 123
 
-        long limit = 10000;
-        char *tree = "@";
-
-        if (ntokens >= 3)
+        long start_fid = -1;
+        long end_fid = -1;
+        char *tree = tokens[1].value;
+        if (!safe_strtol(tokens[2].value, 10, &start_fid) || !is_valid_fid(start_fid))
         {
-            if (!safe_strtol(tokens[1].value, 10, &limit))
+            out_string(c, "CLIENT_ERROR bad command line format");
+            return;
+        }
+        if (ntokens >= 5) {
+            if (!safe_strtol(tokens[3].value, 10, &end_fid) || !is_valid_fid(end_fid))
             {
                 out_string(c, "CLIENT_ERROR bad command line format");
                 return;
             }
-            if (ntokens >= 4)
-            {
-                tree = tokens[2].value;
+            if (start_fid > end_fid) {
+                out_string(c, "CLIENT_ERROR start_fid bigger than end_fid");
+                return;
             }
         }
-        int ret = hs_optimize(store, limit, tree);
+
+        int ret = hs_optimize(store, tree, (int)start_fid, (int)end_fid);
         if (ret == 0)
             out_string(c, "OK");
         else if(ret == -1)

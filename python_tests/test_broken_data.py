@@ -1,27 +1,19 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-import os
-import sys
-import time
-from base import BeansdbInstance, TestBeansdbBase, MCStore
-from base import get_hash, check_data_hint_integrity
+from base import BeansdbInstance, MCStore
 from base import random_string, delete_hint_and_htree, temper_with_key_value
 import unittest
-import telnetlib
-import glob
-import quicklz
-import struct
-import re
 from gc_simple import TestGCBase
 
 
 string_large = random_string(10*1024*1024)
 
+
 class TestBrokenBase(TestGCBase):
     proxy_addr = 'localhost:7905'
     backend1_addr = 'localhost:57901'
-#
+
     def setUp(self):
         self._clear_dir()
         self._init_dir()
@@ -43,6 +35,7 @@ class TestBrokenBase(TestGCBase):
             except Exception, e:
                 return self.fail("fail to check key %s: %s" % (key, str(e)))
         store.close()
+
 
 class TestBitCaseScanBroken(TestBrokenBase):
 
@@ -70,7 +63,6 @@ class TestBitCaseScanBroken(TestBrokenBase):
         self._check_data("some value", prefix="test1", loop_num=1024, sector=0)
         self._check_data("other value", prefix="test3", loop_num=1024, sector=0)
         self.backend1.stop()
-
 
 
 class TestOnlineBroken(TestBrokenBase):
@@ -130,7 +122,7 @@ class TestGCBroken(TestBrokenBase):
         #make sure we produce a crc error
         temper_with_key_value(self.backend1.db_home, self.backend1.db_depth, tempered_key, delete_hint=False)
 
-        self._start_gc()
+        self._start_gc_all()
         while True:
             status = self._gc_status()
             if status == 'success':
@@ -141,12 +133,6 @@ class TestGCBroken(TestBrokenBase):
 
         self.assertEqual(self.backend1.item_count(), 1024)
         self._check_data("other value", prefix="test1", loop_num=1024, sector=0)
-
-
-
-
-
-
 
 
 if __name__ == '__main__':

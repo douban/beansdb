@@ -2,12 +2,12 @@
 # coding:utf-8
 
 import os
-import sys
 import unittest
 from gc_simple import TestGCBase
 import glob
 import time
-from base import BeansdbInstance, TestBeansdbBase, MCStore, check_data_with_key,check_data_hint_integrity
+from base import BeansdbInstance, MCStore, check_data_with_key, check_data_hint_integrity
+
 
 class TestGCMultiple(TestGCBase):
 
@@ -38,7 +38,6 @@ class TestGCMultiple(TestGCBase):
                 self.assertEqual(store.get(key), data)
             except Exception, e:
                 return self.fail("fail to check key %s: %s" % (key, str(e)))
-
 
     def test_gc_multiple_files(self):
         self.backend1.start()
@@ -84,13 +83,14 @@ class TestGCMultiple(TestGCBase):
             os.remove(buckets_txt_path)
 
         self.backend1.start()
+
         def check_data():
             self._check_data(2, prefix='group1_', loop_num=16 * 1024)
             self._check_data(2, prefix='group2_', loop_num=16 * 1024)
             self._check_data(2, prefix='group3_', loop_num=512)
 
         time.sleep(1)
-        self._start_gc(0, bucket="0")
+        self._start_gc(bucket="0")
         print "gc started"
         while True:
             status = self._gc_status()
@@ -124,6 +124,7 @@ class TestGCMultiple(TestGCBase):
 
         print "check data& hint"
         check_data_hint_integrity(self.backend1.db_home, db_depth=self.backend1.db_depth)
+
 
 class TestGCMultiple2(TestGCBase):
 
@@ -195,15 +196,14 @@ class TestGCMultiple2(TestGCBase):
         self.assertEqual(len(glob.glob(sector10_exp)), 1)
 
         self.backend1.stop()
+
         def check_data():
             self._check_data(2, prefix='group1_', loop_num=16 * 1024)
             self._check_data(2, prefix='group2_', loop_num=16 * 1024)
             self._check_data(2, prefix='group3_', loop_num=512)
 
-
-
         self.backend1.start()
-        self._start_gc(0, bucket="1")
+        self._start_gc(bucket="1")
         print "gc @1 started"
         while True:
             status = self._gc_status()
@@ -228,9 +228,8 @@ class TestGCMultiple2(TestGCBase):
             self.assert_(check_data_with_key(os.path.join(self.backend1.db_home, "0/0/000.data"), key, ver_=1))
             self.assert_(check_data_with_key(os.path.join(self.backend1.db_home, "0/0/000.data"), key, ver_=2))
 
-
         time.sleep(1)
-        self._start_gc(0, bucket="00")
+        self._start_gc(bucket="00")
         print "gc @00 started"
         while True:
             status = self._gc_status()
@@ -267,10 +266,7 @@ class TestGCMultiple2(TestGCBase):
         check_data_hint_integrity(self.backend1.db_home, db_depth=self.backend1.db_depth)
 
 
-
 if __name__ == '__main__':
     unittest.main()
-
-
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 :

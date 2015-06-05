@@ -1,18 +1,13 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-import os
-import sys
 import time
+import string
+import itertools
 from base import BeansdbInstance, TestBeansdbBase, MCStore
-from base import locate_key_iterate, locate_key_with_hint, get_hash, check_data_hint_integrity
+from base import locate_key_iterate, locate_key_with_hint, check_data_hint_integrity
 import unittest
 import telnetlib
-import glob
-import quicklz
-import struct
-import re
-
 
 
 class TestGCBase(TestBeansdbBase):
@@ -25,18 +20,40 @@ class TestGCBase(TestBeansdbBase):
         self._init_dir()
         self.backend1 = BeansdbInstance(self.data_base_path, 57901)
 
-    def _start_gc(self, ignore_recent=0, bucket=None):
+    def _start_gc(self, bucket='', start_fid=0, end_fid=None):
         """ bucket must be in 0 or 00 string """
-        if bucket is not None:
+        if bucket:
             assert isinstance(bucket, basestring) and len(bucket) <= 2
+
         t = telnetlib.Telnet("127.0.0.1", self.backend1.port)
-        if bucket is None:
-            t.write('flush_all {}\n'.format(ignore_recent))
+        tree = '@%s' % bucket
+        if end_fid is None:
+            t.write('gc {} {}\n'.format(tree, start_fid))
         else:
-            t.write('flush_all %s @%s\n' % (ignore_recent, bucket))
+            t.write('gc {} {} {}\n' % (tree, start_fid, end_fid))
         t.read_until('OK')
         t.write('quit\n')
         t.close()
+
+    def _start_gc_all(self):
+        height = self.backend1.db_depth
+        hex_digits = string.digits + 'abcdef'
+        buckets_iter = itertools.product(*[hex_digits for _ in range(height)])
+        buckets = [''.join(i) for i in buckets_iter]
+
+        for b in buckets:
+            self._start_gc(bucket=b)
+            while True:
+                status = self._gc_status()
+                if status.find('running') >= 0:
+                    continue
+                elif status == 'success':
+                    print "bucket %s gc done" % b
+                    break
+                elif status == 'fail':
+                    return self.fail("optimize_stat = fail")
+                else:
+                    self.fail(status)
 
     def _gc_status(self):
         t = telnetlib.Telnet("127.0.0.1", self.backend1.port)
@@ -58,7 +75,6 @@ class TestGCBase(TestBeansdbBase):
             if not store.delete(key):
                 return self.fail("fail to delete %s" % (key))
 
-
     def _check_data(self, data, prefix='', loop_num=10 * 1024):
         store = MCStore(self.backend1_addr)
         for key in self.backend1.generate_key(prefix=prefix, count=loop_num):
@@ -66,7 +82,6 @@ class TestGCBase(TestBeansdbBase):
                 self.assertEqual(store.get(key), data)
             except Exception, e:
                 return self.fail("fail to check key %s: %s" % (key, str(e)))
-
 
     def tearDown(self):
         self.backend1.stop()
@@ -102,7 +117,7 @@ class TestGCSimple(TestGCBase):
         assert locate_key_iterate(self.backend1.db_home, db_depth=self.backend1.db_depth, key="delete_group" + "test0", ver_=1)
         assert locate_key_with_hint(self.backend1.db_home, db_depth=self.backend1.db_depth, key="delete_group" + "test0", ver_=-2)
         print "done set data to 2"
-        self._start_gc(0)
+        self._start_gc_all()
         print "gc started"
         while True:
             status = self._gc_status()
@@ -118,7 +133,7 @@ class TestGCSimple(TestGCBase):
                 self.fail(status)
         self._check_data(2)
         store = MCStore(self.backend1_addr)
-        self.assertEqual(self._get_version(store, ver_key), 3) # version 3 should be in data
+        self.assertEqual(self._get_version(store, ver_key), 3)  # version 3 should be in data
         print "check test key version, old version should not exist"
         assert locate_key_with_hint(self.backend1.db_home, db_depth=self.backend1.db_depth, key=ver_key, ver_=3)
         assert not locate_key_iterate(self.backend1.db_home, db_depth=self.backend1.db_depth, key=ver_key, ver_=1)
@@ -130,6 +145,7 @@ class TestGCSimple(TestGCBase):
         self.assertEqual(self.backend1.item_count(), 10241)
 
         self.backend1.stop()
+
 
 class TestGCSimple2(TestGCSimple):
 

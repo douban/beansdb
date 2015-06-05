@@ -767,12 +767,27 @@ static void update_item_pos(Item *it, void *_args)
     }
 }
 
-int bc_optimize(Bitcask *bc, int limit)
+int bc_optimize(Bitcask *bc, int start_fid, int end_fid)
 {
-    int i, total, last = -1;
+    if (start_fid > bc->curr) {
+        log_notice("start_fid > bc->curr: %d > %d", start_fid, bc->curr);
+        return 0;
+    }
+    int i, total;
     bc->optimize_flag = 1;
     const char *base = mgr_base(bc->mgr);
     char htreepath_tmp[MAX_PATH_LEN];
+
+    int last = -1;
+    for (i = (start_fid - 1); i >= 0; --i)
+    {
+        if (bc->buckets[i] >= 0)
+        {
+            last = i;
+            break;
+        }
+    }
+
     // remove htree
     for (i = 0; i < bc->curr; ++i)
     {
@@ -780,20 +795,15 @@ int bc_optimize(Bitcask *bc, int limit)
     }
     bc->last_snapshot = -1;
 
-    time_t limit_time = 0;
-    if (limit > 3600 * 24 * 365 * 10)   // more than 10 years
-    {
-        limit_time = limit; // absolute time
-    }
-    else
-    {
-        limit_time = time(NULL) - limit; // relative time
-    }
-
     struct stat st;
-    bool skipped = false;
-    for (i = 0; i < bc->curr && bc->optimize_flag == 1; ++i)
+    bool skipped = (start_fid != 0);
+
+    for (i = start_fid; i < bc->curr && bc->optimize_flag == 1; ++i)
     {
+        if ((end_fid != -1) && (i > end_fid)) {
+            // skip following data file.
+            break;
+        }
         char datapath[MAX_PATH_LEN], hintpath[MAX_PATH_LEN];
         gen_path(datapath, MAX_PATH_LEN, base, DATA_FILE, i);
         gen_path(hintpath, MAX_PATH_LEN, base, HINT_FILE, i);
@@ -812,50 +822,6 @@ int bc_optimize(Bitcask *bc, int limit)
                 log_error("data file: %s lost", datapath);
                 return -1;
             }
-        }
-        // skip recent modified file
-        if (st.st_mtime > limit_time)
-        {
-            skipped = true;
-            log_notice("optimize skip %s", datapath);
-
-            ++last;
-            if (last != i)   // rotate data file
-            {
-                // update HTree to use new index
-                if (stat(hintpath, &st) != 0)
-                {
-                    log_error("no hint file: %s, skip it", hintpath);
-                    last = i;
-                    continue;
-                }
-
-                char npath[MAX_PATH_LEN];
-                gen_path(npath, MAX_PATH_LEN, base, DATA_FILE, last);
-                if (symlink(datapath, npath) != 0)
-                {
-                    log_fatal("symlink failed: %s -> %s, err:%s", datapath, npath, strerror(errno));
-                    bc->optimize_flag = 0;
-                    return -1;
-                }
-
-                HTree *tree = ht_new(bc->depth, bc->pos, true);
-                scanHintFile(tree, i, hintpath, NULL);
-                struct update_args args;
-                args.tree = bc->tree;
-                args.index = last;
-                ht_visit(tree, update_item_pos, &args);
-                ht_destroy(tree);
-
-                unlink(npath);
-                mgr_rename(datapath, npath);
-                mgr_rename(hintpath, gen_path(npath, MAX_PATH_LEN, base, HINT_FILE, last));
-
-                bc->buckets[last] = bc->buckets[i];
-                bc->buckets[i] = -1;
-                dump_buckets(bc);
-            }
-            continue;
         }
 
         int deleted = count_deleted_record(bc->tree, i, hintpath, &total, skipped);
@@ -924,12 +890,12 @@ int bc_optimize(Bitcask *bc, int limit)
                     return -1;
                 }
             }
-        }
+        }  // end while
 
         pthread_mutex_lock(&bc->buffer_lock);
         bc->bytes -= bytes_deleted;
         pthread_mutex_unlock(&bc->buffer_lock);
-    }
+    }  // end for
 
     // update pos of items in curr_tree
     pthread_mutex_lock(&bc->write_lock);
