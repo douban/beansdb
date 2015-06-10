@@ -376,14 +376,14 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
 
     if (pread(fd, &r->crc, PADDING, offset) != PADDING)
     {
-        log_error("read file fail, %s @%lld, file size = %lld, key = %s",  
+        log_error("read file fail, %s @%lld, file size = %lld, key = %s",
                 path, (long long)offset, (long long)lseek(fd, 0L, SEEK_END), key);
         goto READ_END;
     }
 
     if (bad_kv_size(r->ksz, r->vsz))
     {
-        log_error("invalid ksz=%u, vsz=%u, %s @%lld, key = (%s)", 
+        log_error("invalid ksz=%u, vsz=%u, %s @%lld, key = (%s)",
                 r->ksz, r->vsz, path, (long long)offset, key);
         goto READ_END;
     }
@@ -413,7 +413,7 @@ DataRecord *fast_read_record(int fd, off_t offset, bool decomp, const char *path
         memcpy(r->key + ksz - key_more, r->value, key_more);
         memmove(r->value, r->value + key_more, vsz);
     }
-    else 
+    else
     {
         int vreadn = vsz - read_more;
         r->value = (char*)safe_malloc(vsz);
@@ -607,14 +607,12 @@ int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const 
         int last_bucket, const char *lastdata, const char *lasthint_real, uint32_t max_data_size,
         bool skipped, bool use_tmp, uint32_t *deleted_bytes)
 {
-
     struct timeval opt_start, opt_end, update_start, update_end;
     gettimeofday(&opt_start, NULL);
 
     int err = -1;
     log_notice("begin optimize %s -> %s, use_tmp = %s", path, lastdata, use_tmp ? "true" : "false");
 
-//to destroy:
     FILE *new_df = NULL;
     HTree *cur_tree = NULL;
     char *hintdata = NULL;
@@ -703,7 +701,7 @@ int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const 
         nrecord++;
         Item *it = ht_get2(tree, r->key, r->ksz);
         uint32_t pos = p - f->addr;
-        if (it && it->pos  == (pos | bucket) && (it->ver > 0 || skipped))
+        if (it && it->pos == (pos | bucket) && (it->ver > 0 || skipped))
         {
             uint32_t new_pos = ftello(new_df);
             if (new_pos + record_length(r) > max_data_size)
@@ -723,7 +721,9 @@ int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const 
                     rewind(new_df);
                 }
                 err = 1;
-                goto  OPT_FAIL;
+                free(it);
+                free_record(&r);
+                goto OPT_FAIL;
             }
 
             uint16_t hash = it->hash;
@@ -750,7 +750,56 @@ int optimizeDataFile(HTree *tree, Mgr *mgr, int bucket, const char *path, const 
                 log_error("write error: %s -> %d", path, last_bucket);
                 free(it);
                 free_record(&r);
-                goto  OPT_FAIL;
+                goto OPT_FAIL;
+            }
+        }
+        else if (r->version < 0 && skipped)
+        {
+            uint32_t new_pos = ftello(new_df);
+            if (new_pos + record_length(r) > max_data_size)
+            {
+                if (use_tmp)
+                {
+                    log_warn("Bug: optimize %s into tmp %s overflow", path, tmp);
+                }
+                else
+                {
+                    log_warn("optimize %s into %s overflow, ftruncate to %u", path, lastdata, new_df_orig_size);
+                    fflush(new_df);
+                    if (0 != ftruncate(fileno(new_df), new_df_orig_size))
+                    {
+                        log_error("ftruncate failed for  %s old size = %u", path, new_df_orig_size);
+                    }
+                    rewind(new_df);
+                }
+                err = 1;
+                free_record(&r);
+                goto OPT_FAIL;
+            }
+
+            // append record to hint file
+            int hsize = sizeof(HintRecord) - NAME_IN_RECORD + r->ksz + 1;
+            if (hint_used + hsize > hint_size)
+            {
+                hint_size *= 2;
+                hintdata = (char*)safe_realloc(hintdata, hint_size);
+            }
+            HintRecord *hr = (HintRecord*)(hintdata + hint_used);
+            hr->ksize = r->ksz;
+            hr->pos = new_pos >> 8;
+            hr->version = r->version;
+            hr->hash = 0;
+            safe_memcpy(hr->key,
+                        hint_size - sizeof(uint32_t) - sizeof(int32_t) - sizeof(uint16_t),
+                        r->key,
+                        r->ksz + 1);
+            hint_used += hsize;
+
+            if (write_record(new_df, r) != 0)
+            {
+                log_error("write error: %s -> %d", path, last_bucket);
+                free_record(&r);
+                goto OPT_FAIL;
             }
         }
         else
