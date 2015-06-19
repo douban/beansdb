@@ -1,12 +1,19 @@
 2015-03-25 0.7.1
-    * new: optimize_stat command
-    * new: python test
-    * new: bucket.txt for each bitcask to check data files
     * improve: go test
     * improve: get ??key will return key's meta even the key is deleted
-    * improve: use zlog
-    * bugfix: gc error
     * bugfix: item length overflow
+
+2014-08-19 0.7.0
+    * Compatibility Changes: use zlog
+    * Compatibility Changes: htree structure changed
+    * Compatibility Changes: remove command line argument -A
+    * Compatibility Changes: not allow using ';' to seperate dirs in -H
+    * new: add command line argument -C
+    * new: optimize_stat command
+    * new: python test
+    * new: bucket.txt for each bitcask to check data files
+    * bugfix: gc error
+    * bugfix: rotate error
     * bugfix: some memory and lock error
 
 2013-07-15 0.6.0
